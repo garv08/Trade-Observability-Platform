@@ -95,7 +95,13 @@ function makeCombo(host, options) {
   const combo = { host, options, input: host.querySelector("input"), badge: host.querySelector(".combo-badge"), typed: false };
   combo.input.addEventListener("focus", () => { combo.typed = false; combo.input.select(); openCombo(combo); });
   combo.input.addEventListener("click", () => { if (menu.combo !== combo) openCombo(combo); });
-  combo.input.addEventListener("input", () => { combo.typed = true; menu.index = 0; openCombo(combo); });
+  combo.input.addEventListener("input", () => {
+    combo.typed = true;
+    menu.index = 0;
+    clearTimeout(combo.timer);
+    if (combo.options.debounce) combo.timer = setTimeout(() => openCombo(combo), combo.options.debounce);
+    else openCombo(combo);
+  });
   combo.input.addEventListener("keydown", (event) => comboKey(combo, event));
   combo.input.addEventListener("blur", () => setTimeout(() => {
     if (menu.combo === combo && !$("combo-menu").contains(document.activeElement)) closeCombo();
@@ -143,11 +149,17 @@ function renderMenu() {
   const { options } = combo;
   const query = combo.typed ? combo.input.value.trim().toLowerCase() : "";
   const terms = query.split(/\s+/).filter(Boolean);
-  const rows = options.items().filter((item) => {
-    const text = `${item.label} ${item.value} ${item.group || ""} ${item.search || ""}`.toLowerCase();
-    return terms.every((term) => text.includes(term));
+  const source = query && options.searchItems ? options.searchItems() : options.items();
+  let rows = source.filter((item) => {
+    if (item.text === undefined) item.text = `${item.label} ${item.value} ${item.group || ""} ${item.search || ""}`.toLowerCase();
+    return terms.every((term) => item.text.includes(term));
   });
-  const MAX_ROWS = 300;
+  if (query && options.score) {
+    rows = rows.map((item, order) => ({ item, order, score: options.score(item, query) }))
+      .sort((a, b) => a.score - b.score || a.order - b.order)
+      .map((entry) => entry.item);
+  }
+  const MAX_ROWS = options.maxRows || 300;
   const hidden = Math.max(rows.length - MAX_ROWS, 0);
   if (hidden) rows.length = MAX_ROWS;
   menu.rows = rows;
@@ -266,36 +278,90 @@ function renderUniverse() {
     .map(([key, label]) => `<button type="button" data-universe="${key}" class="${key === state.universe ? "on" : ""}">${label} <em>${counts[key].toLocaleString("en-IN")}</em></button>`).join("");
   const members = universeMembers();
   $("stock-count").textContent = `${members.length.toLocaleString("en-IN")} names`;
+  const stockInput = document.querySelector("#stock-combo input");
+  if (stockInput) stockInput.placeholder = stockPlaceholder();
   const label = { nifty50: "Backtest Nifty 50", etf: "Backtest ETFs", bse: "Backtest BSE", all: "Backtest all" }[state.universe];
   const button = $("scan-50");
   if (!button.disabled) button.textContent = label;
   button.title = state.universe === "nifty50" ? "Run the strategy on all 50 stocks" : "Run the strategy on the 200 most traded names in this universe";
 }
 
-function stockItems() {
+const stockCache = { symbols: null, all: [], byUniverse: {} };
+
+function allStockItems() {
+  if (stockCache.symbols === state.symbols) return stockCache.all;
   const order = { nifty50: 0, nse_etf: 1, bse_etf: 2, bse: 3 };
-  return universeMembers().map((row) => ({
-    value: row.symbol,
-    label: `${row.symbol} ${row.name}`,
-    html: `<b>${esc(row.symbol)}</b> <small>${esc(row.name)}</small>`,
-    group: stockGroup(row),
-    search: `${row.sector || ""} ${row.code || ""} ${row.exchange || ""}`,
-    meta: row.last == null ? "no bars" : `${fmt(row.last)}  ${pct(row.change_pct)}`,
-    metaCls: cls(row.change_pct),
-    rank: order[row.universe || "nifty50"] ?? 9,
-  })).sort((a, b) => a.rank - b.rank || (a.group < b.group ? -1 : a.group > b.group ? 1 : 0));
+  stockCache.symbols = state.symbols;
+  stockCache.byUniverse = {};
+  stockCache.all = state.symbols.map((row) => {
+    const bare = row.symbol.replace(/^BSE:/, "");
+    return {
+      value: row.symbol,
+      label: `${row.symbol} ${row.name}`,
+      html: `<b>${esc(row.symbol)}</b> <small>${esc(row.name)}</small>`,
+      group: stockGroup(row),
+      search: `${row.sector || ""} ${row.code || ""} ${row.exchange || ""} ${row.isin || ""}`,
+      meta: row.last == null ? "no bars" : `${fmt(row.last)}  ${pct(row.change_pct)}`,
+      metaCls: cls(row.change_pct),
+      universe: row.universe || "nifty50",
+      bare: bare.toLowerCase(),
+      name: (row.name || "").toLowerCase(),
+      code: String(row.code || ""),
+      rank: order[row.universe || "nifty50"] ?? 9,
+    };
+  }).sort((a, b) => a.rank - b.rank || (a.group < b.group ? -1 : a.group > b.group ? 1 : 0));
+  return stockCache.all;
+}
+
+function stockItems(key = state.universe) {
+  const all = allStockItems();
+  if (!stockCache.byUniverse[key]) {
+    const chip = UNIVERSE_CHIPS.find((item) => item[0] === key) || UNIVERSE_CHIPS[0];
+    stockCache.byUniverse[key] = all.filter((item) => chip[2].includes(item.universe));
+  }
+  return stockCache.byUniverse[key];
+}
+
+function stockScore(item, query) {
+  const chip = UNIVERSE_CHIPS.find((entry) => entry[0] === state.universe) || UNIVERSE_CHIPS[0];
+  const away = chip[2].includes(item.universe) ? 0 : 10;
+  const q = query.replace(/^bse:/, "").replace(/\s+/g, " ");
+  if (item.bare === q.replace(/ /g, "") || item.code === q) return away;
+  if (item.bare.startsWith(q.replace(/ /g, ""))) return away + 1;
+  if (item.name.startsWith(q)) return away + 2;
+  if (item.name.includes(` ${q}`)) return away + 3;
+  return away + 4;
+}
+
+function stockPlaceholder() {
+  const count = universeMembers().length.toLocaleString("en-IN");
+  const what = { nifty50: "Nifty 50 stocks", etf: `${count} ETFs`, bse: `${count} BSE stocks`, all: `${count} stocks and ETFs` }[state.universe] || "names";
+  return `Search ${what} · name, symbol or BSE code`;
 }
 
 function buildControls() {
   makeCombo($("stock-combo"), {
-    placeholder: "Search 50 NSE names or sectors",
-    items: stockItems,
+    placeholder: "Search stocks",
+    items: () => stockItems(),
+    searchItems: () => stockItems("all"),
+    score: stockScore,
+    debounce: 120,
+    maxRows: 150,
     isOn: (value) => value === state.active,
     current: () => {
       const row = state.symbols.find((item) => item.symbol === state.active);
       return row ? `${row.symbol} · ${row.name}` : state.active;
     },
-    onPick: (value) => loadBars(value).catch((error) => { $("ohlc-legend").textContent = error.message; }),
+    onPick: (value) => {
+      const row = state.symbols.find((item) => item.symbol === value);
+      const home = { nifty50: "nifty50", nse_etf: "etf", bse_etf: "etf", bse: "bse" }[row?.universe || "nifty50"];
+      const chip = UNIVERSE_CHIPS.find((item) => item[0] === state.universe);
+      if (home && chip && !chip[2].includes(row?.universe || "nifty50")) {
+        state.universe = home;
+        renderUniverse();
+      }
+      loadBars(value).catch((error) => { $("ohlc-legend").textContent = error.message; });
+    },
   });
   renderUniverse();
 

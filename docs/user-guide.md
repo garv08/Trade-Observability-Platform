@@ -48,7 +48,7 @@ The ETF, BSE, and All chips appear once you've run **Sync history** (or `top-syn
 
 1. Click the **Stock** box, or press <kbd>/</kbd> anywhere.
 2. Type a symbol, a company name, or a sector, for example `infy`, `mahindra`, `pharma`, `energy`, or `financ bank`. Every word must match.
-3. Use <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click. The list is grouped by sector, ETF type, or BSE group, and shows each stock's last price and day change. Large universes show the first 300 matches; keep typing to narrow the list.
+3. Use <kbd>↑</kbd> <kbd>↓</kbd> and <kbd>Enter</kbd>, or click. The list is grouped by sector, ETF type, or BSE group, and shows each stock's last price and day change. Typing searches every universe by name, symbol, or BSE code (for example `suzlon` or `500325`), whichever chip is on; exact symbol matches come first, and picking a name from another universe switches the chip. Long lists show the first 150 matches; keep typing to narrow them.
 
 Your studies stay on when you switch stocks.
 

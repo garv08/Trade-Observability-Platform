@@ -2,12 +2,19 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.2.1] - 2026-11-01
+
+### Fixed
+- Stock search is fast with ~5,100 names: rows are built once and cached, typing is debounced, and each search renders in milliseconds instead of about a second.
+- Typing searches every universe, whichever chip is on. Exact symbol or BSE-code matches come first, then symbol and name prefixes. Picking a name from another universe switches the chip.
+- The stock search placeholder shows the selected universe and says you can search by name, symbol, or BSE code.
+
 ## [0.2.0] - 2026-11-01
 
 ### Added
 - **All BSE stocks and ETFs**: ~4,700 BSE equities, ~355 NSE ETFs, and ~35 BSE-only ETFs from the exchanges' daily bhavcopies, five years deep, resumable, and refreshed by **Sync history** or `top-sync --bhav`.
 - **Split and bonus adjustment** for bhavcopy data, from NSE corporate actions plus a price-gap rule, applied at read time.
-- **Universe chips** (Nifty 50 · ETFs · BSE · All) on the stock picker. The dropdown caps at 300 visible matches.
+- **Universe chips** (Nifty 50 · ETFs · BSE · All) on the stock picker. The dropdown shows the best matches first.
 - **Backtest universe** replaces Backtest 50. Large universes scan the 200 most traded names.
 - `top-sync --nifty | --bhav | --years`, `POST /api/sync {"what": …}`, and `universe`/`limit` on `/api/scan`.
 - Fundamentals for BSE stocks via Screener.in scrip-code pages; ETFs are refused with a clear message.

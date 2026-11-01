@@ -5,4 +5,4 @@ Scott Carney harmonics, 88 backtestable strategies (including YouTube creator ru
 interpretation with a rule-based swing plan.
 """
 
-__version__ = "0.2.0"
+__version__ = "0.2.1"
