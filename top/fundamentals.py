@@ -30,8 +30,10 @@ def _candidates(symbol):
 
 def _fetch_html(symbol):
     last_error = None
-    for name in _candidates(symbol):
-        url = f"https://www.screener.in/company/{urllib.parse.quote(name)}/consolidated/"
+    names = _candidates(symbol)
+    urls = [f"https://www.screener.in/company/{urllib.parse.quote(name)}/consolidated/" for name in names]
+    urls += [f"https://www.screener.in/company/{urllib.parse.quote(name)}/" for name in names]
+    for url in urls:
         request = urllib.request.Request(url, headers={"User-Agent": "Mozilla/5.0"})
         try:
             with urllib.request.urlopen(request, timeout=25) as response:
@@ -74,12 +76,13 @@ def parse_html(symbol, html, url):
     }
 
 
-def load(symbol):
+def load(symbol, screener_id=None):
+    """Screener.in snapshot. screener_id is the NSE symbol, or the BSE scrip code for BSE listings."""
     now = time.time()
     cached = _CACHE.get(symbol)
     if cached and now - cached[0] < _TTL:
         return cached[1]
-    url, html = _fetch_html(symbol)
+    url, html = _fetch_html(screener_id or symbol)
     payload = parse_html(symbol, html, url)
     _CACHE[symbol] = (now, payload)
     return payload

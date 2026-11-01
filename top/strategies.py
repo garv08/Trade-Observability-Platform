@@ -272,6 +272,17 @@ def _register():
          "Buy a close above the prior Range high on volume ≥ Volume × average; ride it with a trailing stop of Trail ATR below the best close; exit early if the breakout fails within 3 sessions.",
          [_num("length", "Range", 20, 5, 120), _num("vol_mult", "Volume ×", 1.5, 1.0, 5.0, 0.1), _num("atr_mult", "Trail ATR", 3.0, 1.0, 8.0, 0.5)], breakout_position)
 
+    from top.levels import levels_position, pattern_position
+
+    tz = {"creator": "@TradZoo", "channel": "https://x.com/TradZoo", "confidence": "MEDIUM",
+          "sources": ["https://x.com/TradZoo"], "notes": "Method inferred from @TradZoo's public chart posts; levels are computed by TOP, not taken from the posts."}
+    _add("key_level_breakout", "Key level breakout", B,
+         "Long on a close above yesterday's long trigger (nearest resistance); exit at the outer resistance or on a close below yesterday's support.",
+         [_num("order", "Swing order", 5, 2, 15), _num("lookback", "Lookback", 120, 30, 400)], levels_position, **tz)
+    _add("pattern_breakout", "Pattern breakout (measured move)", B,
+         "Long when price closes above the resistance line of a wedge, triangle, channel, or range; target the pattern height projected from the breakout, stop under support, time exit after Hold bars.",
+         [_num("window", "Pattern bars", 60, 20, 250), _num("hold", "Hold bars", 40, 5, 120)], pattern_position, **tz)
+
     from top.creators import register_strategies
 
     register_strategies(_add)

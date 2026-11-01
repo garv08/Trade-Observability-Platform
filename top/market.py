@@ -1,4 +1,4 @@
-"""Equal-weight Nifty 50 proxy built from the stored bars.
+"""Equal-weight Nifty 50 proxy built from the stored Nifty 50 bars.
 
 Used by strategies that compare one stock with "the market". There is no index
 feed in the store, so the proxy is the equal-weight average daily close-to-close
@@ -29,7 +29,12 @@ def daily_returns() -> dict[str, float]:
         if _cache["key"] == key:
             return _cache["returns"]
     with store.session() as con:
-        rows = con.execute("SELECT symbol, ts, close FROM bars WHERE interval = '1d' ORDER BY symbol, ts").fetchall()
+        rows = con.execute(
+            """
+            SELECT b.symbol, b.ts, b.close FROM bars b JOIN symbols s ON s.symbol = b.symbol
+            WHERE b.interval = '1d' AND s.universe = 'nifty50' ORDER BY b.symbol, b.ts
+            """
+        ).fetchall()
     sums: dict[str, float] = {}
     counts: dict[str, int] = {}
     prev_symbol, prev_close = None, None

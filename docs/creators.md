@@ -1,6 +1,6 @@
 # Creator strategies
 
-TOP has two sections named after YouTube channels. Each holds strategies and studies adapted from that creator's published work. Each strategy can be backtested on one stock or on all 50 (**Backtest 50**), like every other rule.
+TOP has two sections named after YouTube channels. Each holds strategies and studies adapted from that creator's published work. Each strategy can be backtested on one stock or across a universe (**Backtest universe**), like every other rule.
 
 ## How these were built
 
@@ -58,7 +58,7 @@ Changes from the originals:
 | PIP pattern mining (k-means clusters of perceptually important points) | Needs clustering and silhouette selection; heavy without NumPy |
 | Trendline meta-labeling (random forest) | Needs an ML library |
 | Visibility-graph and time-reversibility indicators | Graph shortest paths and O(n²) counts; low priority, and no trading rule in the repos |
-| KDE market-profile support and resistance | Rolling kernel density over a year per bar is too slow in pure Python for Backtest 50 |
+| KDE market-profile support and resistance | Rolling kernel density over a year per bar is too slow in pure Python for universe scans |
 | DeFi TVL indicator | Crypto-only data |
 | Harmonic patterns | TOP already has a full Scott Carney set |
 
@@ -93,9 +93,24 @@ The channel mostly tests strategies from books, papers, and funds. Its public ti
 | AI crypto bots, options, futures automation | Different markets or instruments |
 | Book and fund videos without public rules | The rules are not stated in public text |
 
+## @TradZoo (X)
+
+Account: https://x.com/TradZoo, Indian price-action analysis.
+
+The account's public posts were studied for method only; no post text or chart is copied into TOP. Most posts are daily "intraday support and resistance levels" for Nifty and Bank Nifty: four horizontal levels, long above the inner resistance and short below the inner support, each with three stepped targets. The rest are stock chart-pattern posts (falling wedges, triangles, channels, inverse head and shoulders) with a buying zone, a stop under support, and a measured-move target.
+
+| ID | Type | What TOP does | Confidence |
+| --- | --- | --- | --- |
+| `key_levels` | Study (Trend) | Next-session R2 / R1 / S1 / S2 from clustered swings and recent extremes, with stepped targets and a written plan | MEDIUM (method inferred) |
+| `pattern_breakout` | Study (Trend) | Trendline-fitted wedge / triangle / channel / range; breakout with buying zone, stop, T1 at the prior swing high, and T2 = breakout + pattern height | MEDIUM (method inferred) |
+| `key_level_breakout` | Strategy (Breakout) | Long on a close above yesterday's R1; exit at R2 or below S1 | MEDIUM |
+| `pattern_breakout` | Strategy (Breakout) | Long on a pattern breakout; exit at T2, below the stop, or after 40 bars | MEDIUM |
+
+TradZoo's level posts are for intraday trading on 15-minute charts. TOP has daily bars, so its levels apply to the next session.
+
 ## First results on Nifty 50 (2021-11 to 2026-10, 5 bps costs, default settings)
 
-From **Backtest 50**. "Beat B&H" counts stocks where the strategy's total return beat buy and hold over the same period.
+From **Backtest Nifty 50**. "Beat B&H" counts stocks where the strategy's total return beat buy and hold over the same period.
 
 | Strategy | Median return | Beat B&H | Avg trades |
 | --- | --- | --- | --- |
@@ -113,4 +128,4 @@ From **Backtest 50**. "Beat B&H" counts stocks where the strategy's total return
 | `ut_ahl_trend` | +33.5% | 8/50 | 6.4 |
 | `ut_lo_contrarian` | −5.6% | 5/50 | 61.2 |
 
-Over this mostly rising period, most long/flat rules made money but lagged simply holding most stocks, because they spend time out of the market. The creators themselves warn against trusting raw backtests. Treat these as starting points, check them with walk-forward tests, and rerun **Backtest 50** after you change parameters.
+Over this mostly rising period, most long/flat rules made money but lagged simply holding most stocks, because they spend time out of the market. The creators themselves warn against trusting raw backtests. Treat these as starting points, check them with walk-forward tests, and rerun **Backtest universe** after you change parameters.

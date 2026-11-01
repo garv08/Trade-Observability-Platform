@@ -68,6 +68,15 @@ def run():
             if count < 50:
                 thin.append(row["symbol"])
         check("every name has bars", not thin, ",".join(thin) or info["bars"])
+        extended = {u: v["symbols_with_bars"] for u, v in info.get("universes", {}).items() if u != "nifty50"}
+        adjusted = con.execute("SELECT COUNT(*) FROM adjustments").fetchone()[0]
+        listed = sum(v.get("listed", 0) for u, v in info.get("universes", {}).items() if u != "nifty50")
+        check(
+            "BSE stocks and ETFs",
+            listed == 0 or sum(extended.values()) > 0,
+            ("not synced yet (Sync history or top-sync --bhav)" if listed == 0 else
+             f"BSE {extended.get('bse', 0):,} · NSE ETFs {extended.get('nse_etf', 0)} · BSE ETFs {extended.get('bse_etf', 0)} · {adjusted} split/bonus adjustments"),
+        )
         bars = load_bars(con, "RELIANCE")
     frame = Frame(
         [bar["time"] for bar in bars],

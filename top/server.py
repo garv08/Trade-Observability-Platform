@@ -18,7 +18,7 @@ from top.explain import explain as explain_selection
 from top.fundamentals import load as load_fundamentals
 from top.indicators import SECTIONS, Frame, catalog as indicator_catalog
 from top.indicators import compute as compute_study
-from top.store import coverage, ensure_schema, list_symbols, load_bars, needs_sync, session, status, sync_all
+from top.store import coverage, ensure_schema, known_symbols, list_symbols, load_bars, needs_sync, session, status, symbol_info, sync_all
 from top.strategies import catalog as strategy_catalog
 from top.strategies import signal
 from top.verify import run as run_verify
@@ -68,7 +68,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         try:
             if parsed.path == "/api/sync":
-                self._send(200, _start_sync())
+                self._send(200, _start_sync(body.get("what") or "all"))
             elif parsed.path == "/api/studies":
                 self._send(200, _studies(body))
             elif parsed.path == "/api/backtest":
@@ -88,7 +88,7 @@ class Handler(BaseHTTPRequestHandler):
         query = parse_qs(parsed.query)
         try:
             if parsed.path == "/api/health":
-                payload = {"ok": True, "universe": len(UNIVERSE)}
+                payload = {"ok": True, "universe": len(UNIVERSE), "symbols": len(known_symbols())}
             elif parsed.path == "/api/status":
                 with session() as con:
                     ensure_schema(con)
@@ -99,7 +99,7 @@ class Handler(BaseHTTPRequestHandler):
                     payload = {"symbols": list_symbols(con)}
             elif parsed.path == "/api/bars":
                 symbol = (query.get("symbol") or [""])[0]
-                if symbol not in {row["symbol"] for row in UNIVERSE}:
+                if symbol not in known_symbols():
                     self._send(404, {"error": "unknown symbol"})
                     return
                 with session() as con:
@@ -111,10 +111,15 @@ class Handler(BaseHTTPRequestHandler):
                 payload = {"strategies": items, "count": len(items)}
             elif parsed.path == "/api/fundamentals":
                 symbol = (query.get("symbol") or [""])[0]
-                if symbol not in {row["symbol"] for row in UNIVERSE}:
+                if symbol not in known_symbols():
                     self._send(404, {"error": "unknown symbol"})
                     return
-                payload = load_fundamentals(symbol)
+                with session() as con:
+                    info = symbol_info(con, symbol) or {}
+                if info.get("kind") == "etf":
+                    raise ValueError("Fundamentals are not available for ETFs. Screener.in covers companies only.")
+                screener_id = info.get("code") if info.get("exchange") == "BSE" else symbol
+                payload = load_fundamentals(symbol, screener_id)
             elif parsed.path == "/api/verify":
                 payload = run_verify()
             else:
@@ -169,7 +174,7 @@ def _frame(symbol):
 
 def _studies(body):
     symbol = body.get("symbol")
-    if symbol not in {row["symbol"] for row in UNIVERSE}:
+    if symbol not in known_symbols():
         raise ValueError("unknown symbol")
     frame = _frame(symbol)
     studies = []
@@ -190,7 +195,7 @@ def _studies(body):
 
 def _backtest(body):
     symbol = body.get("symbol")
-    if symbol not in {row["symbol"] for row in UNIVERSE}:
+    if symbol not in known_symbols():
         raise ValueError("unknown symbol")
     frame = _frame(symbol)
     position = signal(body.get("strategy"), frame, body.get("params") or {})
@@ -213,7 +218,7 @@ TREND_SECTIONS = {"Trend", "Breakout", "Trend reversal"}
 
 
 def _known(symbol):
-    if symbol not in {row["symbol"] for row in UNIVERSE}:
+    if symbol not in known_symbols():
         raise ValueError("unknown symbol")
 
 
@@ -247,6 +252,33 @@ def _trend(body):
     return {"symbol": symbol, "rows": rows, "note": "One pass over trend, breakout, and reversal rules. Long or flat, next-open fills."}
 
 
+SCAN_LIMIT = 200
+UNIVERSE_GROUPS = {"nifty50": ("nifty50",), "etf": ("nse_etf", "bse_etf"), "bse": ("bse",), "all": ("nifty50", "nse_etf", "bse_etf", "bse")}
+
+
+def _scan_members(universe, limit):
+    """Symbols to scan: the whole Nifty 50, or the most traded names of a larger universe."""
+    groups = UNIVERSE_GROUPS.get(universe or "nifty50", ("nifty50",))
+    with session() as con:
+        rows = list_symbols(con)
+        if groups == ("nifty50",):
+            return [r for r in rows if r["universe"] == "nifty50"], False
+        placeholders = ", ".join("?" for _ in groups)
+        liquid = con.execute(
+            f"""
+            SELECT b.symbol, AVG(b.close * b.volume) AS turnover
+            FROM bars b JOIN symbols s ON s.symbol = b.symbol
+            WHERE b.interval = '1d' AND s.universe IN ({placeholders}) AND b.ts >= (SELECT MAX(ts) FROM bars) - INTERVAL 45 DAY
+            GROUP BY b.symbol ORDER BY turnover DESC LIMIT ?
+            """,
+            [*groups, int(limit)],
+        ).fetchall()
+    by_symbol = {r["symbol"]: r for r in rows}
+    total = sum(1 for r in rows if r["universe"] in groups and r["last"] is not None)
+    members = [by_symbol[symbol] for symbol, _ in liquid if symbol in by_symbol]
+    return members, total > len(members)
+
+
 def _scan(body):
     strategy_id = body.get("strategy")
     if strategy_id not in {item["id"] for item in strategy_catalog()}:
@@ -254,8 +286,11 @@ def _scan(body):
     params = body.get("params") or {}
     capital = float(body.get("capital") or 1_000_000)
     cost = float(body.get("cost_bps") if body.get("cost_bps") is not None else 5)
+    universe = body.get("universe") or "nifty50"
+    limit = max(1, min(int(body.get("limit") or SCAN_LIMIT), 1000))
+    members, capped = _scan_members(universe, limit)
     rows = []
-    for item in UNIVERSE:
+    for item in members:
         symbol = item["symbol"]
         try:
             frame = _frame(symbol)
@@ -276,7 +311,8 @@ def _scan(body):
         except Exception as exc:  # noqa: BLE001 - keep the rest of the universe
             rows.append({"symbol": symbol, "name": item["name"], "error": str(exc)})
     rows.sort(key=lambda row: row.get("return_pct") if row.get("return_pct") is not None else -999, reverse=True)
-    return {"strategy": strategy_id, "rows": rows}
+    note = f"Top {len(members)} by recent traded value." if capped else ""
+    return {"strategy": strategy_id, "universe": universe, "rows": rows, "note": note}
 
 
 def _explain(body):
@@ -298,13 +334,28 @@ def _explain(body):
     )
 
 
-def _start_sync():
-    global _sync_thread
+_bhav_thread = None
+
+
+def _run_bhav():
+    from top.bhav import sync_bhav
+
+    try:
+        sync_bhav()
+    except Exception:  # noqa: BLE001 - status already carries the message
+        pass
+
+
+def _start_sync(what="all"):
+    """Start background syncs: 'nifty' (Yahoo, adjusted), 'bhav' (BSE stocks + ETFs), or 'all'."""
+    global _sync_thread, _bhav_thread
     current = status()
-    if current["syncing"]:
-        return current
-    _sync_thread = threading.Thread(target=sync_all, daemon=True)
-    _sync_thread.start()
+    if what in ("nifty", "all") and not current["syncing"]:
+        _sync_thread = threading.Thread(target=sync_all, daemon=True)
+        _sync_thread.start()
+    if what in ("bhav", "all") and not current["bhav"]["syncing"]:
+        _bhav_thread = threading.Thread(target=_run_bhav, daemon=True)
+        _bhav_thread.start()
     return status()
 
 

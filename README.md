@@ -2,9 +2,9 @@
 
 # 📈 TOP — Trade Observability Platform
 
-**A local, TradingView-style research desk for India's Nifty 50.**<br/>
-Chart all 50 stocks, stack 146 indicators, spot Scott Carney harmonics and Darvas boxes,<br/>
-backtest 86 strategies on one stock or all 50, and read a plain-English swing-trade plan, all on your own machine.
+**A local, TradingView-style research desk for Indian markets: the Nifty 50, ~4,700 BSE stocks, and ~390 ETFs.**<br/>
+Chart any of them, stack 148 indicators, spot Scott Carney harmonics and Darvas boxes,<br/>
+backtest 88 strategies on one stock or a whole universe, and read a plain-English swing-trade plan, all on your own machine.
 
 [![CI](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
@@ -34,7 +34,9 @@ pip install -e .
 top-platform
 ```
 
-Open **http://127.0.0.1:8000**. On the first run TOP downloads about five years of daily history for all 50 stocks (1–2 minutes). The top bar shows `Sync 12/50` and then `DuckDB 50/50`.
+Open **http://127.0.0.1:8000**. On the first run TOP downloads about five years of daily history for the Nifty 50 (1–2 minutes). The top bar shows `Nifty sync 12/50`, then `DuckDB 50/50`.
+
+To add **all BSE stocks and NSE/BSE ETFs**, click **Sync history** in the app, or run `top-sync --bhav`. This downloads five years of exchange bhavcopies, about 1,300 files and 30–40 minutes the first time, then seconds per day after that.
 
 > [!TIP]
 > On Ubuntu/Debian you may first need `sudo apt install -y git python3-venv python3-pip`. Windows and macOS steps, `pipx`, upgrading, and troubleshooting are in the **[installation guide](docs/installation.md)**.
@@ -83,12 +85,30 @@ Signal at the close, fill at the next open, with costs. Results include return, 
 <tr>
 <td colspan="2" valign="top">
 
-### 5 · Strategies from YouTube creators, and Backtest 50
-Rules adapted from **@neurotrader888** and **@UnbiasedTradingGoshawk** sit in their own searchable groups, each with sources and a confidence label. **Backtest 50** runs any strategy on all 50 stocks and ranks them.
+### 5 · Strategies from YouTube creators, and Backtest universe
+Rules adapted from **@neurotrader888** and **@UnbiasedTradingGoshawk** sit in their own searchable groups, each with sources and a confidence label. **Backtest universe** runs any strategy on the Nifty 50, or on the most traded ETFs or BSE stocks, and ranks them.
 
 <img src="docs/images/creators-scan.png" alt="Creator strategies dropdown and Connors Double 7s ranked across all 50 stocks"/>
 
 </td>
+</tr>
+<tr>
+<td width="50%" valign="top">
+
+### 6 · Key levels and pattern breakouts
+A method inspired by **@TradZoo**: nearby support and resistance shown as a long/short plan with stepped targets, plus wedge, triangle and channel breakouts with a measured target.
+
+</td>
+<td width="50%" valign="top">
+
+### 7 · All BSE stocks and NSE/BSE ETFs
+Universe chips switch between the Nifty 50, about 390 ETFs and about 4,700 BSE stocks. Five years of daily data come from bhavcopies and are adjusted for splits and bonuses.
+
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/key-levels.png" alt="Infosys with key support/resistance levels and a falling wedge breakout"/></td>
+<td><img src="docs/images/bse-universe.png" alt="BSE universe selected in the stock picker"/></td>
 </tr>
 </table>
 
@@ -98,15 +118,17 @@ Rules adapted from **@neurotrader888** and **@UnbiasedTradingGoshawk** sit in th
 
 | | Feature | Details |
 | --- | --- | --- |
-| 🗂️ | **All 50 Nifty stocks** | About five years of adjusted daily bars in a local DuckDB file. Includes `M&M`, `ETERNAL` (formerly Zomato), and `TMPV`. One-click **Sync history** or `top-sync` |
+| 🗂️ | **Nifty 50** | About five years of adjusted daily bars from Yahoo in a local DuckDB file. Includes `M&M`, `ETERNAL` (formerly Zomato), and `TMPV` |
+| 🏛️ | **All BSE stocks and ETFs** | ~4,700 BSE equities, ~355 NSE ETFs, and ~35 BSE-only ETFs from the exchanges' daily bhavcopies, five years deep. Split and bonus adjusted from NSE corporate actions plus a price-gap rule. **Universe** chips switch between Nifty 50, ETFs, BSE, and All |
 | 📊 | **TradingView-style chart** | TradingView Lightweight Charts with candles, volume, overlays, oscillator panes, and 6M/1Y/2Y/5Y/All ranges |
-| 🧮 | **146 indicators** in 10 sections | Harmonics · @neurotrader888 · @UnbiasedTradingGoshawk · Moving averages · Bands and channels · Trend · Momentum · Volatility · Volume · Price statistics. [Full catalog →](docs/indicators.md) |
+| 🧮 | **148 indicators** in 10 sections | Harmonics · @neurotrader888 · @UnbiasedTradingGoshawk · Moving averages · Bands and channels · Trend · Momentum · Volatility · Volume · Price statistics. [Full catalog →](docs/indicators.md) |
 | ⏱️ | **Flexible durations** | Period presets (5 … 200), free entry, and **+ Another** to add SMA 20/50/200 side by side. Adjustable EMA-ribbon lengths |
 | 🌫️ | **Shaded bands** | Every band or channel with upper and lower lines is shaded light grey, drawn under the candles |
 | 🦋 | **Scott Carney harmonics** | 11 patterns plus "all", drawn as XABCD legs, on by default for every stock and backtestable |
+| 📐 | **Key levels plan & pattern breakouts** | Next-session long and short triggers, three stepped targets, and outer support/resistance written up like a daily analysis post. Wedge, triangle, channel, and range breakouts with buying zone, stop, and a measured-move target. Method inspired by [@TradZoo](https://x.com/TradZoo)'s public chart posts |
 | 📦 | **Darvas box & breakout detector** | Boxes, breakouts, breakdowns, failed breakouts, and ATR trailing trend, each with a strategy |
-| 🧪 | **86 strategies** | Trend, breakout, trend reversal, harmonics, oscillators, mean reversion, price action, volume, and two creator groups. [Full catalog →](docs/strategies.md) |
-| 🏁 | **Backtest 50** | Run one strategy on every stock and rank by return, drawdown, and trades |
+| 🧪 | **88 strategies** | Trend, breakout, trend reversal, harmonics, oscillators, mean reversion, price action, volume, and two creator groups. [Full catalog →](docs/strategies.md) |
+| 🏁 | **Backtest universe** | Run one strategy on all 50 Nifty stocks, or on the 200 most traded names of the ETF, BSE, or combined universe, ranked by return |
 | 🎥 | **YouTube creator strategies** | 13 rules adapted from @neurotrader888's MIT-licensed code and the public sources @UnbiasedTradingGoshawk tests. [Details →](docs/creators.md) |
 | 🗣️ | **Interpretation pane** | Plain-English reading of every selected study and strategy, a technical rating (MA and oscillator votes), and a swing plan with trigger, entry, stop, T1/T2, position size, and historical odds on the same stock |
 | 🔎 | **Trend scan** | Every trend, breakout, and reversal rule on the selected stock in one click |
@@ -123,7 +145,8 @@ flowchart LR
   B["Browser<br/>index.html + app.js<br/>Lightweight Charts"] -- "JSON /api/*" --> S["top-platform<br/>(Python stdlib HTTP server)"]
   S --> E["Engines<br/>indicators · strategies · backtest<br/>harmonics · Darvas · explain"]
   S <--> D[("DuckDB<br/>data/nse.duckdb")]
-  S -- "first run / Sync" --> Y["Yahoo Finance<br/>daily history"]
+  S -- "first run / Sync" --> Y["Yahoo Finance<br/>Nifty 50 (adjusted)"]
+  S -- "Sync / top-sync --bhav" --> X["BSE & NSE bhavcopies<br/>+ NSE corporate actions"]
   S -- "on demand" --> F["Screener.in<br/>fundamentals"]
 ```
 
@@ -141,8 +164,8 @@ Read the full [design document](docs/design.md) for the architecture, algorithms
 | --- | --- |
 | 🛠️ [Installation](docs/installation.md) | Linux, macOS, Windows, `pipx`, upgrading, uninstalling, running in the background, troubleshooting |
 | 🧑‍💻 [User guide](docs/user-guide.md) | A walkthrough of every panel and button, with screenshots and example links |
-| 🧮 [Indicator catalog](docs/indicators.md) | All 146 studies with settings and ranges |
-| 🧪 [Strategy catalog](docs/strategies.md) | All 86 strategies with rules and settings |
+| 🧮 [Indicator catalog](docs/indicators.md) | All 148 studies with settings and ranges |
+| 🧪 [Strategy catalog](docs/strategies.md) | All 88 strategies with rules and settings |
 | 🎥 [Creator strategies](docs/creators.md) | @neurotrader888 and @UnbiasedTradingGoshawk: sources, confidence, adaptations, results |
 | 🏗️ [Design](docs/design.md) | Architecture, data, algorithms, decisions, performance, security, testing |
 | 🔌 [HTTP API](docs/api.md) | Every route with request and response examples |
@@ -182,7 +205,7 @@ No. TOP reads delayed public **daily** bars and never places orders. It is for r
 <details>
 <summary><b>Where does the data come from, and how fresh is it?</b></summary>
 
-Daily OHLCV from Yahoo Finance's public chart endpoint (adjusted for splits and dividends), stored in DuckDB. Click **Sync history** or run `top-sync` after the market closes to refresh. Fundamentals come from Screener.in on demand.
+The Nifty 50 comes from Yahoo Finance's public chart endpoint, adjusted for splits and dividends. BSE stocks and ETFs come from the exchanges' official daily bhavcopy files. These are adjusted for splits and bonus issues, not dividends, using NSE corporate actions plus a price-gap rule for BSE-only stocks. Everything is stored in DuckDB. Click **Sync history** or run `top-sync` after the market closes to refresh. Fundamentals come from Screener.in on demand.
 </details>
 
 <details>

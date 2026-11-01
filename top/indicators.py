@@ -816,7 +816,8 @@ def _num(key, label, default, min_, max_, step=1):
 STUDIES = []
 
 
-def _add(study_id, name, section, pane, params, outputs, fn):
+def _add(study_id, name, section, pane, params, outputs, fn, **meta):
+    """Register a study. Optional meta: colors {output: css colour}, step (draw as horizontal steps), credit, sources."""
     STUDIES.append(
         {
             "id": study_id,
@@ -826,6 +827,7 @@ def _add(study_id, name, section, pane, params, outputs, fn):
             "params": params,
             "outputs": outputs,
             "fn": fn,
+            "meta": meta,
         }
     )
 
@@ -1027,6 +1029,17 @@ def _build():
          [_num("length", "Range", 20, 5, 120), _num("vol_mult", "Volume ×", 1.5, 1.0, 5.0, 0.1), _num("atr_mult", "Trail ATR", 3.0, 1.0, 8.0, 0.5)],
          ["upper", "lower", "trail"], breakout_study)
 
+    from top.levels import levels_study, pattern_study
+
+    tz = {"credit": "Method inspired by @TradZoo's public chart posts on X", "sources": ["https://x.com/TradZoo"]}
+    _add("key_levels", "Key levels plan (next session)", T, P,
+         [_num("order", "Swing order", 5, 2, 15), _num("lookback", "Lookback", 120, 30, 400), _num("span", "Draw over", 30, 5, 250)],
+         ["r2", "r1", "s1", "s2"], levels_study,
+         colors={"r2": "#f23645", "r1": "#f23645", "s1": "#089981", "s2": "#089981"}, step=True, **tz)
+    _add("pattern_breakout", "Pattern breakout projector", T, P,
+         [_num("window", "Pattern bars", 60, 20, 250)], ["upper", "lower"], pattern_study,
+         colors={"upper": "#f23645", "lower": "#089981"}, **tz)
+
     from top.creators import register_studies
 
     register_studies(_add, P, O)
@@ -1044,6 +1057,7 @@ def catalog():
             "pane": item["pane"],
             "params": item["params"],
             "outputs": item["outputs"],
+            **item.get("meta", {}),
         }
         for item in STUDIES
     ]

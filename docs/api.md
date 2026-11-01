@@ -26,11 +26,20 @@ Sync state and store coverage.
 ### `GET /api/symbols`
 
 ```json
-{"symbols": [{"symbol": "RELIANCE", "name": "Reliance Industries", "sector": "Energy", "weight": 8.49, "rank": 1,
-              "yahoo": "RELIANCE.NS", "last": 1164.9, "change_pct": -0.21, "as_of": "2026-10-30"}]}
+{"symbols": [
+  {"symbol": "RELIANCE", "name": "Reliance Industries", "sector": "Energy", "weight": 8.49, "rank": 1, "yahoo": "RELIANCE.NS",
+   "exchange": "NSE", "kind": "stock", "universe": "nifty50", "code": "RELIANCE", "group": null,
+   "last": 1164.9, "change_pct": -0.21, "as_of": "2026-10-30"},
+  {"symbol": "BSE:ABB", "name": "Abb India Limited", "sector": "BSE group A", "exchange": "BSE", "kind": "stock",
+   "universe": "bse", "code": "500002", "group": "A", "last": 6403.0, "change_pct": -1.94, "as_of": "2026-10-30"},
+  {"symbol": "NSE:NIFTYBEES", "name": "NIP IND ETF NIFTY BEES", "sector": "EQUITY", "exchange": "NSE", "kind": "etf",
+   "universe": "nse_etf", "code": "NIFTYBEES", "group": "ETF", "last": 262.89, "change_pct": 0.39, "as_of": "2026-10-30"}
+]}
 ```
 
 ### `GET /api/bars?symbol=INFY`
+
+Works for any listed symbol, for example `symbol=BSE%3AABB` or `symbol=NSE%3ANIFTYBEES`. Bhavcopy bars are returned split/bonus adjusted.
 
 ```json
 {"symbol": "INFY", "interval": "1d",
@@ -42,7 +51,7 @@ Sync state and store coverage.
 The study catalog. `pane` is `price` (overlay) or `osc` (own pane).
 
 ```json
-{"sections": ["Harmonics", "Moving averages", "..."], "count": 146,
+{"sections": ["Harmonics", "Moving averages", "..."], "count": 148,
  "indicators": [{"id": "sma", "name": "SMA", "section": "Moving averages", "pane": "price",
                  "params": [{"key": "length", "label": "Length", "type": "number", "default": 20, "min": 2, "max": 400, "step": 1}],
                  "outputs": ["sma"]}]}
@@ -51,7 +60,7 @@ The study catalog. `pane` is `price` (overlay) or `osc` (own pane).
 ### `GET /api/strategies`
 
 ```json
-{"count": 86, "strategies": [{"id": "sma_cross", "name": "SMA cross", "section": "Trend",
+{"count": 88, "strategies": [{"id": "sma_cross", "name": "SMA cross", "section": "Trend",
   "blurb": "Long when the fast SMA is above the slow SMA.", "params": [{"key": "fast", "default": 20, "...": "..."}]}]}
 ```
 
@@ -79,7 +88,11 @@ Send `Content-Type: application/json`.
 
 ### `POST /api/sync`
 
-Starts a background download of all 50 names. It returns the current sync state immediately; poll `/api/status` for progress.
+```json
+{"what": "all"}
+```
+
+`what` is `nifty` (Yahoo, Nifty 50), `bhav` (BSE stocks and ETFs from bhavcopies), or `all` (default). Starts background downloads and returns the current state immediately; poll `/api/status`, whose `sync.bhav` holds `done`, `total`, `message`, and `last_day` for the bhavcopy sync.
 
 ### `POST /api/studies`
 
@@ -134,10 +147,10 @@ Every Trend, Breakout, and Trend reversal strategy on one stock.
 
 ### `POST /api/scan`
 
-One strategy on all 50 stocks, sorted by return.
+One strategy across a universe, sorted by return. `universe` is `nifty50` (default; all 50), `etf`, `bse`, or `all`. The larger universes scan the `limit` (default 200, max 1000) most traded names over the last ~45 days; `note` says so.
 
 ```json
-{"strategy": "harm_gartley", "params": {}, "capital": 1000000, "cost_bps": 5}
+{"strategy": "harm_gartley", "params": {}, "capital": 1000000, "cost_bps": 5, "universe": "bse", "limit": 200}
 ```
 
 ```json

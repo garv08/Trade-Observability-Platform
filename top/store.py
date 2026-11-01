@@ -34,17 +34,33 @@ _status = {
     "errors": [],
     "last_sync": None,
     "message": "idle",
+    "bhav": {"syncing": False, "done": 0, "total": 0, "message": "idle", "last_day": None},
+}
+_symbols_cache: dict = {"key": None, "rows": [], "known": set()}
+
+UNIVERSES = {
+    "nifty50": "Nifty 50",
+    "nse_etf": "NSE ETFs",
+    "bse_etf": "BSE ETFs",
+    "bse": "BSE stocks",
 }
 
 
 def status() -> dict:
     with _lock:
-        return dict(_status)
+        out = dict(_status)
+        out["bhav"] = dict(_status["bhav"])
+        return out
 
 
 def _set_status(**kwargs) -> None:
     with _lock:
         _status.update(kwargs)
+
+
+def set_bhav_status(**kwargs) -> None:
+    with _lock:
+        _status["bhav"].update(kwargs)
 
 
 def connect() -> duckdb.DuckDBPyConnection:
@@ -102,18 +118,42 @@ def ensure_schema(con: duckdb.DuckDBPyConnection) -> None:
         )
         """
     )
+    for column in ("exchange VARCHAR", "kind VARCHAR", "universe VARCHAR", "code VARCHAR", "isin VARCHAR", "grp VARCHAR"):
+        con.execute(f"ALTER TABLE symbols ADD COLUMN IF NOT EXISTS {column}")
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS adjustments (
+            symbol VARCHAR, ex_date DATE, factor DOUBLE, source VARCHAR, note VARCHAR,
+            PRIMARY KEY (symbol, ex_date)
+        )
+        """
+    )
+    con.execute(
+        """
+        CREATE TABLE IF NOT EXISTS corporate_actions (
+            symbol VARCHAR, isin VARCHAR, ex_date DATE, factor DOUBLE, subject VARCHAR,
+            PRIMARY KEY (symbol, ex_date, subject)
+        )
+        """
+    )
+    con.execute("CREATE TABLE IF NOT EXISTS bhav_days (exchange VARCHAR, day DATE, rows INTEGER, PRIMARY KEY (exchange, day))")
     con.executemany(
         """
-        INSERT INTO symbols VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO symbols (symbol, yahoo, name, sector, weight, rank, exchange, kind, universe, code, isin, grp)
+        VALUES (?, ?, ?, ?, ?, ?, 'NSE', 'stock', 'nifty50', ?, NULL, NULL)
         ON CONFLICT (symbol) DO UPDATE SET
             yahoo = excluded.yahoo,
             name = excluded.name,
             sector = excluded.sector,
             weight = excluded.weight,
-            rank = excluded.rank
+            rank = excluded.rank,
+            exchange = excluded.exchange,
+            kind = excluded.kind,
+            universe = excluded.universe,
+            code = excluded.code
         """,
         [
-            (row["symbol"], yahoo_symbol(row["symbol"]), row["name"], row["sector"], row["weight"], i + 1)
+            (row["symbol"], yahoo_symbol(row["symbol"]), row["name"], row["sector"], row["weight"], i + 1, row["symbol"])
             for i, row in enumerate(UNIVERSE)
         ],
     )
@@ -253,21 +293,35 @@ def sync_all(progress=None) -> dict:
 
 
 def coverage(con: duckdb.DuckDBPyConnection) -> dict:
-    row = con.execute(
+    """Store coverage. `symbols_with_bars` and `bars` count the Nifty 50; `universes` covers everything."""
+    rows = con.execute(
         """
-        SELECT COUNT(DISTINCT symbol), COUNT(*), MIN(ts), MAX(ts)
-        FROM bars WHERE interval = ?
+        SELECT COALESCE(s.universe, 'nifty50'), COUNT(DISTINCT b.symbol), COUNT(*), MIN(b.ts), MAX(b.ts)
+        FROM bars b LEFT JOIN symbols s ON s.symbol = b.symbol
+        WHERE b.interval = ?
+        GROUP BY 1
         """,
         [INTERVAL],
-    ).fetchone()
-    meta = con.execute("SELECT value FROM meta WHERE key = 'last_sync'").fetchone()
+    ).fetchall()
+    listed = dict(con.execute("SELECT universe, COUNT(*) FROM symbols GROUP BY universe").fetchall())
+    per = {u: {"symbols_with_bars": int(n or 0), "bars": int(b or 0), "first": None if f is None else str(f), "last": None if l is None else str(l)} for u, n, b, f, l in rows}
+    for universe in UNIVERSES:
+        per.setdefault(universe, {"symbols_with_bars": 0, "bars": 0, "first": None, "last": None})
+        per[universe]["listed"] = int(listed.get(universe, 0) or 0)
+        per[universe]["label"] = UNIVERSES[universe]
+    nifty = per["nifty50"]
+    meta = dict(con.execute("SELECT key, value FROM meta WHERE key IN ('last_sync', 'bhav_last_sync')").fetchall())
     return {
-        "symbols_with_bars": int(row[0] or 0),
-        "bars": int(row[1] or 0),
-        "first": None if row[2] is None else str(row[2]),
-        "last": None if row[3] is None else str(row[3]),
-        "last_sync": None if meta is None else meta[0],
+        "symbols_with_bars": nifty["symbols_with_bars"],
+        "bars": nifty["bars"],
+        "first": nifty["first"],
+        "last": nifty["last"],
+        "last_sync": meta.get("last_sync"),
+        "bhav_last_sync": meta.get("bhav_last_sync"),
         "universe": len(UNIVERSE),
+        "universes": per,
+        "total_symbols_with_bars": sum(v["symbols_with_bars"] for v in per.values()),
+        "total_bars": sum(v["bars"] for v in per.values()),
     }
 
 
@@ -276,27 +330,44 @@ def needs_sync(con: duckdb.DuckDBPyConnection) -> bool:
     return info["symbols_with_bars"] < len(UNIVERSE) or info["bars"] < 1000
 
 
+def _store_key(con):
+    count, last = con.execute("SELECT COUNT(*), MAX(ts) FROM bars").fetchone()
+    symbols = con.execute("SELECT COUNT(*) FROM symbols").fetchone()[0]
+    adjustments = con.execute("SELECT COUNT(*) FROM adjustments").fetchone()[0]
+    return (str(DB_PATH), int(count or 0), str(last), int(symbols or 0), int(adjustments or 0))
+
+
 def list_symbols(con: duckdb.DuckDBPyConnection) -> list[dict]:
+    """Every listed symbol with its last close and day change. Cached until the store changes."""
+    key = _store_key(con)
+    with _lock:
+        if _symbols_cache["key"] == key:
+            return _symbols_cache["rows"]
     rows = con.execute(
         """
-        WITH ranked AS (
+        WITH recent AS (
             SELECT symbol, ts, close,
                    row_number() OVER (PARTITION BY symbol ORDER BY ts DESC) AS rn
             FROM bars
-            WHERE interval = ?
+            WHERE interval = ? AND ts >= (SELECT MAX(ts) FROM bars) - INTERVAL 30 DAY
         )
         SELECT s.symbol, s.name, s.sector, s.weight, s.rank, s.yahoo,
-               a.close, b.close, a.ts
+               s.exchange, s.kind, s.universe, s.code, s.grp,
+               a.close, b.close, a.ts, adj.factor
         FROM symbols s
-        LEFT JOIN ranked a ON a.symbol = s.symbol AND a.rn = 1
-        LEFT JOIN ranked b ON b.symbol = s.symbol AND b.rn = 2
-        ORDER BY s.rank
+        LEFT JOIN recent a ON a.symbol = s.symbol AND a.rn = 1
+        LEFT JOIN recent b ON b.symbol = s.symbol AND b.rn = 2
+        LEFT JOIN adjustments adj ON adj.symbol = s.symbol AND adj.ex_date = a.ts
+        ORDER BY CASE s.universe WHEN 'nifty50' THEN 0 WHEN 'nse_etf' THEN 1 WHEN 'bse_etf' THEN 2 ELSE 3 END,
+                 s.rank NULLS LAST, s.symbol
         """,
         [INTERVAL],
     ).fetchall()
     out = []
-    for symbol, name, sector, weight, rank, yahoo, last, prev, ts in rows:
+    for symbol, name, sector, weight, rank, yahoo, exchange, kind, universe, code, grp, last, prev, ts, factor in rows:
         change = None
+        if factor and prev:
+            prev = prev / factor
         if last is not None and prev not in (None, 0):
             change = (last / prev - 1) * 100
         out.append(
@@ -307,15 +378,44 @@ def list_symbols(con: duckdb.DuckDBPyConnection) -> list[dict]:
                 "weight": weight,
                 "rank": rank,
                 "yahoo": yahoo,
+                "exchange": exchange or "NSE",
+                "kind": kind or "stock",
+                "universe": universe or "nifty50",
+                "code": code,
+                "group": grp,
                 "last": last,
                 "change_pct": change,
                 "as_of": None if ts is None else str(ts),
             }
         )
+    with _lock:
+        _symbols_cache["key"] = key
+        _symbols_cache["rows"] = out
+        _symbols_cache["known"] = {row["symbol"] for row in out}
     return out
 
 
+def known_symbols(con=None) -> set:
+    """Symbols the store knows about (Nifty 50 plus any BSE / ETF listings)."""
+    if con is not None:
+        list_symbols(con)
+    else:
+        with session() as c:
+            ensure_schema(c)
+            list_symbols(c)
+    with _lock:
+        return set(_symbols_cache["known"]) | {row["symbol"] for row in UNIVERSE}
+
+
+def symbol_info(con: duckdb.DuckDBPyConnection, symbol: str) -> dict | None:
+    for row in list_symbols(con):
+        if row["symbol"] == symbol:
+            return row
+    return None
+
+
 def load_bars(con: duckdb.DuckDBPyConnection, symbol: str) -> list[dict]:
+    """Daily bars, back-adjusted for any recorded splits and bonus issues."""
     rows = con.execute(
         """
         SELECT ts, open, high, low, close, volume
@@ -325,38 +425,67 @@ def load_bars(con: duckdb.DuckDBPyConnection, symbol: str) -> list[dict]:
         """,
         [symbol, INTERVAL],
     ).fetchall()
-    return [
-        {
-            "time": str(ts),
-            "open": open_,
-            "high": high,
-            "low": low,
-            "close": close,
-            "volume": int(volume or 0),
-        }
-        for ts, open_, high, low, close, volume in rows
-    ]
+    factors = con.execute("SELECT ex_date, factor FROM adjustments WHERE symbol = ? AND factor > 0 ORDER BY ex_date", [symbol]).fetchall()
+    out = []
+    # Walk backwards so the cumulative factor covers every action after each bar.
+    cumulative, k = 1.0, len(factors) - 1
+    for ts, open_, high, low, close, volume in reversed(rows):
+        while k >= 0 and factors[k][0] > ts:
+            cumulative *= factors[k][1]
+            k -= 1
+        out.append(
+            {
+                "time": str(ts),
+                "open": open_ / cumulative,
+                "high": high / cumulative,
+                "low": low / cumulative,
+                "close": close / cumulative,
+                "volume": int((volume or 0) * cumulative),
+            }
+        )
+    out.reverse()
+    return out
 
 
 def main(argv=None) -> int:
     """Download or refresh daily history for all 50 names without starting the server."""
     import argparse
 
-    parser = argparse.ArgumentParser(prog="top-sync", description="Fill or refresh the TOP DuckDB store from Yahoo daily history.")
+    parser = argparse.ArgumentParser(
+        prog="top-sync",
+        description="Fill or refresh the TOP DuckDB store: the Nifty 50 from Yahoo (adjusted), and BSE stocks plus NSE/BSE ETFs from exchange bhavcopies.",
+    )
     parser.add_argument("--db", help="DuckDB file (default: TOP_DB or ./data/nse.duckdb)")
+    which = parser.add_mutually_exclusive_group()
+    which.add_argument("--nifty", action="store_true", help="only the Nifty 50 (Yahoo)")
+    which.add_argument("--bhav", action="store_true", help="only BSE stocks and ETFs (bhavcopies)")
+    parser.add_argument("--years", type=int, default=5, help="history for BSE stocks and ETFs (default 5)")
     args = parser.parse_args(argv)
     global DB_PATH, _schema_ready
     if args.db:
         DB_PATH = Path(args.db)
         _schema_ready = False
-    print(f"Syncing {len(UNIVERSE)} names into {DB_PATH}", flush=True)
-    result = sync_all(lambda symbol, done, errors: print(f"  {done:>2}/{len(UNIVERSE)} {symbol}", flush=True))
-    for error in result["errors"]:
-        print(f"  failed: {error['symbol']}: {error['error']}", flush=True)
-    with session() as con:
-        info = coverage(con)
-    print(f"Done: {info['symbols_with_bars']}/{len(UNIVERSE)} names, {info['bars']} bars.", flush=True)
-    return 0 if not result["errors"] else 1
+    failed = False
+    if not args.bhav:
+        print(f"Syncing the Nifty 50 from Yahoo into {DB_PATH}", flush=True)
+        result = sync_all(lambda symbol, done, errors: print(f"  {done:>2}/{len(UNIVERSE)} {symbol}", flush=True))
+        for error in result["errors"]:
+            print(f"  failed: {error['symbol']}: {error['error']}", flush=True)
+        failed = bool(result["errors"])
+        with session() as con:
+            info = coverage(con)
+        print(f"Nifty 50: {info['symbols_with_bars']}/{len(UNIVERSE)} names, {info['bars']} bars.", flush=True)
+    if not args.nifty:
+        from top.bhav import sync_bhav
+
+        print(f"Syncing BSE stocks and ETFs ({args.years} years of bhavcopies) into {DB_PATH}", flush=True)
+        try:
+            out = sync_bhav(years=args.years, progress=lambda day, n, total, count: print(f"  {n:>4}/{total} {day} {count} bars", flush=True))
+            print(f"BSE/ETFs: {out['listings']} listings, {out['bars']} new bars, {out['adjustments']} split/bonus adjustments, latest {out['latest']}.", flush=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"BSE/ETF sync failed: {exc}", flush=True)
+            failed = True
+    return 1 if failed else 0
 
 
 if __name__ == "__main__":

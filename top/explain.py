@@ -234,7 +234,11 @@ WHAT.update({
     "darvas": "Darvas box (Nicolas Darvas): the box top is a high not exceeded for 3 sessions, the bottom a low not undercut for 3 sessions after it. A close above the top is a breakout; a close below the bottom breaks the box.",
     "breakout_trend": "Breakout and trend detector: flags closes through the prior 20-session high or low on at least 1.5× average volume, marks breakouts that fail within 3 sessions, and follows each breakout with an ATR trailing stop to show whether the trend is still alive.",
 })
-FAMILY.update({"darvas": "pattern", "breakout_trend": "pattern"})
+WHAT.update({
+    "key_levels": "Key levels plan (method inspired by @TradZoo's daily chart posts): two inner levels just around the close, a long trigger above and a short trigger below, plus outer resistance and support from recent swings. Each side gets three stepped targets for the next session.",
+    "pattern_breakout": "Pattern breakout projector (method inspired by @TradZoo's chart posts): fits support and resistance lines over recent bars, names the pattern (wedge, triangle, channel, range), and on a close through resistance gives a buying zone, a stop under support, target 1 at the prior swing high, and target 2 at the pattern height projected from the breakout.",
+})
+FAMILY.update({"darvas": "pattern", "breakout_trend": "pattern", "key_levels": "pattern", "pattern_breakout": "pattern"})
 FAMILY.update({"nt_zigzag": "trend", "nt_trendlines": "band", "nt_hawkes": "vol", "nt_vsa": "zero", "nt_cmma": "zero",
                "nt_perm_entropy": "stat", "ut_ewmac": "zero", "ut_rel_return": "zero"})
 
@@ -639,6 +643,24 @@ def _read_stat(ctx, study_id, name, series):
 
 def _read_pattern(ctx, study_id, params):
     from top.patterns import breakout_trend, darvas_boxes
+
+    if study_id == "key_levels":
+        from top.levels import describe_plan, key_levels, level_plan
+
+        plan = level_plan(key_levels(ctx.frame, params), ctx.close)
+        if not plan:
+            return "Not enough history for key levels yet.", "neutral"
+        nxt = "the next session"
+        text = f"Plan for {nxt} (from the {ctx.ts[-1]} close): " + describe_plan(plan, ctx.close)
+        room_up = (plan["r1"] / ctx.close - 1) * 100
+        room_dn = (1 - plan["s1"] / ctx.close) * 100
+        text += f" The long trigger is {room_up:.1f}% above the close and the short trigger {room_dn:.1f}% below."
+        tone = "bull" if ctx.close > plan["r1"] else "bear" if ctx.close < plan["s1"] else "neutral"
+        return text, tone
+    if study_id == "pattern_breakout":
+        from top.levels import describe_pattern
+
+        return describe_pattern(ctx.frame, params)
 
     if study_id == "darvas":
         top, bot, events = darvas_boxes(ctx.h, ctx.l, ctx.c, int(params.get("confirm", 3)))

@@ -11,6 +11,7 @@ const state = {
   strategies: [],
   activeStudies: [],
   harmonics: [],
+  universe: "nifty50",
   focus: null,
   explainToken: 0,
   explainOpen: true,
@@ -146,6 +147,9 @@ function renderMenu() {
     const text = `${item.label} ${item.value} ${item.group || ""} ${item.search || ""}`.toLowerCase();
     return terms.every((term) => text.includes(term));
   });
+  const MAX_ROWS = 300;
+  const hidden = Math.max(rows.length - MAX_ROWS, 0);
+  if (hidden) rows.length = MAX_ROWS;
   menu.rows = rows;
   menu.index = Math.min(menu.index, Math.max(rows.length - 1, 0));
   let group = null;
@@ -162,6 +166,7 @@ function renderMenu() {
       <span class="combo-meta ${item.metaCls || ""}">${esc(item.meta || "")}</span>
     </div>`);
   });
+  if (hidden) html.push(`<div class="combo-empty">Showing ${MAX_ROWS} of ${MAX_ROWS + hidden}. Keep typing to narrow the list.</div>`);
   const box = $("combo-menu");
   box.innerHTML = html.join("") || `<div class="combo-empty">No match for “${esc(combo.input.value)}”</div>`;
   const rect = combo.input.getBoundingClientRect();
@@ -235,16 +240,50 @@ function bindComboMenu() {
   window.addEventListener("resize", () => { if (menu.combo) renderMenu(); });
 }
 
+const UNIVERSE_CHIPS = [
+  ["nifty50", "Nifty 50", ["nifty50"]],
+  ["etf", "ETFs", ["nse_etf", "bse_etf"]],
+  ["bse", "BSE", ["bse"]],
+  ["all", "All", ["nifty50", "nse_etf", "bse_etf", "bse"]],
+];
+
+function universeMembers(key = state.universe) {
+  const chip = UNIVERSE_CHIPS.find((item) => item[0] === key) || UNIVERSE_CHIPS[0];
+  return state.symbols.filter((row) => chip[2].includes(row.universe || "nifty50"));
+}
+
+function stockGroup(row) {
+  if (row.universe === "nse_etf") return `NSE ETFs · ${(row.sector || "ETF").toLowerCase()}`;
+  if (row.universe === "bse_etf") return "BSE ETFs";
+  if (row.universe === "bse") return `BSE · group ${row.group || "?"}`;
+  return `Nifty 50 · ${SECTOR_SHORT[row.sector] || row.sector}`;
+}
+
+function renderUniverse() {
+  const counts = Object.fromEntries(UNIVERSE_CHIPS.map(([key]) => [key, universeMembers(key).filter((row) => row.last != null).length]));
+  $("universe-chips").innerHTML = UNIVERSE_CHIPS
+    .filter(([key]) => key === "nifty50" || counts[key] > counts.nifty50 || key === state.universe)
+    .map(([key, label]) => `<button type="button" data-universe="${key}" class="${key === state.universe ? "on" : ""}">${label} <em>${counts[key].toLocaleString("en-IN")}</em></button>`).join("");
+  const members = universeMembers();
+  $("stock-count").textContent = `${members.length.toLocaleString("en-IN")} names`;
+  const label = { nifty50: "Backtest Nifty 50", etf: "Backtest ETFs", bse: "Backtest BSE", all: "Backtest all" }[state.universe];
+  const button = $("scan-50");
+  if (!button.disabled) button.textContent = label;
+  button.title = state.universe === "nifty50" ? "Run the strategy on all 50 stocks" : "Run the strategy on the 200 most traded names in this universe";
+}
+
 function stockItems() {
-  return state.symbols.map((row) => ({
+  const order = { nifty50: 0, nse_etf: 1, bse_etf: 2, bse: 3 };
+  return universeMembers().map((row) => ({
     value: row.symbol,
     label: `${row.symbol} ${row.name}`,
     html: `<b>${esc(row.symbol)}</b> <small>${esc(row.name)}</small>`,
-    group: SECTOR_SHORT[row.sector] || row.sector,
-    search: row.sector,
+    group: stockGroup(row),
+    search: `${row.sector || ""} ${row.code || ""} ${row.exchange || ""}`,
     meta: row.last == null ? "no bars" : `${fmt(row.last)}  ${pct(row.change_pct)}`,
     metaCls: cls(row.change_pct),
-  })).sort((a, b) => (a.group < b.group ? -1 : a.group > b.group ? 1 : 0));
+    rank: order[row.universe || "nifty50"] ?? 9,
+  })).sort((a, b) => a.rank - b.rank || (a.group < b.group ? -1 : a.group > b.group ? 1 : 0));
 }
 
 function buildControls() {
@@ -258,7 +297,7 @@ function buildControls() {
     },
     onPick: (value) => loadBars(value).catch((error) => { $("ohlc-legend").textContent = error.message; }),
   });
-  $("stock-count").textContent = `${state.symbols.length} Nifty names`;
+  renderUniverse();
 
   const host = $("section-combos");
   host.innerHTML = "";
@@ -301,6 +340,7 @@ function buildControls() {
 }
 
 function renderSymbols() {
+  renderUniverse();
   syncCombos();
 }
 
@@ -522,8 +562,16 @@ async function refreshStudies() {
         candles.attachPrimitive(fill);
         bandFills.push(fill);
       }
+      const spec = state.indicators.find((item) => item.id === study.id) || {};
       keys.forEach((key, offset) => {
-        const series = chart.addLineSeries({ color: PALETTE[(index + offset) % PALETTE.length], lineWidth: 1.5, priceLineVisible: false, lastValueVisible: false, title: offset === 0 && keys.length === 1 ? studyLabel(instance) : "" });
+        const series = chart.addLineSeries({
+          color: (spec.colors && spec.colors[key]) || PALETTE[(index + offset) % PALETTE.length],
+          lineWidth: spec.step ? 2 : 1.5,
+          lineType: spec.step ? LightweightCharts.LineType.WithSteps : LightweightCharts.LineType.Simple,
+          priceLineVisible: false,
+          lastValueVisible: Boolean(spec.step),
+          title: offset === 0 && keys.length === 1 ? studyLabel(instance) : spec.step ? key.toUpperCase() : "",
+        });
         series.setData(points(payload.time, study.series[key]));
         overlaySeries.set(`${instance.uid}:${key}`, series);
       });
@@ -808,9 +856,15 @@ async function refreshStatus() {
   const sync = payload.sync;
   const coverage = payload.coverage;
   const pill = $("sync-pill");
-  pill.textContent = sync.syncing ? `Sync ${sync.done}/${sync.total}` : `DuckDB ${coverage.symbols_with_bars}/50`;
-  pill.className = `pill ${sync.syncing ? "warn" : coverage.symbols_with_bars === 50 ? "live" : ""}`;
-  if (!sync.syncing) {
+  const bhav = sync.bhav || {};
+  const extra = (coverage.total_symbols_with_bars || 0) - coverage.symbols_with_bars;
+  const busy = sync.syncing || bhav.syncing;
+  if (sync.syncing) pill.textContent = `Nifty sync ${sync.done}/${sync.total}`;
+  else if (bhav.syncing) pill.textContent = bhav.total ? `BSE/ETF sync ${bhav.done}/${bhav.total} days` : "BSE/ETF sync starting";
+  else pill.textContent = `DuckDB ${coverage.symbols_with_bars}/50${extra > 0 ? ` · +${extra.toLocaleString("en-IN")}` : ""}`;
+  pill.title = [`Nifty 50: ${coverage.symbols_with_bars}/50 (Yahoo, adjusted)`, ...Object.values(coverage.universes || {}).filter((u) => u.label !== "Nifty 50").map((u) => `${u.label}: ${u.symbols_with_bars.toLocaleString("en-IN")} with bars (bhavcopy, split/bonus adjusted)`), bhav.message ? `BSE/ETF sync: ${bhav.message}` : ""].filter(Boolean).join("\n");
+  pill.className = `pill ${busy ? "warn" : coverage.symbols_with_bars === 50 ? "live" : ""}`;
+  if (!busy || (bhav.syncing && bhav.done && bhav.done % 50 === 0)) {
     const symbols = await api("/api/symbols");
     state.symbols = symbols.symbols;
     renderSymbols();
@@ -820,7 +874,7 @@ async function refreshStatus() {
       await loadBars(state.active);
     }
   }
-  if (sync.syncing) setTimeout(refreshStatus, 1200);
+  if (busy) setTimeout(refreshStatus, sync.syncing ? 1200 : 4000);
 }
 
 function showInsight(title, html) {
@@ -870,15 +924,17 @@ async function runScan() {
         params: strategyParams(),
         capital: Number($("capital").value),
         cost_bps: Number($("cost-bps").value),
+        universe: state.universe,
       }),
     });
     const name = selectedStrategy() ? selectedStrategy().name : payload.strategy;
-    showInsight(`${name} on all 50`, moneyRows(payload.rows));
+    const where = { nifty50: "all 50", etf: "ETFs", bse: "BSE stocks", all: "all universes" }[state.universe];
+    showInsight(`${name} on ${where} (${payload.rows.length})`, `${payload.note ? `<p class="muted">${esc(payload.note)}</p>` : ""}${moneyRows(payload.rows)}`);
   } catch (error) {
-    showInsight("Backtest 50", `<p>${esc(error.message)}</p>`);
+    showInsight("Backtest universe", `<p>${esc(error.message)}</p>`);
   } finally {
     button.disabled = false;
-    button.textContent = "Backtest 50";
+    renderUniverse();
   }
 }
 
@@ -981,6 +1037,15 @@ function bind() {
   $("harm-btn").addEventListener("click", runHarmonics);
   $("trend-btn").addEventListener("click", runTrend);
   $("scan-50").addEventListener("click", runScan);
+  $("universe-chips").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-universe]");
+    if (!button) return;
+    state.universe = button.dataset.universe;
+    renderUniverse();
+    syncCombos();
+    const combo = combos.find((item) => item.host.id === "stock-combo");
+    if (combo) combo.input.focus();
+  });
   $("fund-btn").addEventListener("click", runFundamentals);
   $("verify-btn").addEventListener("click", runVerify);
   $("insight-close").addEventListener("click", () => $("insight").classList.add("hidden"));
@@ -1051,6 +1116,10 @@ async function openFromLink() {
     for (const node of $("ranges").querySelectorAll("button")) node.classList.toggle("on", node.dataset.range === range);
   }
   renderLibrary();
+  if (UNIVERSE_CHIPS.some(([key]) => key === q.get("universe"))) {
+    state.universe = q.get("universe");
+    renderUniverse();
+  }
   const wanted = q.get("symbol");
   const symbol = state.symbols.some((row) => row.symbol === wanted) ? wanted : state.symbols.some((row) => row.symbol === "RELIANCE") ? "RELIANCE" : state.symbols[0].symbol;
   await loadBars(symbol);

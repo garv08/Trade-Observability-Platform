@@ -65,7 +65,9 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(status, 404)
 
     def test_health_status_symbols(self):
-        self.assertEqual(self.get_json("/api/health"), (200, {"ok": True, "universe": 50}))
+        status, health = self.get_json("/api/health")
+        self.assertEqual((status, health["ok"], health["universe"]), (200, True, 50))
+        self.assertGreaterEqual(health["symbols"], 50)
         status, payload = self.get_json("/api/status")
         self.assertEqual(status, 200)
         self.assertEqual(payload["coverage"]["symbols_with_bars"], 50)

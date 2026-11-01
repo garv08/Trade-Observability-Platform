@@ -246,3 +246,6 @@ th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background
 .presets { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 6px; }
 .presets button { padding: 1px 6px; font-size: 11px; border-radius: 99px; background: transparent; }
 .presets button.on { background: #1e2a4a; border-color: var(--blue); color: #fff; }
+.universe-chips { padding: 0; flex-wrap: wrap; }
+.universe-chips button em { font-style: normal; color: var(--muted); font-size: 11px; margin-left: 2px; }
+.universe-chips button.on em { color: #c8d3ff; }

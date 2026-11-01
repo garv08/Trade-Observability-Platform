@@ -69,10 +69,11 @@
       <a href="#chart">Chart and ranges</a>
       <a href="#indicators">Indicators</a>
       <a href="#harmonics">Carney harmonics</a>
+      <a href="#levels">Key levels and patterns</a>
       <a href="#interpret">Interpretation and swing plan</a>
       <a href="#creators">YouTube creator strategies</a>
       <a href="#backtest">Strategy tester</a>
-      <a href="#scan50">Backtest 50</a>
+      <a href="#scan50">Backtest universe</a>
       <a href="#trend">Trend scan</a>
       <a href="#fundamentals">Fundamentals</a>
       <a href="#verify">Verify</a>
@@ -84,7 +85,7 @@
 
     <main>
       <h1>TOP user guide</h1>
-      <p class="lead">A local research desk for the 50 Nifty names. It has daily charts, 146 indicators, Scott Carney harmonics, 86 backtestable strategies (including rules adapted from two YouTube channels), a one-click trend scan, and Screener.in fundamentals.</p>
+      <p class="lead">A local research desk for the Nifty 50, all BSE stocks, and NSE/BSE ETFs. It has daily charts, 148 indicators, Scott Carney harmonics, 88 backtestable strategies (including rules adapted from two YouTube channels), a one-click trend scan, and Screener.in fundamentals.</p>
       <div class="note">This desk uses delayed public daily data. It is not a live NSE feed, not a broker, and not TradingView or the Harmonic Trader product. Nothing here is investment advice.</div>
 
       <h2 id="start">Start the desk</h2>
@@ -99,9 +100,9 @@ top-platform           # or: python -m top</code></pre>
         <div><b>Left panel: every control</b>
           <b>Stock</b> searchable dropdown.<br />
           <b>Indicators</b>: one searchable dropdown per section, in this order: Harmonics, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, Price statistics. Below them, <b>On the chart</b> lists active studies with their settings.<br />
-          <b>Backtest</b>: searchable strategy dropdown, its settings, capital, cost, <b>Run backtest</b>, and <b>Backtest 50</b>.<br />
+          <b>Backtest</b>: searchable strategy dropdown, its settings, capital, cost, <b>Run backtest</b>, and <b>Backtest universe</b>.<br />
           <b>Analysis</b>: <b>Harmonics list</b>, <b>Trend scan</b>, <b>Fundamentals</b>, and <b>Verify</b>.</div>
-        <div><b>Right: chart</b>Candles and volume, overlays and harmonic patterns on price, and oscillator panes. Nothing is drawn over the chart. Directly below it is the <b>Interpretation</b> pane, which explains your selections and gives a swing plan. Below that, the <b>output panel</b> shows Harmonics list, Trend scan, Backtest 50, Fundamentals, and Verify results. It scrolls on its own, and <b>Close</b> gives the chart its full height back. <b>Backtest results</b> come last: metric cards, equity curve, and trade list.</div>
+        <div><b>Right: chart</b>Candles and volume, overlays and harmonic patterns on price, and oscillator panes. Nothing is drawn over the chart. Directly below it is the <b>Interpretation</b> pane, which explains your selections and gives a swing plan. Below that, the <b>output panel</b> shows Harmonics list, Trend scan, Backtest universe, Fundamentals, and Verify results. It scrolls on its own, and <b>Close</b> gives the chart its full height back. <b>Backtest results</b> come last: metric cards, equity curve, and trade list.</div>
       </div>
       <p>The top bar shows the selected stock and the DuckDB coverage pill, for example <code>DuckDB 50/50</code>. It also has <b>Guide</b> and <b>Sync history</b>. Windows narrower than 1000px hide the left panel. Click <b>Controls</b> in the top bar to open it as a drawer.</p>
       <h3>Using a dropdown</h3>
@@ -113,6 +114,7 @@ top-platform           # or: python -m top</code></pre>
       </ul>
 
       <h2 id="stocks">Pick a stock</h2>
+      <p><b>Universe chips</b> above the Stock box choose what the dropdown and <b>Backtest universe</b> cover: <b>Nifty 50</b> (Yahoo, adjusted), <b>ETFs</b> (~355 NSE + ~35 BSE-only), <b>BSE</b> (~4,700 equities, grouped by BSE group), and <b>All</b>. The ETF and BSE chips appear after <b>Sync history</b>, which downloads five years of exchange bhavcopies the first time (30–40 minutes). These prices are adjusted for splits and bonus issues. Symbols carry an exchange prefix, such as <code>BSE:ABB</code> or <code>NSE:NIFTYBEES</code>. Large lists show the first 300 matches; keep typing to narrow them.</p>
       <ol class="steps">
         <li>Click the <b>Stock</b> box, or press <kbd>/</kbd> from anywhere.</li>
         <li>Type a symbol, a company name, or a sector, for example <code>infy</code>, <code>mahindra</code>, <code>pharma</code>, or <code>energy</code>. The list is grouped by sector and shows each stock's last price and day change.</li>
@@ -129,7 +131,7 @@ top-platform           # or: python -m top</code></pre>
       </ul>
 
       <h2 id="indicators">Indicators</h2>
-      <p>The left panel has one searchable dropdown for each of the 10 sections, 146 studies in all. Pick a study to add it. Pick it again, or press <b>Remove</b> under <b>On the chart</b>, to take it off. Change a study's settings under <b>On the chart</b>, and the chart redraws.</p>
+      <p>The left panel has one searchable dropdown for each of the 10 sections, 148 studies in all. Pick a study to add it. Pick it again, or press <b>Remove</b> under <b>On the chart</b>, to take it off. Change a study's settings under <b>On the chart</b>, and the chart redraws.</p>
       <table>
         <thead><tr><th>Section</th><th>Studies</th><th>Examples</th></tr></thead>
         <tbody>
@@ -138,7 +140,7 @@ top-platform           # or: python -m top</code></pre>
           <tr><td>@UnbiasedTradingGoshawk</td><td>2</td><td>EWMAC trend forecast, return vs Nifty proxy</td></tr>
           <tr><td>Moving averages</td><td>19</td><td>SMA, EMA, WMA, HMA, KAMA, VWMA</td></tr>
           <tr><td>Bands and channels</td><td>13</td><td>Bollinger, Keltner, Donchian, envelopes, Darvas box</td></tr>
-          <tr><td>Trend</td><td>17</td><td>Supertrend, Ichimoku, ADX, Aroon, Parabolic SAR, Breakout &amp; trend detector</td></tr>
+          <tr><td>Trend</td><td>19</td><td>Supertrend, Ichimoku, ADX, Aroon, Parabolic SAR, Breakout &amp; trend detector, Key levels plan, Pattern breakout projector</td></tr>
           <tr><td>Momentum</td><td>29</td><td>RSI, MACD, Stochastic, CCI, Williams %R, ROC</td></tr>
           <tr><td>Volatility</td><td>10</td><td>ATR, historical volatility, Bollinger bandwidth</td></tr>
           <tr><td>Volume</td><td>21</td><td>OBV, MFI, CMF, VWAP, accumulation/distribution</td></tr>
@@ -199,6 +201,14 @@ top-platform           # or: python -m top</code></pre>
       </ul>
       <p>For one pattern alone, add its own study from the Harmonics section, for example <b>Gartley</b>.</p>
 
+      <h2 id="levels">Key levels and pattern breakouts</h2>
+      <p>Two <b>Trend</b> studies follow how the X account <a href="https://x.com/TradZoo" target="_blank" rel="noreferrer">@TradZoo</a> writes daily chart posts; TOP computes every level itself.</p>
+      <ul>
+        <li><b>Key levels plan (next session)</b>: today's red R2/R1 and green S1/S2 levels, drawn flat across the last 30 sessions. The Interpretation pane writes, for example, <i>"Long above 1,175–1,178, targets 1,185 1,195 1,205+. Below 1,152 the bias turns weak, downside 1,135 1,118 1,098−."</i> R1 and S1 hug the close; R2 and S2 are the next levels out; targets are rounded to about 0.2% steps.</li>
+        <li><b>Pattern breakout projector</b>: fitted support and resistance lines over 60 bars, shaded grey and named (falling or rising wedge, ascending, descending, or symmetrical triangle, channel, range, broadening). On a close through resistance you get a buying zone, a stop under support, target 1 at the prior swing high, and target 2 at the pattern height projected from the breakout.</li>
+        <li>Strategies: <b>Key level breakout</b> and <b>Pattern breakout (measured move)</b> in the Breakout group.</li>
+      </ul>
+
       <h2 id="interpret">Interpretation and swing plan</h2>
       <p>The <b>Interpretation</b> pane under the chart explains in plain English what your selections mean for the current stock. It refreshes whenever you change the stock, add or remove a study, change a setting, pick a strategy, or change capital or cost. <b>Hide</b> collapses it and gives the chart more room.</p>
       <h3>Left half: swing outlook</h3>
@@ -244,20 +254,20 @@ top-platform           # or: python -m top</code></pre>
         <li><b>@neurotrader888</b>: 9 strategies and 6 studies re-implemented from his published GitHub code. They include directional-change trend, ATR zigzag, auto-trendline breakout, inverse head and shoulders, bull flag/pennant, Hawkes volatility breakout, CMMA vs the Nifty proxy, Donchian with a last-trade filter, and a walk-forward RSI-PCA forecast. Studies: zigzag, auto trendlines, Hawkes volatility, VSA, CMMA, and permutation entropy.</li>
         <li><b>@UnbiasedTradingGoshawk</b>: 4 strategies from the public sources his videos test: Connors RSI(2), Connors Double 7s, AHL-style EWMAC trend, and the Lo–Khandani contrarian rule. Studies: EWMAC forecast and return vs the Nifty proxy.</li>
       </ul>
-      <p>When you pick one, the note under the strategy box shows the creator, a confidence label, source links, and how TOP adapted it. <b>HIGH</b> means the rules come from the creator's own code. <b>MEDIUM</b> means they come from the original public source, because the exact variant in the video is not public. All are long/flat on daily bars and work with <b>Run backtest</b> and <b>Backtest 50</b>.</p>
+      <p>When you pick one, the note under the strategy box shows the creator, a confidence label, source links, and how TOP adapted it. <b>HIGH</b> means the rules come from the creator's own code. <b>MEDIUM</b> means they come from the original public source, because the exact variant in the video is not public. All are long/flat on daily bars and work with <b>Run backtest</b> and <b>Backtest universe</b>.</p>
       <div class="note">No YouTube audio or video was downloaded. These are re-implementations of published ideas, not the creators' own results or endorsements. Some rules use an equal-weight Nifty 50 proxy built from the 50 stored stocks as "the market".</div>
 
       <h2 id="backtest">Strategy tester</h2>
       <ol class="steps">
         <li>Pick a stock.</li>
-        <li>Click the <b>Backtest</b> strategy box and type part of a name or idea, for example <code>gartley</code>, <code>breakout</code>, <code>rsi</code>, or <code>reversal</code>. There are 86 strategies, grouped as listed below. The strategy's description appears under the box.</li>
+        <li>Click the <b>Backtest</b> strategy box and type part of a name or idea, for example <code>gartley</code>, <code>breakout</code>, <code>rsi</code>, or <code>reversal</code>. There are 88 strategies, grouped as listed below. The strategy's description appears under the box.</li>
         <li>Adjust the strategy's settings if it has any, then set <b>Capital</b> (default ₹10,00,000) and <b>Cost bps</b> (default 5, charged on entry and exit).</li>
         <li>Click <b>Run backtest</b>.</li>
       </ol>
       <table>
         <thead><tr><th>Group</th><th>Count</th><th>Group</th><th>Count</th></tr></thead>
         <tbody>
-          <tr><td>Trend</td><td>19</td><td>Breakout</td><td>11</td></tr>
+          <tr><td>Trend</td><td>19</td><td>Breakout</td><td>13</td></tr>
           <tr><td>@neurotrader888</td><td>9</td><td>@UnbiasedTradingGoshawk</td><td>4</td></tr>
           <tr><td>Harmonics</td><td>12</td><td>Price action</td><td>5</td></tr>
           <tr><td>Oscillator</td><td>11</td><td>Trend reversal</td><td>4</td></tr>
@@ -286,8 +296,8 @@ top-platform           # or: python -m top</code></pre>
       </table>
       <p>Results appear at the bottom in <b>Backtest results</b>, which stays collapsed until your first backtest. The equity curve is shown in blue, with buy and hold in grey. The trade table lists each entry, exit, price, return, and profit or loss. Use <b>Hide</b> to collapse the results and give the chart more room. Running a new backtest opens them again.</p>
 
-      <h2 id="scan50">Backtest 50</h2>
-      <p>Click <b>Backtest 50</b> to run the selected strategy, with its current settings, on all 50 stocks. The output panel below the chart ranks them by return and shows whether each is long now, its max drawdown, and its trade count. This takes a few seconds. A harmonic strategy takes about 6 seconds.</p>
+      <h2 id="scan50">Backtest universe</h2>
+      <p>Click <b>Backtest universe</b> (<i>Backtest Nifty 50</i>, <i>ETFs</i>, <i>BSE</i>, or <i>all</i>, following the universe chip) to run the selected strategy, with its current settings, on all 50 Nifty stocks or on the 200 most traded names of a larger universe. The output panel below the chart ranks them by return and shows whether each is long now, its max drawdown, and its trade count. This takes a few seconds. A harmonic strategy takes about 6 seconds.</p>
 
       <h2 id="trend">Trend scan</h2>
       <p>Click <b>Trend scan</b> to run every Trend, Breakout, and Trend reversal rule on the selected stock in one pass. Rules that are long now are listed first, then the rest by return. Each row shows its section, so you can see whether trend-following, breakout, or reversal rules are firing.</p>
@@ -332,7 +342,7 @@ http://127.0.0.1:8000/?symbol=TCS&amp;strategy=ut_ahl_trend&amp;run=backtest</co
 
       <h2 id="data">Data and sync</h2>
       <ul>
-        <li>Source: Yahoo Finance public daily chart data, adjusted, for the <code>.NS</code> listings.</li>
+        <li>Sources: Yahoo Finance daily chart data for the Nifty 50 (adjusted for splits and dividends), and the exchanges' daily bhavcopies for BSE stocks and ETFs (adjusted for splits and bonus issues using NSE corporate actions plus a price-gap rule).</li>
         <li>Store: DuckDB file at <code>data/nse.duckdb</code>.</li>
         <li><b>Sync history</b> re-downloads all 50 names in the background. The pill shows progress, and the chart reloads when it finishes.</li>
         <li>The universe follows the current Nifty 50, including <code>M&amp;M</code>, <code>ETERNAL</code> (formerly Zomato), and <code>TMPV</code> (Tata Motors passenger vehicles).</li>

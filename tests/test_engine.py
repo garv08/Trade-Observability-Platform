@@ -49,7 +49,8 @@ class EngineTests(unittest.TestCase):
         for item in indicator_catalog():
             result = compute(item["id"], self.frame, {})
             for key, values in result["series"].items():
-                if (item["id"], key) in {("ichimoku", "chikou"), ("darvas", "upper"), ("darvas", "lower"), ("breakout_trend", "trail")}:
+                if (item["id"], key) in {("ichimoku", "chikou"), ("darvas", "upper"), ("darvas", "lower"), ("breakout_trend", "trail"),
+                                           ("pattern_breakout", "upper"), ("pattern_breakout", "lower")}:
                     continue  # blank by design: lagging span; no active Darvas box; no active breakout trend
                 if not finite(values.tolist()[-1]):
                     blank.append(f"{item['id']}.{key}")

@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Product | TOP — Trade Observability Platform |
-| Version | 0.1.0 |
+| Version | 0.2.0 |
 | Status | Working local release |
 | Scope | Nifty 50, daily bars, research and backtesting. No order routing |
 
@@ -32,8 +32,8 @@ flowchart LR
   end
   subgraph "Python process (top-platform)"
     S["server.py<br/>ThreadingHTTPServer"]
-    IND["indicators.py<br/>146 studies"]
-    STR["strategies.py<br/>86 rules"]
+    IND["indicators.py<br/>148 studies"]
+    STR["strategies.py<br/>88 rules"]
     BT["backtest.py"]
     HAR["harmonics.py"]
     EX["explain.py"]
@@ -97,6 +97,7 @@ Each load carries a request token. A slow response for a previous stock is dropp
 | `explain.py` | Per-study readings, technical rating, swing plan, historical odds | See §6.3 |
 | `creators.py` | Strategies and studies adapted from @neurotrader888 and @UnbiasedTradingGoshawk, with sources and confidence | See [creators.md](creators.md) |
 | `patterns.py` | Darvas boxes and the volume breakout / trend detector (studies with markers, plus strategies) | Causal: levels appear only once confirmed |
+| `levels.py` | Key levels plan and pattern breakout projector (method inspired by @TradZoo) | Causal; levels apply to the next session |
 | `market.py` | Equal-weight Nifty 50 proxy from the stored bars, cached by store state | Used by the CMMA and contrarian rules |
 | `fundamentals.py` | Screener.in fetch, `#top-ratios` and pros/cons parser, 6-hour cache | Standard-library HTML parser |
 | `verify.py` | Named checks over catalogs, synthetic pattern, parser, data coverage, every study and strategy, interpretation | In-process, so `/api/verify` never calls itself over HTTP |
@@ -113,8 +114,8 @@ Each load carries a request token. A slow response for a previous stock is dropp
 │   Harmonics ▾  Trend ▾ …     ├───────────────────────────────────────────────────────┤
 │   On the chart (params)      │ Interpretation: swing outlook │ what selections say   │
 │  Backtest                    ├───────────────────────────────────────────────────────┤
-│   Strategy ▾ params capital  │ Output panel (Trend scan, Backtest 50, Fundamentals…) │
-│   Run backtest · Backtest 50 ├───────────────────────────────────────────────────────┤
+│   Strategy ▾ params capital  │ Output panel (Trend scan, scans, Fundamentals…)       │
+│   Run backtest · Scan univ.  ├───────────────────────────────────────────────────────┤
 │  Analysis buttons            │ Backtest results (collapsed until first run)          │
 └──────────────────────────────┴───────────────────────────────────────────────────────┘
 ```
@@ -131,10 +132,31 @@ Each load carries a request token. A slow response for a previous stock is dropp
 ### Schema
 
 ```sql
-symbols(symbol PK, name, sector, weight, rank, yahoo)
+symbols(symbol PK, name, sector, weight, rank, yahoo, exchange, kind, universe, code, isin, grp)
 bars(symbol, interval, ts DATE, open, high, low, close, volume, PRIMARY KEY(symbol, interval, ts))
-meta(key PK, value)          -- last_sync
+adjustments(symbol, ex_date, factor, source, note, PRIMARY KEY(symbol, ex_date))
+corporate_actions(symbol, isin, ex_date, factor, subject)
+bhav_days(exchange, day, rows)
+meta(key PK, value)          -- last_sync, bhav_last_sync
 ```
+
+### BSE stocks and ETFs (bhavcopies)
+
+`top/bhav.py` builds the extended universe from the exchanges' daily bhavcopy files: one file per trading day listing every traded security.
+
+| Source | Format | Used for |
+| --- | --- | --- |
+| `BhavCopy_BSE_CM_0_0_0_YYYYMMDD_F_0000.CSV` (from Jul 2024) and `EQddmmyy_CSV.ZIP` (earlier) | BSE equity segment | BSE stocks (ISIN `INE…01…`) and BSE-only ETFs (ISIN `INF…`) |
+| `BhavCopy_NSE_CM_…csv.zip` (from Jul 2024) and `cmDDMONYYYYbhav.csv.zip` (earlier) | NSE cash market | NSE ETFs, from the NSE ETF list |
+| NSE `corporates-corporateActions` API | JSON | Split, bonus, and consolidation factors |
+
+- **Listing.** The union of the last five trading days. Debt and government securities are excluded, and ETFs listed on both exchanges are kept once, on NSE.
+- **History.** Every weekday in the window is fetched once. Non-trading days return an HTML page, which is recognised and skipped. Finished days are recorded in `bhav_days`, so an interrupted sync resumes.
+- **Adjustment.** Bhavcopy prices are raw. Factors live in `adjustments(symbol, ex_date, factor, source)` and are applied in `load_bars()` at read time: prices before the ex-date are divided by the cumulative factor, and volume is multiplied by it.
+  - `nse_ca`: NSE corporate actions, matched to BSE stocks by ISIN issuer code (first 7 characters) and to NSE ETFs by symbol. Multiple actions on the same ex-date multiply (for example a 2:1 split plus bonus 4:1 gives 10).
+  - `gap`: for names without a matching action, an overnight gap of 35% or more that matches a standard ratio (1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 20, 25, 50, 100, or their inverses) on both the open and the close. Most BSE-only stocks have 2–20% price bands, so such gaps are almost always corporate actions.
+  - Dividends are not adjusted, unlike the Yahoo-sourced Nifty 50.
+- **Universes.** `symbols.universe` is `nifty50`, `nse_etf`, `bse_etf`, or `bse`. The market proxy (`market.py`) uses only the Nifty 50.
 
 ### Sync
 
@@ -239,7 +261,7 @@ These are descriptive statistics about one stock's own past. They are not out-of
 | Own `arrays.py` instead of NumPy | Same reason; keeps the dependency list to one package | Slower than NumPy, but fine for ~1,250 bars per stock |
 | Standard-library HTTP server | No framework to install; easy to test with `build_server()` | No HTTP/2, no auth, single host |
 | Vendored Lightweight Charts | Looks and feels like TradingView; Apache-2.0; no CDN needed | Library upgrades are manual |
-| Compute on request | Always consistent with stored bars; no cache invalidation | Backtest 50 takes a few seconds |
+| Compute on request | Always consistent with stored bars; no cache invalidation | A universe scan takes seconds (Nifty 50) to about two minutes (200 BSE names) |
 | Long/flat only | Matches NSE cash-market delivery rules | No short strategies |
 | REA not used to clone TradingView | Reverse engineering a commercial product was out of scope and unnecessary given an open-source chart library | — |
 
@@ -248,10 +270,10 @@ These are descriptive statistics about one stock's own past. They are not out-of
 | Operation | Time |
 | --- | --- |
 | `/api/bars` for one stock | ~70 ms |
-| All 146 studies on one stock | ~6 s total |
-| Backtest 50 for a creator strategy | 4–13 s (RSI-PCA ~35 s) |
+| All 148 studies on one stock | ~6 s total |
+| Backtest Nifty 50 for a creator strategy | 4–13 s (RSI-PCA ~35 s) |
 | `/api/explain` with a few studies | ~0.6 s |
-| Backtest 50 (one harmonic strategy) | ~6 s |
+| Backtest Nifty 50 (one harmonic strategy) | ~6 s |
 | Full `python -m top.verify` | ~15 s |
 | First full sync (network bound) | 1–2 min |
 

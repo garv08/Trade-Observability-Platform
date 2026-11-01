@@ -16,7 +16,9 @@ The chart shows the "Charting by TradingView" attribution link, as the library's
 - **neurotrader888**: https://github.com/neurotrader888 (repositories under the MIT License, Copyright (c) neurotrader888; `IntramarketDifference` has no license, so only its published idea is used). No source code is copied.
 - **Unbiased Trading (@UnbiasedTradingGoshawk)**: ideas from public sources tested in the channel's videos (Larry Connors' published rules, an EWMAC trend signal, and Khandani & Lo (2007), "What Happened to the Quants in August 2007?").
 
-TOP is not affiliated with or endorsed by either creator. See `docs/creators.md`.
+- **@TradZoo** (X): the key-levels and pattern-breakout method in `top/levels.py` was inferred from the account's public chart posts. No post text or chart image is included.
+
+TOP is not affiliated with or endorsed by any of these creators. See `docs/creators.md`.
 
 ## Data sources
 

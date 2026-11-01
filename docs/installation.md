@@ -23,7 +23,7 @@ This guide gets TOP running on **Linux, macOS, or Windows** in about five minute
 | Python | **3.10, 3.11, 3.12, or 3.13** | DuckDB 1.1.3 has no wheels for 3.14 yet |
 | git | any | To clone the repository |
 | Internet | first run only | Downloads about five years of daily bars for 50 stocks (1–2 minutes) |
-| Disk | ~20 MB | The DuckDB database |
+| Disk | ~20 MB (Nifty 50) · ~300 MB with all BSE stocks and ETFs | The DuckDB database |
 | Browser | any modern browser | Chrome, Edge, Firefox, Safari |
 
 The only Python dependency is **`duckdb==1.1.3`**, installed automatically. No NumPy, Node.js, database server, or API keys are needed.
@@ -117,7 +117,7 @@ pipx install "git+https://github.com/garv08/Trade-Observability-Platform.git"
 top-platform
 ```
 
-To pin a release, add `@v0.1.0` to the URL.
+To pin a release, add `@v0.2.0` to the URL.
 
 ---
 
@@ -138,8 +138,14 @@ TOP - Trade Observability Platform at http://127.0.0.1:8000 (also http://localho
 Prefer to download the data first, without the server?
 
 ```bash
-top-sync                  # prints progress for each of the 50 stocks
+top-sync --nifty          # the Nifty 50 from Yahoo (1–2 minutes)
+top-sync --bhav           # all BSE stocks + NSE/BSE ETFs from bhavcopies (first run 30–40 minutes)
+top-sync                  # both
+top-sync --bhav --years 2 # less history, faster first run
 ```
+
+> [!NOTE]
+> Don't run `top-sync` while `top-platform` is running on the same database; DuckDB allows one process at a time. Use **Sync history** in the app instead, which runs inside the server.
 
 Useful options:
 
@@ -171,7 +177,7 @@ python -m unittest discover -s tests -t . -v
 
 | What | Where |
 | --- | --- |
-| Market data | `./data/nse.duckdb`, relative to the folder you start TOP from, or the path in `TOP_DB` |
+| Market data | `./data/nse.duckdb`, relative to the folder you start TOP from, or the path in `TOP_DB`. Holds the Nifty 50 (Yahoo), BSE stocks and ETFs (bhavcopies), and the split/bonus adjustments |
 | Fundamentals cache | In memory, for six hours |
 | Settings | None stored; use [shareable links](user-guide.md#shareable-links) to save set-ups |
 
@@ -260,7 +266,9 @@ TOP pins `duckdb==1.1.3` and avoids NumPy so it runs on older x86 processors wit
 | `Address already in use` | Another program (or another TOP) uses port 8000: `top-platform --port 8050` |
 | Browser: "Failed to fetch" / "The desk did not answer" | Make sure `top-platform` is still running, then reload. Both `127.0.0.1` and `localhost` work |
 | Page looks old after an update | Hard-reload: Ctrl+Shift+R (Cmd+Shift+R on macOS) |
-| Some stocks show "no bars" | Click **Sync history** or run `top-sync`; Yahoo sometimes rate-limits, so retry later |
+| Some stocks show "no bars" | Click **Sync history** or run `top-sync`; Yahoo sometimes rate-limits (HTTP 429), so retry later |
+| `Could not set lock on file … nse.duckdb` | Another process (usually `top-platform`) has the database open. Stop it, or sync from the app |
+| BSE/ETF sync stopped partway | Run it again; finished days are skipped, so it resumes where it left off |
 | Fundamentals error | Screener.in may be unreachable or rate-limiting; try later |
 | `git clone` asks for a username and password | The URL is wrong or the repository is private. Public clones never need a password; check the URL is `https://github.com/garv08/Trade-Observability-Platform.git` |
 
