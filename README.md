@@ -1,239 +1,237 @@
-# TOP — Trade Observability Platform
+<div align="center">
 
-A local, browser-based research desk for the **Nifty 50**. It stores five years of daily history in DuckDB and charts it with TradingView Lightweight Charts. It has 146 indicators, Scott Carney harmonic patterns, 86 backtestable strategies (including rules adapted from the YouTube channels @neurotrader888 and @UnbiasedTradingGoshawk), and a one-click trend scan. It reads Screener.in fundamentals, and an **Interpretation** pane explains in plain English what everything on the chart means and lays out a rule-based swing-trade plan.
+# 📈 TOP — Trade Observability Platform
 
-Everything runs on your machine: one Python process and one DuckDB file, with no accounts or API keys.
+**A local, TradingView-style research desk for India's Nifty 50.**<br/>
+Chart all 50 stocks, stack 146 indicators, spot Scott Carney harmonics and Darvas boxes,<br/>
+backtest 86 strategies on one stock or all 50, and read a plain-English swing-trade plan, all on your own machine.
 
-> **Research tool, not advice.** Prices are delayed public daily data. TOP is not a live NSE feed, not a broker, and not affiliated with NSE, TradingView, Screener.in, or Harmonic Trader. Backtests and historical odds describe the past, not the future.
+[![CI](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
+![DuckDB](https://img.shields.io/badge/storage-DuckDB-FFF000?logo=duckdb&logoColor=black)
+![Charts](https://img.shields.io/badge/charts-Lightweight%20Charts-2962FF)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
+![Platforms](https://img.shields.io/badge/runs%20on-Linux%20%7C%20macOS%20%7C%20Windows-555)
 
-![CI](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml/badge.svg)
+[Quick start](#-quick-start) · [Screenshots](#-a-quick-tour) · [Features](#-features) · [Install guide](docs/installation.md) · [User guide](docs/user-guide.md) · [Docs](docs/README.md)
+
+<img src="docs/images/overview.png" alt="TOP main screen: ICICI Bank with SMA 20/50/200, shaded Bollinger Bands, harmonic patterns, swing-plan levels, and the Interpretation pane" width="100%"/>
+
+</div>
+
+> [!IMPORTANT]
+> **Research tool, not advice.** TOP uses delayed public daily data. It is not a live NSE feed, not a broker, and not affiliated with NSE, TradingView, Screener.in, Harmonic Trader, or the YouTube creators whose ideas it adapts. Backtests and historical odds describe the past, not the future.
 
 ---
 
-## Contents
-
-- [Features](#features)
-- [Install](#install)
-- [Run](#run)
-- [Configuration](#configuration)
-- [Troubleshooting](#troubleshooting)
-- [Documentation](#documentation)
-- [Project layout](#project-layout)
-- [Development and tests](#development-and-tests)
-- [License](#license)
-
-## Features
-
-| Area | What you get |
-| --- | --- |
-| Universe | All 50 Nifty names, including `M&M`, `ETERNAL` (formerly Zomato), and `TMPV` (Tata Motors passenger vehicles) |
-| Data | About five years of adjusted daily bars from Yahoo Finance, stored in DuckDB (`data/nse.duckdb`) |
-| Chart | Candles and volume, overlays on price, oscillator panes, and 6M/1Y/2Y/5Y/All ranges. Bands and channels are shaded light grey between their upper and lower lines |
-| Durations | Every study with a period has quick presets (5 … 200), free entry, and **+ Another** to add the same average again with a different period (e.g. SMA 20/50/200). EMA ribbon lengths are adjustable |
-| Darvas and breakouts | **Darvas box** (3-day top and bottom confirmation, breakout and box-broken markers) and a **Breakout & trend detector** (volume-confirmed breakouts and breakdowns, failed-breakout flags, ATR trailing trend), each with a backtestable strategy |
-| Indicators | 146 studies in 10 sections: Harmonics, @neurotrader888, @UnbiasedTradingGoshawk, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, Price statistics |
-| Harmonics | Scott Carney Gartley, Bat, Alternate Bat, Butterfly, Crab, Deep Crab, Cypher, Shark, 5-0, AB=CD, and Three Drives. Patterns are drawn as X-A-B-C-D legs with ratio guides and are on by default for every stock |
-| Backtests | 86 long/flat strategies (trend, breakout, trend reversal, harmonics, oscillator, mean reversion, price action, volume, and two creator sections). Fills at the next open, with costs. **Backtest 50** runs one strategy on every name |
-| YouTube creators | 9 strategies and 6 studies from **@neurotrader888** (re-implemented from his MIT-licensed GitHub code) and 4 strategies and 2 studies from **@UnbiasedTradingGoshawk** (from the public sources his videos test). Each shows its sources and a confidence label. See [docs/creators.md](docs/creators.md) |
-| Trend scan | Every trend, breakout, and reversal rule on the selected stock in one click |
-| Fundamentals | Ratios and pros/cons from the public Screener.in page, cached for six hours |
-| Interpretation | Plain-English reading of every selected study and strategy, a technical rating (moving-average and oscillator votes), and a swing plan: setup, trigger, entry, stop, targets, and position size. Levels are drawn on the chart. Shows how the same plan did on that stock's own history |
-| Controls | Every control sits in the left panel as a searchable dropdown |
-| Verify | In-app **Verify** button and `python -m top.verify` run named checks on the front end, back end, and data |
-
-## Install
-
-### Requirements
-
-- **Python 3.10, 3.11, 3.12, or 3.13**
-- **git**, to clone the repository
-- Internet access the first time, to download history (about 1–2 minutes for all 50 names)
-- About 20 MB of disk for the database
-
-The only Python dependency is `duckdb==1.1.3`, installed automatically.
-
-### Linux (Ubuntu / Debian)
+## 🚀 Quick start
 
 ```bash
-sudo apt update
-sudo apt install -y git python3 python3-venv python3-pip   # python3-venv is needed for "python3 -m venv"
-
 git clone https://github.com/garv08/Trade-Observability-Platform.git
 cd Trade-Observability-Platform
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
+python3 -m venv .venv && source .venv/bin/activate
 pip install -e .
-```
-
-On Ubuntu 24.04+, if `python3 -m venv` complains about `ensurepip`, install the versioned package, for example `sudo apt install python3.12-venv`.
-
-### macOS
-
-```bash
-# Python 3.10–3.13 from python.org or Homebrew (brew install python@3.12)
-git clone https://github.com/garv08/Trade-Observability-Platform.git
-cd Trade-Observability-Platform
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install --upgrade pip
-pip install -e .
-```
-
-### Windows (PowerShell)
-
-```powershell
-# Install Python 3.12 from python.org (tick "Add python.exe to PATH") and Git for Windows
-git clone https://github.com/garv08/Trade-Observability-Platform.git
-cd Trade-Observability-Platform
-
-py -3.12 -m venv .venv
-.\.venv\Scripts\Activate.ps1      # if blocked: Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
-python -m pip install --upgrade pip
-pip install -e .
-```
-
-### Install without cloning
-
-Ubuntu and Debian block `pip install` into the system Python, so install into a virtual environment:
-
-```bash
-sudo apt install -y git python3-venv python3-pip      # once
-python3 -m venv ~/top-venv
-~/top-venv/bin/pip install "git+https://github.com/garv08/Trade-Observability-Platform.git"
-~/top-venv/bin/top-platform                            # then open http://127.0.0.1:8000
-```
-
-Or with [pipx](https://pipx.pypa.io/), which manages the virtual environment for you:
-
-```bash
-sudo apt install -y git pipx && pipx ensurepath        # once; open a new terminal afterwards
-pipx install "git+https://github.com/garv08/Trade-Observability-Platform.git"
 top-platform
 ```
 
-Both give you the `top-platform` and `top-sync` commands. The web app is bundled inside the package. The database is created in the folder you start TOP from (`./data/nse.duckdb`); set `TOP_DB` to keep it in one place, for example `TOP_DB=~/top-data/nse.duckdb top-platform`.
+Open **http://127.0.0.1:8000**. On the first run TOP downloads about five years of daily history for all 50 stocks (1–2 minutes). The top bar shows `Sync 12/50` and then `DuckDB 50/50`.
 
-### Check the install
+> [!TIP]
+> On Ubuntu/Debian you may first need `sudo apt install -y git python3-venv python3-pip`. Windows and macOS steps, `pipx`, upgrading, and troubleshooting are in the **[installation guide](docs/installation.md)**.
 
-```bash
-top-platform --help
-python -c "import top; print('TOP', top.__version__)"
+---
+
+## 📸 A quick tour
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+### 1 · Chart, indicators, and the Interpretation pane
+Pick any Nifty 50 stock from a searchable dropdown and stack studies from 10 sections. Here: SMA 20/50/200 (added with **+ Another**), Bollinger Bands with a grey fill, and the swing plan's Entry/Stop/T1/T2 on the price axis. The pane below explains every selection in plain English.
+
+</td>
+<td width="50%" valign="top">
+
+### 2 · Scott Carney harmonics
+Gartley, Bat, Alternate Bat, Butterfly, Crab, Deep Crab, Cypher, Shark, 5-0, AB=CD, and Three Drives, drawn as X-A-B-C-D legs with ratio guides. **Harmonics list** shows each pattern's date, side, PRZ, and measured ratios.
+
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/overview.png" alt="Chart with moving averages, Bollinger fill, and interpretation"/></td>
+<td><img src="docs/images/harmonics.png" alt="Bharti Airtel with Carney harmonic patterns and the harmonics list"/></td>
+</tr>
+<tr>
+<td valign="top">
+
+### 3 · Darvas boxes and breakout detection
+Nicolas Darvas boxes (3-day top and bottom confirmation) and a volume-confirmed **Breakout & trend detector** that flags breakouts, breakdowns, failed breakouts, and the ATR trailing trend that follows.
+
+</td>
+<td valign="top">
+
+### 4 · Backtests with full results
+Signal at the close, fill at the next open, with costs. Results include return, CAGR, max drawdown, Sharpe, Sortino, win rate, profit factor, exposure, the equity curve against buy and hold, and every trade.
+
+</td>
+</tr>
+<tr>
+<td><img src="docs/images/darvas-breakout.png" alt="Infosys with Darvas boxes, breakout range, trailing stop, and markers"/></td>
+<td><img src="docs/images/backtest.png" alt="Trendline breakout backtest on Infosys with metrics, equity curve, and trades"/></td>
+</tr>
+<tr>
+<td colspan="2" valign="top">
+
+### 5 · Strategies from YouTube creators, and Backtest 50
+Rules adapted from **@neurotrader888** and **@UnbiasedTradingGoshawk** sit in their own searchable groups, each with sources and a confidence label. **Backtest 50** runs any strategy on all 50 stocks and ranks them.
+
+<img src="docs/images/creators-scan.png" alt="Creator strategies dropdown and Connors Double 7s ranked across all 50 stocks"/>
+
+</td>
+</tr>
+</table>
+
+---
+
+## ✨ Features
+
+| | Feature | Details |
+| --- | --- | --- |
+| 🗂️ | **All 50 Nifty stocks** | About five years of adjusted daily bars in a local DuckDB file. Includes `M&M`, `ETERNAL` (formerly Zomato), and `TMPV`. One-click **Sync history** or `top-sync` |
+| 📊 | **TradingView-style chart** | TradingView Lightweight Charts with candles, volume, overlays, oscillator panes, and 6M/1Y/2Y/5Y/All ranges |
+| 🧮 | **146 indicators** in 10 sections | Harmonics · @neurotrader888 · @UnbiasedTradingGoshawk · Moving averages · Bands and channels · Trend · Momentum · Volatility · Volume · Price statistics. [Full catalog →](docs/indicators.md) |
+| ⏱️ | **Flexible durations** | Period presets (5 … 200), free entry, and **+ Another** to add SMA 20/50/200 side by side. Adjustable EMA-ribbon lengths |
+| 🌫️ | **Shaded bands** | Every band or channel with upper and lower lines is shaded light grey, drawn under the candles |
+| 🦋 | **Scott Carney harmonics** | 11 patterns plus "all", drawn as XABCD legs, on by default for every stock and backtestable |
+| 📦 | **Darvas box & breakout detector** | Boxes, breakouts, breakdowns, failed breakouts, and ATR trailing trend, each with a strategy |
+| 🧪 | **86 strategies** | Trend, breakout, trend reversal, harmonics, oscillators, mean reversion, price action, volume, and two creator groups. [Full catalog →](docs/strategies.md) |
+| 🏁 | **Backtest 50** | Run one strategy on every stock and rank by return, drawdown, and trades |
+| 🎥 | **YouTube creator strategies** | 13 rules adapted from @neurotrader888's MIT-licensed code and the public sources @UnbiasedTradingGoshawk tests. [Details →](docs/creators.md) |
+| 🗣️ | **Interpretation pane** | Plain-English reading of every selected study and strategy, a technical rating (MA and oscillator votes), and a swing plan with trigger, entry, stop, T1/T2, position size, and historical odds on the same stock |
+| 🔎 | **Trend scan** | Every trend, breakout, and reversal rule on the selected stock in one click |
+| 🏢 | **Fundamentals** | Ratios and pros/cons from the public Screener.in page, cached for six hours |
+| 🔗 | **Shareable links** | `/?symbol=INFY&studies=sma:50,sma:200,bbands&strategy=darvas_breakout&run=backtest` opens straight to a set-up |
+| ✅ | **Verify** | In-app checks across front end, back end, and data, plus `python -m top.verify` and an offline test suite in CI |
+
+---
+
+## 🧭 How it works
+
+```mermaid
+flowchart LR
+  B["Browser<br/>index.html + app.js<br/>Lightweight Charts"] -- "JSON /api/*" --> S["top-platform<br/>(Python stdlib HTTP server)"]
+  S --> E["Engines<br/>indicators · strategies · backtest<br/>harmonics · Darvas · explain"]
+  S <--> D[("DuckDB<br/>data/nse.duckdb")]
+  S -- "first run / Sync" --> Y["Yahoo Finance<br/>daily history"]
+  S -- "on demand" --> F["Screener.in<br/>fundamentals"]
 ```
 
-## Run
+- **One process, one dependency.** A standard-library HTTP server and `duckdb`. No NumPy, no Node build, no accounts, no API keys.
+- **Everything is computed from your stored bars** when you ask, so the chart, backtests, and readings always agree.
+- **No look-ahead.** Pivots, boxes, and breakouts appear only once they're confirmed. Trades fill at the next open.
 
-```bash
-# from the project folder, with the virtual environment active
-top-platform              # or: python -m top
-```
+Read the full [design document](docs/design.md) for the architecture, algorithms, and decisions.
 
-Open **http://127.0.0.1:8000** in a browser. Use `127.0.0.1`, not `localhost`: the server binds IPv4 only.
+---
 
-On the first start TOP creates `data/nse.duckdb` in the current folder and downloads daily history for all 50 names in the background. The top bar shows progress (`Sync 12/50`) and then `DuckDB 50/50`. Later starts reuse the stored data. Click **Sync history** to refresh.
+## 📚 Documentation
 
-You can also fill or refresh the database without the server:
+| Guide | What's inside |
+| --- | --- |
+| 🛠️ [Installation](docs/installation.md) | Linux, macOS, Windows, `pipx`, upgrading, uninstalling, running in the background, troubleshooting |
+| 🧑‍💻 [User guide](docs/user-guide.md) | A walkthrough of every panel and button, with screenshots and example links |
+| 🧮 [Indicator catalog](docs/indicators.md) | All 146 studies with settings and ranges |
+| 🧪 [Strategy catalog](docs/strategies.md) | All 86 strategies with rules and settings |
+| 🎥 [Creator strategies](docs/creators.md) | @neurotrader888 and @UnbiasedTradingGoshawk: sources, confidence, adaptations, results |
+| 🏗️ [Design](docs/design.md) | Architecture, data, algorithms, decisions, performance, security, testing |
+| 🔌 [HTTP API](docs/api.md) | Every route with request and response examples |
+| 🧰 [Development](docs/development.md) | Code layout, tests, adding an indicator or strategy, releases |
+| 🤝 [Contributing](CONTRIBUTING.md) · 📝 [Changelog](CHANGELOG.md) · 🔐 [Security](SECURITY.md) | Project process |
 
-```bash
-top-sync                  # downloads all 50 names, prints progress
-```
+The same user guide is built into the app: click **Guide** in the top bar.
 
-Then:
+---
 
-1. Pick a stock from the **Stock** dropdown on the left.
-2. Add studies from the section dropdowns. Carney harmonics are already on.
-3. Read the **Interpretation** pane under the chart.
-4. Pick a strategy, then **Run backtest** or **Backtest 50**.
-5. Use **Trend scan**, **Fundamentals**, **Harmonics list**, and **Verify** for more.
-
-The full user guide is built in: click **Guide** in the top bar, or open `http://127.0.0.1:8000/guide.html`.
-
-To check everything end to end:
-
-```bash
-python -m top.verify      # exits 0 when every check passes
-```
-
-## Configuration
+## ⚙️ Configuration
 
 | Setting | Flag | Environment variable | Default |
 | --- | --- | --- | --- |
 | Bind address | `--host` | `TOP_HOST` | `127.0.0.1` |
 | Port | `--port` | `TOP_PORT` | `8000` |
 | Database file | `top-sync --db` | `TOP_DB` | `./data/nse.duckdb` (relative to where you start TOP) |
-| Download on start if empty | `--no-sync` turns it off | `TOP_AUTO_SYNC=0` turns it off | on |
-
-Example: `TOP_DB=~/market/nse.duckdb top-platform --port 8050`
-
-TOP has no login. Keep it on `127.0.0.1` unless you put it behind your own access control.
-
-## Troubleshooting
-
-| Problem | Fix |
-| --- | --- |
-| `python3 -m venv` fails with `ensurepip is not available` | `sudo apt install python3-venv`, or the versioned package such as `python3.12-venv` |
-| `Command 'pip' not found` | Install it with `sudo apt install python3-pip`, then install TOP inside a virtual environment (see [Install without cloning](#install-without-cloning)) |
-| `error: externally-managed-environment` | Ubuntu/Debian protect the system Python. Use a virtual environment or `pipx` as shown above, not `sudo pip` |
-| `top-platform: command not found` | Activate the virtual environment (`source .venv/bin/activate`) or run it by path, for example `~/top-venv/bin/top-platform` |
-| `Illegal instruction` when starting | Your CPU lacks SSE4.2/POPCNT. TOP pins `duckdb==1.1.3` for this reason; make sure nothing upgraded it (`pip install duckdb==1.1.3`). Do not install NumPy 2 into the same environment for TOP; it does not need NumPy |
-| `No matching distribution found for duckdb==1.1.3` | Use Python 3.10–3.13. DuckDB 1.1.3 has no wheels for Python 3.14 |
-| Browser says "Failed to fetch" or "The desk did not answer" | Check the server is running and open `http://127.0.0.1:8000` (not `localhost`) |
-| `Address already in use` | Another process uses port 8000. Run `top-platform --port 8050` |
-| Page looks old after an update | Hard-reload: Ctrl+Shift+R (Cmd+Shift+R on macOS) |
-| Some names show "no bars" | Click **Sync history** or run `top-sync`. Yahoo occasionally rate-limits; run it again later |
-| Fundamentals error | Screener.in may be unreachable or rate-limiting. Try later |
-| A command `top` opens the Linux process viewer | That is the system `top`. TOP's command is `top-platform` (or `python -m top`) |
-
-## Documentation
-
-| Document | What it covers |
-| --- | --- |
-| [docs/design.md](docs/design.md) | Design document: goals, architecture, data flow, modules, algorithms (backtest, harmonics, interpretation), key decisions, limits |
-| [docs/api.md](docs/api.md) | HTTP API reference with request and response examples |
-| [docs/creators.md](docs/creators.md) | YouTube creator strategies: sources, rules, adaptations, confidence, first Nifty 50 results |
-| [docs/development.md](docs/development.md) | Code layout, running tests, adding an indicator or strategy, releasing |
-| [User guide](top/web/guide.html) | Built into the app at `/guide.html` |
-| [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) | Lightweight Charts (Apache-2.0) and data-source notes |
-| [docs/archive/](docs/archive/) | Early planning notes, kept for history |
-
-## Project layout
-
-```text
-Trade-Observability-Platform/
-├── top/                      Python package
-│   ├── server.py             HTTP server and JSON API (stdlib ThreadingHTTPServer)
-│   ├── store.py              DuckDB schema, Yahoo download, top-sync command
-│   ├── universe.py           The 50 Nifty names, sectors, weights
-│   ├── arrays.py             Small NumPy-like array helpers (no NumPy needed)
-│   ├── indicators.py         146 studies and their catalog
-│   ├── strategies.py         86 long/flat strategies and their catalog
-│   ├── creators.py           @neurotrader888 and @UnbiasedTradingGoshawk strategies and studies
-│   ├── market.py             Equal-weight Nifty 50 proxy from stored bars
-│   ├── backtest.py           Next-open fill backtester and metrics
-│   ├── harmonics.py          Zigzag pivots and Scott Carney ratio rules
-│   ├── explain.py            Plain-language readings, technical rating, swing plan, historical odds
-│   ├── fundamentals.py       Screener.in page fetch and parser
-│   ├── verify.py             Named self-checks (python -m top.verify)
-│   └── web/                  Front end: index.html, app.js, styles.css, guide.html, vendor/
-├── tests/                    Offline unit and HTTP integration tests (synthetic data)
-├── docs/                     Design, API, development docs
-├── .github/workflows/ci.yml  Tests on Python 3.10–3.13 and a wheel smoke test
-├── pyproject.toml
-└── requirements.txt
-```
-
-## Development and tests
+| Download on first start | `--no-sync` turns it off | `TOP_AUTO_SYNC=0` turns it off | on |
 
 ```bash
-pip install -e .
-python -m unittest discover -s tests -t . -v      # offline: synthetic data in a temp DuckDB, real HTTP server
-TOP_NETWORK_TESTS=1 python -m unittest tests.test_api   # adds a live Screener.in call
+TOP_DB=~/top-data/nse.duckdb top-platform --port 8050
 ```
 
-See [docs/development.md](docs/development.md) for more.
+> [!WARNING]
+> TOP has no login. Keep it on `127.0.0.1` unless you put it behind your own access control.
 
-## License
+---
 
-TOP is released under the [MIT License](LICENSE). The bundled TradingView Lightweight Charts library is under the Apache License 2.0. See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+## ❓ FAQ
+
+<details>
+<summary><b>Is this a live trading or brokerage app?</b></summary>
+
+No. TOP reads delayed public **daily** bars and never places orders. It is for research, learning, and back-testing ideas.
+</details>
+
+<details>
+<summary><b>Where does the data come from, and how fresh is it?</b></summary>
+
+Daily OHLCV from Yahoo Finance's public chart endpoint (adjusted for splits and dividends), stored in DuckDB. Click **Sync history** or run `top-sync` after the market closes to refresh. Fundamentals come from Screener.in on demand.
+</details>
+
+<details>
+<summary><b>Why does it pin <code>duckdb==1.1.3</code> and avoid NumPy?</b></summary>
+
+So it runs on older x86 CPUs without SSE4.2/POPCNT. Newer DuckDB and NumPy 2 builds crash there with "Illegal instruction". TOP includes its own small array helpers instead.
+</details>
+
+<details>
+<summary><b>Are the swing plan's odds a prediction?</b></summary>
+
+No. They replay the same rule on that stock's own history and report how often it worked. They describe the past, and results near 50% or 0R mean there was no edge.
+</details>
+
+<details>
+<summary><b>Did you download YouTube videos to build the creator strategies?</b></summary>
+
+No. Rules were re-implemented from public text: video descriptions and chapters, the creators' own open-source code, and the papers or books the videos test. Each strategy shows its sources and a confidence label. See [creators.md](docs/creators.md).
+</details>
+
+<details>
+<summary><b>Can I add my own indicator or strategy?</b></summary>
+
+Yes. Each is a small Python function registered in a catalog. See [Development → Add an indicator / strategy](docs/development.md).
+</details>
+
+---
+
+## 🗺️ Roadmap
+
+- [ ] Walk-forward and Monte-Carlo permutation tests in the UI
+- [ ] Saved layouts and watchlists
+- [ ] Alerts when a breakout, Darvas, or harmonic signal fires
+- [ ] Optional NSE index and F&O data for short-side setups
+- [ ] Desktop wrapper (single-click app)
+
+Ideas and pull requests are welcome; see [CONTRIBUTING.md](CONTRIBUTING.md).
+
+---
+
+## 🙏 Credits
+
+- [TradingView Lightweight Charts™](https://github.com/tradingview/lightweight-charts) (Apache-2.0) for the chart engine
+- [DuckDB](https://duckdb.org) for local storage
+- [neurotrader888](https://github.com/neurotrader888) and [Unbiased Trading](https://www.youtube.com/@UnbiasedTradingGoshawk) for the published ideas adapted in `top/creators.py`
+- Scott M. Carney's harmonic ratios, Nicolas Darvas's box method, and Larry Connors' published rules
+
+See [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).
+
+## 📄 License
+
+[MIT](LICENSE) © 2026 garv08 and TOP contributors. The bundled chart library keeps its Apache-2.0 license.

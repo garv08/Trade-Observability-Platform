@@ -122,6 +122,7 @@ Each load carries a request token. A slow response for a previous stock is dropp
 - **Searchable dropdowns** replace long lists. Typed words must all match name, id, group, or sector. Arrow keys, Enter, and Esc work. Indicator dropdowns are multi-select and stay open.
 - **Band shading** uses a Lightweight Charts series primitive (`BandFill` in `app.js`) attached to the candle series with `zOrder: "bottom"`, so the grey fill sits beneath the candles. Any price study with `upper` and `lower` outputs gets it.
 - **Study copies.** Each active study is an instance with its own id, so the same study can be on the chart several times with different periods. Only the newest study request draws; older responses from quick clicks are dropped.
+- **Shareable links.** On load, `openFromLink()` in `app.js` reads URL parameters (`symbol`, `studies`, `carney`, `strategy`, `range`, `run`, `menu`, `q`) to restore a set-up. The README screenshots use the same mechanism.
 - **Nothing overlays the chart.** Scan output and readings live in panels below it, and the chart shrinks to fit.
 - Under 1000px wide, the left panel becomes a drawer (**Controls**).
 

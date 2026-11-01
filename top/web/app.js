@@ -1023,8 +1023,49 @@ async function boot() {
   buildControls();
   renderLibrary();
   renderStrategies();
-  await loadBars(state.symbols.some((row) => row.symbol === "RELIANCE") ? "RELIANCE" : state.symbols[0].symbol);
+  await openFromLink();
   refreshStatus();
+  document.body.dataset.ready = "1";
+}
+
+// Shareable links, e.g. /?symbol=INFY&studies=sma:50,sma:200,bbands&strategy=darvas_breakout&range=252&run=backtest
+async function openFromLink() {
+  const q = new URLSearchParams(location.search);
+  if (q.get("carney") === "0") state.activeStudies = state.activeStudies.filter((item) => item.id !== "carney");
+  for (const token of (q.get("studies") || "").split(",").filter(Boolean)) {
+    const [id, length] = token.split(":");
+    const spec = state.indicators.find((item) => item.id === id);
+    if (!spec) continue;
+    const values = Object.fromEntries(spec.params.map((param) => [param.key, param.default]));
+    if (length && "length" in values) values.length = Number(length);
+    state.activeStudies.push(newStudy(spec, values));
+  }
+  const strategy = q.get("strategy");
+  if (strategy && state.strategies.some((item) => item.id === strategy)) {
+    $("strategy-select").value = strategy;
+    renderStrategyParams();
+  }
+  const range = q.get("range");
+  if (range && $("ranges").querySelector(`[data-range="${CSS.escape(range)}"]`)) {
+    state.range = range;
+    for (const node of $("ranges").querySelectorAll("button")) node.classList.toggle("on", node.dataset.range === range);
+  }
+  renderLibrary();
+  const wanted = q.get("symbol");
+  const symbol = state.symbols.some((row) => row.symbol === wanted) ? wanted : state.symbols.some((row) => row.symbol === "RELIANCE") ? "RELIANCE" : state.symbols[0].symbol;
+  await loadBars(symbol);
+  const actions = { backtest: () => runBacktest({ preventDefault() {} }), trend: runTrend, scan: runScan, harmonics: runHarmonics, fundamentals: runFundamentals, verify: runVerify };
+  if (actions[q.get("run")]) await actions[q.get("run")]();
+  const menuName = q.get("menu");
+  if (menuName) {
+    const host = menuName === "stock" ? $("stock-combo") : menuName === "strategy" ? $("strategy-combo") : document.querySelector(`[data-section="${CSS.escape(menuName)}"]`);
+    const combo = combos.find((item) => item.host === host);
+    if (combo) {
+      combo.input.value = q.get("q") || "";
+      combo.typed = Boolean(q.get("q"));
+      openCombo(combo);
+    }
+  }
 }
 
 boot().catch((error) => {

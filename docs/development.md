@@ -1,4 +1,32 @@
-# Development
+# 🧰 Development
+
+## Project layout
+
+```text
+Trade-Observability-Platform/
+├── top/                        Python package
+│   ├── server.py               HTTP server, JSON API, CLI (top-platform)
+│   ├── store.py                DuckDB schema, Yahoo download, top-sync
+│   ├── universe.py             The 50 Nifty names, sectors, weights
+│   ├── arrays.py               Small NumPy-like array helpers (no NumPy needed)
+│   ├── indicators.py           Indicator math and the study catalog
+│   ├── strategies.py           Long/flat strategies and their catalog
+│   ├── backtest.py             Next-open fill backtester and metrics
+│   ├── harmonics.py            Zigzag pivots and Scott Carney ratio rules
+│   ├── patterns.py             Darvas boxes, breakout and trend detector
+│   ├── creators.py             @neurotrader888 and @UnbiasedTradingGoshawk rules
+│   ├── market.py               Equal-weight Nifty 50 proxy from stored bars
+│   ├── explain.py              Readings, technical rating, swing plan, odds
+│   ├── fundamentals.py         Screener.in fetch and parser
+│   ├── verify.py               Named self-checks (python -m top.verify)
+│   └── web/                    index.html, app.js, styles.css, guide.html, vendor/
+├── tests/                      Offline unit and HTTP integration tests
+├── scripts/                    generate_catalog_docs.py
+├── docs/                       Guides, catalogs, design, API; images/ holds screenshots
+├── .github/                    CI workflow, issue and PR templates
+├── pyproject.toml              Package metadata, entry points
+└── requirements.txt
+```
 
 ## Set up
 
@@ -79,6 +107,30 @@ CI (`.github/workflows/ci.yml`) runs the tests on Python 3.10–3.13. It also bu
 - Never hold the DuckDB lock (`session()`) during network calls.
 - New API inputs must be validated against the symbol or strategy catalogs.
 - Escape any server or third-party text in the front end with `esc()`.
+
+## Generated docs
+
+`docs/indicators.md` and `docs/strategies.md` are generated from the catalogs:
+
+```bash
+python scripts/generate_catalog_docs.py
+```
+
+Run it whenever you add or change an indicator or strategy.
+
+## Screenshots
+
+The README images in `docs/images/` are taken with headless Chrome against a running server, using [shareable links](user-guide.md#shareable-links):
+
+```bash
+shot() { google-chrome --headless=new --disable-gpu --hide-scrollbars --user-data-dir=/tmp/top-shot \
+  --window-size=1440,${3:-900} --virtual-time-budget=30000 --screenshot=docs/images/$1.png "http://127.0.0.1:8000/?$2"; }
+shot overview        "symbol=ICICIBANK&studies=sma:20,sma:50,sma:200,bbands&range=252"
+shot harmonics       "symbol=BHARTIARTL&range=504&run=harmonics&studies=harm_butterfly"
+shot darvas-breakout "symbol=INFY&carney=0&studies=darvas,breakout_trend&range=126"
+shot backtest        "symbol=INFY&carney=0&studies=nt_trendlines,nt_zigzag&strategy=nt_trendline_breakout&range=1260&run=backtest" 1000
+shot creators-scan   "symbol=BHARTIARTL&strategy=ut_double_seven&run=scan&menu=strategy&q=@"
+```
 
 ## Release
 

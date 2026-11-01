@@ -76,6 +76,7 @@
       <a href="#trend">Trend scan</a>
       <a href="#fundamentals">Fundamentals</a>
       <a href="#verify">Verify</a>
+      <a href="#links">Shareable links</a>
       <a href="#data">Data and sync</a>
       <a href="#trouble">Troubleshooting</a>
       <a href="#limits">Limits</a>
@@ -90,7 +91,7 @@
       <pre><code>cd Trade-Observability-Platform
 source .venv/bin/activate   # see README for install
 top-platform           # or: python -m top</code></pre>
-      <p>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>. Use <code>127.0.0.1</code>, not <code>localhost</code>. The server only listens on IPv4, and <code>localhost</code> can resolve to IPv6 and miss it.</p>
+      <p>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a> (or <code>http://localhost:8000</code>; the server answers on both IPv4 and IPv6 loopback).</p>
       <p>On the first start, the desk fills <code>data/nse.duckdb</code> (in the folder you start it from, or the path in <code>TOP_DB</code>) with about five years of daily bars for all 50 names. Later starts reuse the stored data.</p>
 
       <h2 id="screen">The screen</h2>
@@ -312,6 +313,23 @@ top-platform           # or: python -m top</code></pre>
       <p>The same server checks run from a terminal:</p>
       <pre><code>python -m top.verify</code></pre>
 
+      <h2 id="links">Shareable links</h2>
+      <p>Any set-up can be opened from a URL, which is handy for bookmarks:</p>
+      <table>
+        <thead><tr><th>Parameter</th><th>Example</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td><code>symbol</code></td><td><code>symbol=INFY</code></td><td>Stock to open</td></tr>
+          <tr><td><code>studies</code></td><td><code>studies=sma:20,sma:50,sma:200,bbands</code></td><td>Studies to add; <code>id:period</code> sets the period</td></tr>
+          <tr><td><code>carney</code></td><td><code>carney=0</code></td><td>Turn off the default harmonics</td></tr>
+          <tr><td><code>strategy</code></td><td><code>strategy=darvas_breakout</code></td><td>Pre-select a strategy</td></tr>
+          <tr><td><code>range</code></td><td><code>range=252</code></td><td>126, 252, 504, 1260, or <code>all</code></td></tr>
+          <tr><td><code>run</code></td><td><code>run=backtest</code></td><td>Also <code>trend</code>, <code>scan</code>, <code>harmonics</code>, <code>fundamentals</code>, <code>verify</code></td></tr>
+          <tr><td><code>menu</code>, <code>q</code></td><td><code>menu=stock&amp;q=bank</code></td><td>Open a dropdown with a search</td></tr>
+        </tbody>
+      </table>
+      <pre><code>http://127.0.0.1:8000/?symbol=ICICIBANK&amp;studies=sma:20,sma:50,sma:200,bbands&amp;range=252
+http://127.0.0.1:8000/?symbol=TCS&amp;strategy=ut_ahl_trend&amp;run=backtest</code></pre>
+
       <h2 id="data">Data and sync</h2>
       <ul>
         <li>Source: Yahoo Finance public daily chart data, adjusted, for the <code>.NS</code> listings.</li>
@@ -324,7 +342,7 @@ top-platform           # or: python -m top</code></pre>
       <table>
         <thead><tr><th>Problem</th><th>What to do</th></tr></thead>
         <tbody>
-          <tr><td>"Failed to fetch" or "The desk did not answer"</td><td>Make sure the server is running and you opened <code>http://127.0.0.1:8000</code>. The desk retries automatically. Pick the stock again after a second.</td></tr>
+          <tr><td>"Failed to fetch" or "The desk did not answer"</td><td>Make sure the server is still running, then reload. The desk retries automatically. Pick the stock again after a second.</td></tr>
           <tr><td>Page looks old after an update</td><td>Hard-reload the page (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>).</td></tr>
           <tr><td>No harmonic patterns on a stock</td><td>Lower <b>Swing %</b> or raise <b>Tolerance</b> on Carney all harmonics. The legend says when none were found.</td></tr>
           <tr><td>Chart is too busy</td><td>Remove Carney all harmonics, or pick a single pattern from the Harmonics dropdown instead.</td></tr>
