@@ -1,0 +1,54 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.10", "3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Install
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e .
+      - name: Offline tests (synthetic data, real HTTP server)
+        run: python -m unittest discover -s tests -t . -v
+
+  package:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build wheel and check the web app is inside
+        run: |
+          python -m pip install --upgrade pip build
+          python -m build --wheel
+          python - <<'PY'
+          import glob, zipfile
+          wheel = glob.glob("dist/*.whl")[0]
+          names = set(zipfile.ZipFile(wheel).namelist())
+          need = ["top/web/index.html", "top/web/app.js", "top/web/styles.css", "top/web/guide.html",
+                  "top/web/vendor/lightweight-charts.standalone.production.js"]
+          missing = [n for n in need if n not in names]
+          assert not missing, missing
+          print("wheel ok:", wheel)
+          PY
+      - name: Install the wheel and start the server
+        run: |
+          python -m venv /tmp/clean && /tmp/clean/bin/pip install dist/*.whl
+          cd /tmp && /tmp/clean/bin/top-platform --port 8765 --no-sync &
+          sleep 3
+          curl -sf http://127.0.0.1:8765/api/health
+          curl -sf http://127.0.0.1:8765/ | grep -q "Trade Observability Platform"

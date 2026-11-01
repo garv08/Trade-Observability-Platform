@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TOP · Trade Observability Platform</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="mark">TOP</span>
+      <div>
+        <strong>TOP</strong>
+        <small>Trade Observability Platform · Nifty 50</small>
+      </div>
+    </div>
+    <div class="symbol-title">
+      <b id="active-symbol">—</b>
+      <span id="active-name"></span>
+      <span id="active-price"></span>
+      <span id="active-change"></span>
+    </div>
+    <div class="top-actions">
+      <span id="sync-pill" class="pill">DuckDB</span>
+      <button id="studies-toggle" type="button">Controls</button>
+      <a id="guide-link" class="guide-link" href="/guide.html" target="_blank" rel="noopener">Guide</a>
+      <button id="sync-btn" type="button">Sync history</button>
+    </div>
+  </header>
+
+  <div class="workspace">
+    <aside class="rail controls" id="controls">
+      <section class="block">
+        <div class="block-head"><b>Stock</b><span class="muted" id="stock-count">50 Nifty names</span></div>
+        <div class="combo" id="stock-combo"></div>
+      </section>
+
+      <section class="block">
+        <div class="block-head"><b>Indicators</b><span class="muted" id="indicator-count"></span></div>
+        <div id="section-combos" class="section-combos"></div>
+        <div id="active-studies" class="active-studies"></div>
+      </section>
+
+      <section class="block">
+        <div class="block-head"><b>Backtest</b><span class="muted" id="strategy-count"></span></div>
+        <form id="backtest-form" class="tester-form">
+          <div class="combo" id="strategy-combo"></div>
+          <input id="strategy-select" type="hidden" />
+          <p id="strategy-blurb" class="blurb">Pick a strategy. Fills are the next open.</p>
+          <div id="strategy-params" class="param-grid"></div>
+          <div class="param-grid">
+            <label>Capital<input id="capital" type="number" min="10000" step="10000" value="1000000" /></label>
+            <label>Cost bps<input id="cost-bps" type="number" min="0" max="100" step="0.5" value="5" /></label>
+          </div>
+          <div class="button-row">
+            <button id="run-backtest" type="submit">Run backtest</button>
+            <button id="scan-50" type="button">Backtest 50</button>
+          </div>
+        </form>
+      </section>
+
+      <section class="block">
+        <div class="block-head"><b>Analysis</b></div>
+        <div class="button-grid">
+          <button id="harm-btn" type="button">Harmonics list</button>
+          <button id="trend-btn" type="button">Trend scan</button>
+          <button id="fund-btn" type="button">Fundamentals</button>
+          <button id="verify-btn" type="button">Verify</button>
+        </div>
+      </section>
+    </aside>
+
+    <section class="stage">
+      <div class="chart-toolbar">
+        <div class="legend" id="ohlc-legend">Move across the chart</div>
+        <div class="ranges" id="ranges">
+          <button type="button" data-range="126">6M</button>
+          <button type="button" data-range="252">1Y</button>
+          <button type="button" data-range="504" class="on">2Y</button>
+          <button type="button" data-range="1260">5Y</button>
+          <button type="button" data-range="all">All</button>
+        </div>
+      </div>
+      <div class="chart-stack">
+        <div id="price-chart"></div>
+        <div id="osc-stack"></div>
+        <div id="chart-empty" class="empty hidden">No bars stored for this name yet.</div>
+      </div>
+      <section id="explain" class="explain">
+        <header>
+          <b>Interpretation</b>
+          <span id="explain-sub" class="muted">Pick a stock, study, or strategy on the left.</span>
+          <button id="explain-toggle" type="button">Hide</button>
+        </header>
+        <div id="explain-body" class="explain-body"></div>
+      </section>
+      <section id="insight" class="insight hidden">
+        <header><b id="insight-title">Scan</b><button id="insight-close" type="button">Close</button></header>
+        <div id="insight-body"></div>
+      </section>
+      <section class="tester collapsed" id="tester">
+        <div class="tester-head">
+          <div>
+            <strong>Backtest results</strong>
+            <span id="tester-note" class="muted">Run a backtest from the left panel.</span>
+          </div>
+          <button id="tester-toggle" type="button">Show</button>
+        </div>
+        <div class="tester-body hidden" id="tester-body">
+          <div id="metrics" class="metrics"></div>
+          <div class="tester-results">
+            <div id="equity-chart"></div>
+            <div class="trades-wrap">
+              <table>
+                <thead>
+                  <tr><th>Entry</th><th>Exit</th><th>Buy</th><th>Sell</th><th>Return</th><th>PnL</th></tr>
+                </thead>
+                <tbody id="trades"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+    </section>
+  </div>
+  <div id="combo-menu" class="combo-menu hidden" role="listbox"></div>
+  <script src="/vendor/lightweight-charts.standalone.production.js"></script>
+  <script src="/app.js"></script>
+</body>
+</html>

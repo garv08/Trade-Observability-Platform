@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>TOP · User guide</title>
+  <style>
+    :root {
+      --bg: #0c0e13; --panel: #131722; --line: #2a2e39; --text: #d1d4dc;
+      --muted: #8b90a0; --blue: #2962ff; --up: #089981; --down: #f23645; --amber: #f2a900;
+    }
+    * { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.6 "Segoe UI", "Helvetica Neue", sans-serif; }
+    a { color: #7ea2ff; }
+    header.top {
+      position: sticky; top: 0; z-index: 2; display: flex; align-items: center; gap: 12px;
+      padding: 10px 24px; background: var(--panel); border-bottom: 1px solid var(--line);
+    }
+    .mark { width: 34px; height: 34px; display: grid; place-items: center; background: var(--blue); color: #fff; font-size: 11px; font-weight: 700; border-radius: 7px; }
+    header.top strong { flex: 1; }
+    .btn { display: inline-block; padding: 6px 12px; border: 1px solid var(--line); border-radius: 6px; color: var(--text); text-decoration: none; background: #1a1f2e; }
+    .btn:hover { border-color: #4a5168; }
+    .layout { display: grid; grid-template-columns: 230px minmax(0, 1fr); max-width: 1180px; margin: 0 auto; }
+    nav.toc { position: sticky; top: 55px; align-self: start; max-height: calc(100vh - 55px); overflow: auto; padding: 24px 12px 24px 24px; }
+    nav.toc a { display: block; padding: 4px 8px; color: var(--muted); text-decoration: none; border-radius: 5px; font-size: 14px; }
+    nav.toc a:hover { color: var(--text); background: var(--panel); }
+    main { padding: 24px 32px 80px; min-width: 0; }
+    h1 { font-size: 28px; margin: 0 0 6px; }
+    h2 { font-size: 20px; margin: 40px 0 10px; padding-top: 8px; border-top: 1px solid var(--line); }
+    h3 { font-size: 16px; margin: 22px 0 6px; }
+    p, li { max-width: 78ch; }
+    .lead { color: var(--muted); font-size: 16px; }
+    .note { border-left: 3px solid var(--amber); background: #1d1a10; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; }
+    .tip { border-left: 3px solid var(--blue); background: #111a33; padding: 10px 14px; border-radius: 0 6px 6px 0; margin: 14px 0; }
+    code, kbd { background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; font-size: 13px; }
+    pre { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow: auto; }
+    pre code { border: 0; padding: 0; background: none; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 14px; }
+    th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+    th { color: var(--muted); font-weight: 600; background: var(--panel); }
+    .up { color: var(--up); } .down { color: var(--down); }
+    .map { display: grid; grid-template-columns: 1fr 2.4fr 1.2fr; gap: 6px; margin: 12px 0; font-size: 13px; }
+    .map div { border: 1px solid var(--line); border-radius: 6px; padding: 10px; background: var(--panel); }
+    .map .wide { grid-column: 2; }
+    .map.two { grid-template-columns: 1fr 1.3fr; }
+    .map b { display: block; margin-bottom: 4px; }
+    ol.steps li { margin-bottom: 6px; }
+    @media (max-width: 860px) {
+      .layout { grid-template-columns: 1fr; }
+      nav.toc { position: static; max-height: none; padding: 16px 24px 0; }
+      main { padding: 16px 20px 60px; }
+      .map, .map.two { grid-template-columns: 1fr; } .map .wide { grid-column: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top">
+    <span class="mark">TOP</span>
+    <strong>TOP · Trade Observability Platform · User guide</strong>
+    <a class="btn" href="/">Back to TOP</a>
+  </header>
+
+  <div class="layout">
+    <nav class="toc">
+      <a href="#start">Start the desk</a>
+      <a href="#screen">The screen</a>
+      <a href="#stocks">Pick a stock</a>
+      <a href="#chart">Chart and ranges</a>
+      <a href="#indicators">Indicators</a>
+      <a href="#harmonics">Carney harmonics</a>
+      <a href="#interpret">Interpretation and swing plan</a>
+      <a href="#creators">YouTube creator strategies</a>
+      <a href="#backtest">Strategy tester</a>
+      <a href="#scan50">Backtest 50</a>
+      <a href="#trend">Trend scan</a>
+      <a href="#fundamentals">Fundamentals</a>
+      <a href="#verify">Verify</a>
+      <a href="#data">Data and sync</a>
+      <a href="#trouble">Troubleshooting</a>
+      <a href="#limits">Limits</a>
+    </nav>
+
+    <main>
+      <h1>TOP user guide</h1>
+      <p class="lead">A local research desk for the 50 Nifty names. It has daily charts, 146 indicators, Scott Carney harmonics, 86 backtestable strategies (including rules adapted from two YouTube channels), a one-click trend scan, and Screener.in fundamentals.</p>
+      <div class="note">This desk uses delayed public daily data. It is not a live NSE feed, not a broker, and not TradingView or the Harmonic Trader product. Nothing here is investment advice.</div>
+
+      <h2 id="start">Start the desk</h2>
+      <pre><code>cd Trade-Observability-Platform
+source .venv/bin/activate   # see README for install
+top-platform           # or: python -m top</code></pre>
+      <p>Open <a href="http://127.0.0.1:8000">http://127.0.0.1:8000</a>. Use <code>127.0.0.1</code>, not <code>localhost</code>. The server only listens on IPv4, and <code>localhost</code> can resolve to IPv6 and miss it.</p>
+      <p>On the first start, the desk fills <code>data/nse.duckdb</code> (in the folder you start it from, or the path in <code>TOP_DB</code>) with about five years of daily bars for all 50 names. Later starts reuse the stored data.</p>
+
+      <h2 id="screen">The screen</h2>
+      <div class="map two">
+        <div><b>Left panel: every control</b>
+          <b>Stock</b> searchable dropdown.<br />
+          <b>Indicators</b>: one searchable dropdown per section, in this order: Harmonics, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, Price statistics. Below them, <b>On the chart</b> lists active studies with their settings.<br />
+          <b>Backtest</b>: searchable strategy dropdown, its settings, capital, cost, <b>Run backtest</b>, and <b>Backtest 50</b>.<br />
+          <b>Analysis</b>: <b>Harmonics list</b>, <b>Trend scan</b>, <b>Fundamentals</b>, and <b>Verify</b>.</div>
+        <div><b>Right: chart</b>Candles and volume, overlays and harmonic patterns on price, and oscillator panes. Nothing is drawn over the chart. Directly below it is the <b>Interpretation</b> pane, which explains your selections and gives a swing plan. Below that, the <b>output panel</b> shows Harmonics list, Trend scan, Backtest 50, Fundamentals, and Verify results. It scrolls on its own, and <b>Close</b> gives the chart its full height back. <b>Backtest results</b> come last: metric cards, equity curve, and trade list.</div>
+      </div>
+      <p>The top bar shows the selected stock and the DuckDB coverage pill, for example <code>DuckDB 50/50</code>. It also has <b>Guide</b> and <b>Sync history</b>. Windows narrower than 1000px hide the left panel. Click <b>Controls</b> in the top bar to open it as a drawer.</p>
+      <h3>Using a dropdown</h3>
+      <ul>
+        <li>Click a box, or its <b>▾</b> arrow, to open the full list. Start typing to filter it. Every word you type must match, so <code>financ bank</code> lists only the banks.</li>
+        <li>Use <kbd>↑</kbd> and <kbd>↓</kbd> to move, <kbd>Enter</kbd> to pick, and <kbd>Esc</kbd> to close.</li>
+        <li>The <b>Stock</b> and <b>Strategy</b> dropdowns hold one choice. Picking one closes the list.</li>
+        <li>Indicator dropdowns allow several choices. Picking a study adds it, and picking it again removes it. The list stays open so you can add more. A ✓ marks studies that are on, and the section title shows how many, for example <code>2 on</code>.</li>
+      </ul>
+
+      <h2 id="stocks">Pick a stock</h2>
+      <ol class="steps">
+        <li>Click the <b>Stock</b> box, or press <kbd>/</kbd> from anywhere.</li>
+        <li>Type a symbol, a company name, or a sector, for example <code>infy</code>, <code>mahindra</code>, <code>pharma</code>, or <code>energy</code>. The list is grouped by sector and shows each stock's last price and day change.</li>
+        <li>Press <kbd>Enter</kbd> or click a row. The chart, your active studies, and the harmonic patterns reload for that stock.</li>
+      </ol>
+      <div class="tip">Your studies stay on when you change stocks. Set up the chart once and then move through the list.</div>
+
+      <h2 id="chart">Chart and ranges</h2>
+      <ul>
+        <li>Range buttons: <b>6M</b>, <b>1Y</b>, <b>2Y</b> (default), <b>5Y</b>, and <b>All</b>.</li>
+        <li>Scroll to zoom and drag to pan. The legend above the chart shows open, high, low, close, change, and volume for the bar under the cursor.</li>
+        <li>Volume bars are green on up days and red on down days.</li>
+        <li>Prices are split- and dividend-adjusted daily closes.</li>
+      </ul>
+
+      <h2 id="indicators">Indicators</h2>
+      <p>The left panel has one searchable dropdown for each of the 10 sections, 146 studies in all. Pick a study to add it. Pick it again, or press <b>Remove</b> under <b>On the chart</b>, to take it off. Change a study's settings under <b>On the chart</b>, and the chart redraws.</p>
+      <table>
+        <thead><tr><th>Section</th><th>Studies</th><th>Examples</th></tr></thead>
+        <tbody>
+          <tr><td>Harmonics</td><td>12</td><td>Gartley, Bat, Butterfly, Crab, Cypher, Shark, Carney all harmonics</td></tr>
+          <tr><td>@neurotrader888</td><td>6</td><td>Directional-change zigzag, auto trendlines, Hawkes volatility, VSA, CMMA vs Nifty proxy, permutation entropy</td></tr>
+          <tr><td>@UnbiasedTradingGoshawk</td><td>2</td><td>EWMAC trend forecast, return vs Nifty proxy</td></tr>
+          <tr><td>Moving averages</td><td>19</td><td>SMA, EMA, WMA, HMA, KAMA, VWMA</td></tr>
+          <tr><td>Bands and channels</td><td>13</td><td>Bollinger, Keltner, Donchian, envelopes, Darvas box</td></tr>
+          <tr><td>Trend</td><td>17</td><td>Supertrend, Ichimoku, ADX, Aroon, Parabolic SAR, Breakout &amp; trend detector</td></tr>
+          <tr><td>Momentum</td><td>29</td><td>RSI, MACD, Stochastic, CCI, Williams %R, ROC</td></tr>
+          <tr><td>Volatility</td><td>10</td><td>ATR, historical volatility, Bollinger bandwidth</td></tr>
+          <tr><td>Volume</td><td>21</td><td>OBV, MFI, CMF, VWAP, accumulation/distribution</td></tr>
+          <tr><td>Price statistics</td><td>17</td><td>Distance from high/low, z-score, rolling Sharpe</td></tr>
+        </tbody>
+      </table>
+      <h3>Changing durations</h3>
+      <ul>
+        <li>Every study with a period (moving averages, bands, RSI, ATR, and others) shows a row of quick presets under <b>On the chart</b>: 5, 9, 10, 14, 20, 21, 30, 50, 100, 150, 200. Click one, or type any value in its box.</li>
+        <li><b>+ Another</b> adds the same study again with the next classic period (9 → 20 → 50 → 100 → 200). For example, three SMAs at 20, 50, and 200. Each copy has its own line, colour, settings, and Interpretation card.</li>
+        <li>The EMA ribbon has five adjustable lengths (default 8, 13, 21, 34, 55).</li>
+        <li>Picking a study again in its dropdown removes all of its copies. <b>Remove</b> on a card removes only that copy.</li>
+      </ul>
+      <h3>Bands, Darvas boxes, and breakouts</h3>
+      <ul>
+        <li>Any overlay with an upper and a lower line (Bollinger, Keltner, Donchian, envelopes, ATR bands, StdDev channel, Darvas box, breakout range, auto trendlines) is shaded light grey between the lines.</li>
+        <li><b>Darvas box</b> (Bands and channels): the top is a high not exceeded for 3 sessions; the bottom is a low not undercut for 3 sessions after that. The box is drawn from the day it is confirmed. A close above the top is marked <i>Darvas breakout</i>; a close below the bottom is marked <i>Box broken</i>.</li>
+        <li><b>Breakout &amp; trend detector</b> (Trend): the prior 20-session range, shaded. A close beyond it on at least 1.5× average volume is marked <i>Breakout</i> or <i>Breakdown</i>. A breakout that closes back inside within 3 sessions is marked <i>Failed breakout</i>. A breakout's trend is followed with a trailing stop (best close minus 3 ATR), drawn as a line, and <i>Trend ended</i> marks where it was hit.</li>
+        <li>Matching strategies in the Breakout group: <b>Darvas box breakout</b> (buy near the 52-week high, stop at the box bottom, raised with each new box) and <b>Volume breakout trend</b>.</li>
+      </ul>
+      <p>Each row in a dropdown is tagged. <b>Overlay</b> studies draw on the price chart. <b>Pane</b> studies open their own panel below the chart. For trend studies, use the <b>Trend</b> dropdown, for example Supertrend, Ichimoku, ADX, or Aroon.</p>
+
+      <h2 id="harmonics">Scott Carney harmonics</h2>
+      <p><b>Carney all harmonics</b> is on by default and runs on every stock you select. It finds swing highs and lows with a zigzag and checks each run of five pivots (X, A, B, C, D) against Carney's published ratio rules.</p>
+      <h3>Reading the chart</h3>
+      <ul>
+        <li>The latest 12 patterns are drawn. <b>Solid lines</b> join X-A-B-C-D, and <b>dashed lines</b> join X-B-D and A-C.</li>
+        <li><span class="up">Green</span> is a bullish pattern, which completes at a low. <span class="down">Red</span> is a bearish pattern, which completes at a high.</li>
+        <li>Each pivot is labelled with its letter. Every completion in the history gets an arrow at D with the pattern name.</li>
+        <li>D is the potential reversal zone (PRZ).</li>
+        <li>The legend shows how many patterns are drawn and how many are bullish or bearish.</li>
+      </ul>
+      <h3>Picking harmonic studies</h3>
+      <p>The <b>Harmonics</b> dropdown is first under Indicators. Search for a pattern, for example <code>bat</code> or <code>crab</code>, to draw only that pattern. Remove <b>Carney all harmonics</b> if you want only the single pattern.</p>
+      <h3>The Harmonics list button</h3>
+      <p>Click <b>Harmonics list</b> under Analysis to list each drawn pattern with its D date, name, side, PRZ price, and AB, BC, CD, and AD ratios. If the study was removed, the button turns it back on.</p>
+      <h3>Patterns</h3>
+      <table>
+        <thead><tr><th>Pattern</th><th>Key ratios (approximate)</th></tr></thead>
+        <tbody>
+          <tr><td>Gartley</td><td>AB 0.618 of XA, AD 0.786 of XA</td></tr>
+          <tr><td>Bat</td><td>AB 0.382–0.50, AD 0.886</td></tr>
+          <tr><td>Alternate Bat</td><td>AB 0.382, AD 1.13</td></tr>
+          <tr><td>Butterfly</td><td>AB 0.786, AD 1.272</td></tr>
+          <tr><td>Crab</td><td>AB 0.382–0.618, AD 1.618</td></tr>
+          <tr><td>Deep Crab</td><td>AB 0.886, AD 1.618</td></tr>
+          <tr><td>Cypher</td><td>C 1.272–1.414 of XA, D 0.786 of XC</td></tr>
+          <tr><td>Shark</td><td>AB 1.13–1.618, BC 1.618–2.24, D 0.886–1.13</td></tr>
+          <tr><td>5-0</td><td>AB 1.13–1.618, BC 1.618–2.24, CD 0.50</td></tr>
+          <tr><td>AB=CD</td><td>CD equals AB, BC 0.382–0.886</td></tr>
+          <tr><td>Three Drives</td><td>Three drives with 0.618–0.786 retracements and 1.272–1.618 extensions</td></tr>
+        </tbody>
+      </table>
+      <h3>Settings</h3>
+      <ul>
+        <li><b>Swing %</b> (default 3): the smallest move that counts as a new swing. Lower values find more, smaller patterns. Higher values find fewer, larger ones.</li>
+        <li><b>Tolerance</b> (default 0.05): how far a ratio can be from the textbook value. Raise it to find more patterns. Lower it for stricter matches.</li>
+      </ul>
+      <p>For one pattern alone, add its own study from the Harmonics section, for example <b>Gartley</b>.</p>
+
+      <h2 id="interpret">Interpretation and swing plan</h2>
+      <p>The <b>Interpretation</b> pane under the chart explains in plain English what your selections mean for the current stock. It refreshes whenever you change the stock, add or remove a study, change a setting, pick a strategy, or change capital or cost. <b>Hide</b> collapses it and gives the chart more room.</p>
+      <h3>Left half: swing outlook</h3>
+      <ul>
+        <li><b>Headline:</b> the close, the day's change, and the main reasons for the reading: price against the 50- and 200-day averages, RSI, and MACD.</li>
+        <li><b>Swing bias:</b> Bullish, Neutral, or Bearish, from a simple score of trend, momentum, MACD, the technical rating, and any fresh harmonic pattern.</li>
+        <li><b>Technical rating:</b> a vote count in the style of TradingView's public technical-ratings method. Twelve SMAs and EMAs, the Ichimoku base line, and a Hull MA each vote buy or sell by where price sits. RSI, Stochastic, CCI, ADX, Awesome, Momentum, MACD, Williams %R, and the Ultimate Oscillator vote buy, sell, or neutral. Hover the badge for the counts.</li>
+        <li><b>Swing plan:</b> one of these setups:
+          <table>
+            <thead><tr><th>Setup</th><th>When</th><th>Trigger</th></tr></thead>
+            <tbody>
+              <tr><td>Harmonic reversal long</td><td>A bullish Carney pattern completed in the last 10 sessions and has not failed</td><td>Close above today's high; stop 1 ATR beyond D; targets 0.382 and 0.618 of the CD leg</td></tr>
+              <tr><td>Breakout long</td><td>Bullish, price within half an ATR of the 20-session high</td><td>Close above that high, ideally on above-average volume; stop 1.5 ATR</td></tr>
+              <tr><td>Pullback long in an uptrend</td><td>Bullish and within 2 ATR of the 20-day EMA</td><td>Close above today's high; stop under the 10-session swing low</td></tr>
+              <tr><td>Uptrend, but extended</td><td>Bullish but more than 2 ATR above the 20-day EMA</td><td>Wait for a pullback toward the EMA</td></tr>
+              <tr><td>Range</td><td>Neutral</td><td>Buy near the 20-session low with RSI turning up; exit at the range top</td></tr>
+              <tr><td>No long setup</td><td>Bearish</td><td>Stand aside until a close back above the 50-day EMA with RSI over 50. NSE cash shorts are intraday only.</td></tr>
+            </tbody>
+          </table>
+        </li>
+        <li><b>Levels:</b> Entry, Stop, T1 (about 1.5R), and T2 (about 3R), where R is the distance from entry to stop. They are drawn on the chart as dashed lines.</li>
+        <li><b>Steps:</b> the trigger, the stop and its size in ATR, where to take profit and move the stop to break-even, position size for 1% risk of your capital, and a 10–15 session time stop.</li>
+        <li><b>Same plan on this stock's past:</b> the exact plan replayed on every similar past session of this stock. It shows how often T1 was hit before the stop and the average result in R. A bar that touches both counts as a loss.</li>
+        <li><b>Base rate:</b> after past sessions in the same trend state with a similar RSI, how often the stock was higher 10 sessions later, plus the median and middle-half range of returns.</li>
+      </ul>
+      <div class="note">The odds and base rate describe what happened on this stock before. They are not a forecast. A result near 50% or near 0R means the setup has had no edge on this name.</div>
+      <h3>Right half: what your selections say</h3>
+      <p>One card per active study and the selected strategy. The item you changed last is highlighted and listed first. Each card gives the current reading in words and a tone (Bullish, Bearish, stretched, or Neutral). <b>What is this?</b> explains the tool. Examples:</p>
+      <ul>
+        <li><b>Moving averages:</b> how far price is from the line, whether the line is rising, and whether a pullback entry is near or price is stretched.</li>
+        <li><b>Bands and channels:</b> where the close sits in the band and whether the band is in a squeeze.</li>
+        <li><b>RSI, Stochastic, and other bounded oscillators:</b> overbought or oversold zones, signal-line crosses, and a one-year percentile.</li>
+        <li><b>MACD and zero-line oscillators:</b> above or below zero, crosses, and whether momentum is building or fading.</li>
+        <li><b>ADX, Aroon, Ichimoku, EMA ribbon, and Choppiness:</b> whether there is a trend worth following.</li>
+        <li><b>Volume tools:</b> whether volume confirms the price move or diverges from it.</li>
+        <li><b>Harmonics:</b> the latest pattern, its ratios, its status (fresh, working, played out, failed, or stale), targets, invalidation, and how past patterns on this stock behaved.</li>
+        <li><b>Strategy:</b> long or flat today, when it last switched, and how it compared with buy and hold.</li>
+      </ul>
+
+      <h2 id="creators">YouTube creator strategies</h2>
+      <p>Two sections are named after YouTube channels. Find them in the strategy dropdown and in the indicator dropdowns.</p>
+      <ul>
+        <li><b>@neurotrader888</b>: 9 strategies and 6 studies re-implemented from his published GitHub code. They include directional-change trend, ATR zigzag, auto-trendline breakout, inverse head and shoulders, bull flag/pennant, Hawkes volatility breakout, CMMA vs the Nifty proxy, Donchian with a last-trade filter, and a walk-forward RSI-PCA forecast. Studies: zigzag, auto trendlines, Hawkes volatility, VSA, CMMA, and permutation entropy.</li>
+        <li><b>@UnbiasedTradingGoshawk</b>: 4 strategies from the public sources his videos test: Connors RSI(2), Connors Double 7s, AHL-style EWMAC trend, and the Lo–Khandani contrarian rule. Studies: EWMAC forecast and return vs the Nifty proxy.</li>
+      </ul>
+      <p>When you pick one, the note under the strategy box shows the creator, a confidence label, source links, and how TOP adapted it. <b>HIGH</b> means the rules come from the creator's own code. <b>MEDIUM</b> means they come from the original public source, because the exact variant in the video is not public. All are long/flat on daily bars and work with <b>Run backtest</b> and <b>Backtest 50</b>.</p>
+      <div class="note">No YouTube audio or video was downloaded. These are re-implementations of published ideas, not the creators' own results or endorsements. Some rules use an equal-weight Nifty 50 proxy built from the 50 stored stocks as "the market".</div>
+
+      <h2 id="backtest">Strategy tester</h2>
+      <ol class="steps">
+        <li>Pick a stock.</li>
+        <li>Click the <b>Backtest</b> strategy box and type part of a name or idea, for example <code>gartley</code>, <code>breakout</code>, <code>rsi</code>, or <code>reversal</code>. There are 86 strategies, grouped as listed below. The strategy's description appears under the box.</li>
+        <li>Adjust the strategy's settings if it has any, then set <b>Capital</b> (default ₹10,00,000) and <b>Cost bps</b> (default 5, charged on entry and exit).</li>
+        <li>Click <b>Run backtest</b>.</li>
+      </ol>
+      <table>
+        <thead><tr><th>Group</th><th>Count</th><th>Group</th><th>Count</th></tr></thead>
+        <tbody>
+          <tr><td>Trend</td><td>19</td><td>Breakout</td><td>11</td></tr>
+          <tr><td>@neurotrader888</td><td>9</td><td>@UnbiasedTradingGoshawk</td><td>4</td></tr>
+          <tr><td>Harmonics</td><td>12</td><td>Price action</td><td>5</td></tr>
+          <tr><td>Oscillator</td><td>11</td><td>Trend reversal</td><td>4</td></tr>
+          <tr><td>Mean reversion</td><td>9</td><td>Volume</td><td>2</td></tr>
+        </tbody>
+      </table>
+      <h3>How a backtest runs</h3>
+      <ul>
+        <li>Each strategy is long or flat. It never shorts.</li>
+        <li>The signal is read at the close and filled at the <b>next session's open</b>. This avoids look-ahead.</li>
+        <li>When long, the full capital is invested.</li>
+        <li>Harmonic strategies go long when a bullish pattern completes and hold for <b>Hold bars</b> (default 10).</li>
+      </ul>
+      <h3>Results</h3>
+      <table>
+        <thead><tr><th>Card</th><th>Meaning</th></tr></thead>
+        <tbody>
+          <tr><td>Return / CAGR</td><td>Total and yearly compound return of the strategy.</td></tr>
+          <tr><td>Max DD</td><td>Largest peak-to-trough fall of the equity curve.</td></tr>
+          <tr><td>Buy &amp; hold</td><td>Return from holding the stock over the same period. Compare against this.</td></tr>
+          <tr><td>Sharpe / Sortino</td><td>Return per unit of total and downside volatility.</td></tr>
+          <tr><td>Win rate / Profit factor</td><td>Share of winning trades, and gross gains divided by gross losses.</td></tr>
+          <tr><td>Trades / Avg trade / Exposure</td><td>Number of trades, mean trade return, and the share of time in the market.</td></tr>
+          <tr><td>Ending</td><td>Final equity in rupees.</td></tr>
+        </tbody>
+      </table>
+      <p>Results appear at the bottom in <b>Backtest results</b>, which stays collapsed until your first backtest. The equity curve is shown in blue, with buy and hold in grey. The trade table lists each entry, exit, price, return, and profit or loss. Use <b>Hide</b> to collapse the results and give the chart more room. Running a new backtest opens them again.</p>
+
+      <h2 id="scan50">Backtest 50</h2>
+      <p>Click <b>Backtest 50</b> to run the selected strategy, with its current settings, on all 50 stocks. The output panel below the chart ranks them by return and shows whether each is long now, its max drawdown, and its trade count. This takes a few seconds. A harmonic strategy takes about 6 seconds.</p>
+
+      <h2 id="trend">Trend scan</h2>
+      <p>Click <b>Trend scan</b> to run every Trend, Breakout, and Trend reversal rule on the selected stock in one pass. Rules that are long now are listed first, then the rest by return. Each row shows its section, so you can see whether trend-following, breakout, or reversal rules are firing.</p>
+
+      <h2 id="fundamentals">Fundamentals</h2>
+      <p>Click <b>Fundamentals</b> to read the public Screener.in company page for the selected stock. It shows:</p>
+      <ul>
+        <li>Market cap, current price, high/low, stock P/E, book value, dividend yield, ROCE, ROE, and face value.</li>
+        <li>Screener.in's machine-written pros and cons.</li>
+        <li>A link to the full Screener.in page.</li>
+      </ul>
+      <p>Results are cached for 6 hours, so repeated clicks do not hit Screener.in again. If Screener.in is unreachable or changes its page layout, the panel shows the error.</p>
+
+      <h2 id="verify">Verify</h2>
+      <p>Click <b>Verify</b> to run browser-side and server-side checks and list each result as Pass or Fail. They cover:</p>
+      <ul>
+        <li>The symbol list, chart canvas, and indicator and strategy menus in the browser.</li>
+        <li>Bars for the selected stock.</li>
+        <li>The indicator and strategy catalogs, the harmonic sections, and the trend reversal rules.</li>
+        <li>A synthetic Gartley match, zigzag pivots, the Screener.in parser, and DuckDB coverage for all 50 names.</li>
+        <li>Every indicator and every strategy backtest on RELIANCE, plus Carney patterns drawn on RELIANCE.</li>
+      </ul>
+      <p>The same server checks run from a terminal:</p>
+      <pre><code>python -m top.verify</code></pre>
+
+      <h2 id="data">Data and sync</h2>
+      <ul>
+        <li>Source: Yahoo Finance public daily chart data, adjusted, for the <code>.NS</code> listings.</li>
+        <li>Store: DuckDB file at <code>data/nse.duckdb</code>.</li>
+        <li><b>Sync history</b> re-downloads all 50 names in the background. The pill shows progress, and the chart reloads when it finishes.</li>
+        <li>The universe follows the current Nifty 50, including <code>M&amp;M</code>, <code>ETERNAL</code> (formerly Zomato), and <code>TMPV</code> (Tata Motors passenger vehicles).</li>
+      </ul>
+
+      <h2 id="trouble">Troubleshooting</h2>
+      <table>
+        <thead><tr><th>Problem</th><th>What to do</th></tr></thead>
+        <tbody>
+          <tr><td>"Failed to fetch" or "The desk did not answer"</td><td>Make sure the server is running and you opened <code>http://127.0.0.1:8000</code>. The desk retries automatically. Pick the stock again after a second.</td></tr>
+          <tr><td>Page looks old after an update</td><td>Hard-reload the page (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>).</td></tr>
+          <tr><td>No harmonic patterns on a stock</td><td>Lower <b>Swing %</b> or raise <b>Tolerance</b> on Carney all harmonics. The legend says when none were found.</td></tr>
+          <tr><td>Chart is too busy</td><td>Remove Carney all harmonics, or pick a single pattern from the Harmonics dropdown instead.</td></tr>
+          <tr><td>"no stored history yet"</td><td>Click <b>Sync history</b> and wait for the pill to show 50/50.</td></tr>
+          <tr><td>Fundamentals error</td><td>Screener.in may be unreachable or rate-limiting. Try again later or open the Screener.in link.</td></tr>
+          <tr><td>Left panel missing</td><td>On narrow windows, click <b>Controls</b> in the top bar.</td></tr>
+          <tr><td>Dropdown shows "No match"</td><td>Clear the box and type fewer letters. All typed words must match.</td></tr>
+        </tbody>
+      </table>
+
+      <h2 id="limits">Limits</h2>
+      <ul>
+        <li>Daily bars only. There is no intraday or live tick data.</li>
+        <li>The swing plan is a rule-based template, not a recommendation. Check liquidity, news, results dates, and your own risk before trading.</li>
+        <li>Backtests are long or flat, with fixed costs and no slippage model, taxes, or position sizing. Past results do not predict future results.</li>
+        <li>Harmonic detection is an approximation of Carney's ratios on a zigzag. It is not certified Harmonic Trader output.</li>
+        <li>Fundamentals are a read of Screener.in's public page. They are not company filings.</li>
+        <li>Charts use TradingView Lightweight Charts (MIT licence). This is not the TradingView platform.</li>
+      </ul>
+      <p><a class="btn" href="/">Back to TOP</a></p>
+    </main>
+  </div>
+</body>
+</html>

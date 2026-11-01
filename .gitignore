@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+
+# Market data is downloaded on first run; do not commit it
+data/
+*.duckdb
+*.duckdb.wal
+
+# Local scratch and the retired prototype
+_local/
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
