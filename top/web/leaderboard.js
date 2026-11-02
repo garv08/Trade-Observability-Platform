@@ -110,6 +110,7 @@ function rowHtml(r, i) {
     <td class="l sym"><b>${esc(r.symbol)}<span class="tag">${esc(UNIVERSE_LABEL[universe] || universe)}</span>${r.in_position ? '<span class="tag in" title="The rule is long on the last bar">in now</span>' : ""}</b><small>${esc(r.name || "")}</small></td>
     <td class="l strat"><b>${esc(s.name)}</b><small>${esc(s.section || "")}${s.creator && s.creator !== s.section ? ` · ${esc(s.creator)}` : ""}</small></td>
     <td class="ratio">${num(r.ratio, 2)}</td>
+    <td class="ratio">${num(r.return_dd, 2)}</td>
     <td class="${cls(r.cagr_pct)}">${pct(r.cagr_pct)}</td>
     <td class="down">${num(r.max_dd_pct)}%</td>
     <td class="${cls(r.total_return_pct)}">${pct(r.total_return_pct, 0)}</td>
@@ -125,7 +126,7 @@ function rowHtml(r, i) {
 function renderTable(data) {
   const body = $("lb-body");
   if (!data.rows.length) {
-    body.innerHTML = `<tr><td colspan="13" class="empty">${data.computed.rows ? "No backtests pass these filters. Lower the minimum CAGR or history, or pick another universe." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="14" class="empty">${data.computed.rows ? "No backtests pass these filters. Lower the minimum CAGR or history, or pick another universe." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
   } else {
     body.innerHTML = data.rows.map(rowHtml).join("");
   }
@@ -218,7 +219,7 @@ async function load() {
     renderByStrategy(data.by_strategy);
     schedule(data.status.running);
   } catch (error) {
-    $("lb-body").innerHTML = `<tr><td colspan="13" class="empty">${esc(error.message)}</td></tr>`;
+    $("lb-body").innerHTML = `<tr><td colspan="14" class="empty">${esc(error.message)}</td></tr>`;
     $("st-msg").textContent = error.message;
     setRunnable(true);
     schedule(true);

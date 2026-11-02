@@ -237,6 +237,15 @@ class LeaderboardTests(unittest.TestCase):
                 self.assertAlmostEqual(r["ratio"], r["cagr_pct"] / max(abs(r["max_dd_pct"]), leaderboard.DD_FLOOR), places=3)
             above = leaderboard.query(con, min_cagr=15, min_trades=0, limit=1000)
             self.assertTrue(all(r["cagr_pct"] > 15 for r in above["rows"]))
+            by_return = leaderboard.query(con, min_cagr=None, min_trades=0, sort="return_dd", limit=1000)["rows"]
+            values = [r["return_dd"] for r in by_return]
+            self.assertEqual(values, sorted(values, reverse=True))
+            for r in by_return[:20]:
+                self.assertAlmostEqual(r["return_dd"], r["total_return_pct"] / max(abs(r["max_dd_pct"]), leaderboard.DD_FLOOR), places=3)
+            best_return = leaderboard.query(con, min_cagr=None, min_trades=0, sort="return_dd", best=True, limit=1000)["rows"]
+            for r in best_return:
+                mine = [x["return_dd"] for x in by_return if x["symbol"] == r["symbol"]]
+                self.assertEqual(r["return_dd"], max(mine))
             best = leaderboard.query(con, min_cagr=None, min_trades=0, best=True, limit=1000)
             self.assertEqual(len({r["symbol"] for r in best["rows"]}), len(best["rows"]))
             self.assertLessEqual(len(best["rows"]), 2)

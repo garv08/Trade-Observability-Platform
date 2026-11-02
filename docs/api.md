@@ -96,7 +96,7 @@ Ranked backtests from the stored leaderboard. Query parameters (all optional):
 | `min_value` | `0` | Minimum median daily traded value in ₹ lakh over the last year (indices exempt) |
 | `q` | – | Script search (symbol, name, or BSE code) |
 | `best` | `0` | `1` keeps each script's best row |
-| `sort` | `ratio` | `ratio`, `cagr`, `max_dd`, `sharpe`, `return`, `win_rate`, `trades` |
+| `sort` | `ratio` | `ratio` (CAGR ÷ DD), `return_dd` (total return ÷ DD), `cagr`, `max_dd`, `sharpe`, `return`, `win_rate`, `trades`. With `best=1`, each script's row is its best by this sort |
 | `limit`, `offset` | `100`, `0` | Paging (limit up to 1000) |
 
 ```json
@@ -111,7 +111,7 @@ Ranked backtests from the stored leaderboard. Query parameters (all optional):
 
 ### `GET /api/leaderboard.csv`
 
-The same filters as `/api/leaderboard` (no paging), returned as a CSV attachment with every matching row in rank order: `rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`. With the server stopped, `top-leaderboard --export file.csv [--min-cagr 15] [--min-trades 3] [--min-years 2] [--min-value 10] [--best]` writes the same file.
+The same filters as `/api/leaderboard` (no paging), returned as a CSV attachment with every matching row in rank order: `rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, return_dd, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`. With the server stopped, `top-leaderboard --export file.csv [--min-cagr 15] [--min-trades 3] [--min-years 2] [--min-value 10] [--best]` writes the same file.
 
 ### `GET /api/leaderboard/strategies` and `/api/leaderboard/strategies.csv`
 

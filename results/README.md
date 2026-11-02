@@ -47,9 +47,9 @@ Other columns: `mean_return_dd`, `p25_return_dd`/`p75_return_dd` (middle half), 
 
 ## Columns
 
-`rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`
+`rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, return_dd, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`
 
-- `ratio` = `cagr_pct / max(|max_dd_pct|, 5)`.
+- `ratio` = `cagr_pct / max(|max_dd_pct|, 5)`; `return_dd` = `total_return_pct / max(|max_dd_pct|, 5)`.
 - `years` = years tested after the strategy's warm-up; `first_day` is the first tested day.
 - `in_position` = the rule was long on the last bar.
 - `median_value_lakh` = median daily traded value over the last 250 bars, in ₹ lakh (index values reflect constituent volume on NSE and zero on BSE).

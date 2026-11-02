@@ -2,6 +2,15 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.1] - 2026-11-02
+
+### Added
+- Leaderboard **Sort by → Most return ÷ |Max DD|** (total return ÷ worst drawdown, 5% floor), a sortable **Return ÷ DD** column, `sort=return_dd` in the API, and a `return_dd` column in the CSVs.
+
+### Changed
+- **Best strategy per script** picks each script's best row by the chosen sort (it was always CAGR ÷ DD).
+- `results/` regenerated with the new column; 44 Nifty 50 scripts were recomputed after their Yahoo bars updated.
+
 ## [0.4.0] - 2026-11-02
 
 ### Added

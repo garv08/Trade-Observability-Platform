@@ -40,6 +40,7 @@ UNIVERSE_GROUPS = {
 }
 SORTS = {
     "ratio": "ratio DESC NULLS LAST",
+    "return_dd": "return_dd DESC NULLS LAST",
     "cagr": "cagr_pct DESC NULLS LAST",
     "max_dd": "max_dd_pct DESC NULLS LAST",
     "sharpe": "sharpe DESC NULLS LAST",
@@ -416,16 +417,18 @@ def _filtered(min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_ye
         args.extend(groups)
     order = SORTS.get(sort, SORTS["ratio"])
     base = f"""
-        SELECT l.*, s.name, COALESCE(s.universe, 'nifty50') AS universe, s.exchange, q.median_value_lakh
+        SELECT l.*, round(l.total_return_pct / greatest(abs(l.max_dd_pct), {DD_FLOOR}), 4) AS return_dd,
+               s.name, COALESCE(s.universe, 'nifty50') AS universe, s.exchange, q.median_value_lakh
         FROM leaderboard l JOIN symbols s ON s.symbol = l.symbol LEFT JOIN leaderboard_liquidity q ON q.symbol = l.symbol
         WHERE {' AND '.join(where)}
     """
     if best:
-        base += " QUALIFY row_number() OVER (PARTITION BY l.symbol ORDER BY l.ratio DESC NULLS LAST, l.strategy) = 1"
+        # Each script's best row follows the chosen sort (CAGR ÷ DD by default).
+        base += f" QUALIFY row_number() OVER (PARTITION BY l.symbol ORDER BY {order}, l.strategy) = 1"
     return base, args, order, chip_where, chip_args
 
 
-CSV_COLUMNS = ("symbol", "name", "universe", "exchange", "median_value_lakh", "strategy", "strategy_name", "section", "ratio", "cagr_pct", "max_dd_pct",
+CSV_COLUMNS = ("symbol", "name", "universe", "exchange", "median_value_lakh", "strategy", "strategy_name", "section", "ratio", "return_dd", "cagr_pct", "max_dd_pct",
                "total_return_pct", "buy_hold_pct", "trades", "win_rate_pct", "profit_factor", "sharpe", "exposure_pct",
                "in_position", "years", "first_day", "last_day", "computed_at")
 
@@ -532,7 +535,7 @@ def strategy_ranking(con, universe="all", min_trades=3, min_years=2.0, min_value
     rows = con.execute(
         f"""
         WITH r AS (
-            SELECT *, total_return_pct / greatest(abs(max_dd_pct), {DD_FLOOR}) AS return_dd FROM ({base})
+            SELECT * EXCLUDE (return_dd), total_return_pct / greatest(abs(max_dd_pct), {DD_FLOOR}) AS return_dd FROM ({base})
             WHERE total_return_pct IS NOT NULL AND max_dd_pct IS NOT NULL
         )
         SELECT strategy, COUNT(*) AS scripts,
