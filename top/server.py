@@ -27,6 +27,18 @@ from top import leaderboard
 from top.universe import UNIVERSE
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
+# Fixed types: on Windows, mimetypes reads the registry, which often maps .js/.css to text/plain,
+# and browsers then refuse the stylesheet (grey, unstyled buttons) or scripts.
+STATIC_TYPES = {
+    ".html": "text/html; charset=utf-8",
+    ".js": "text/javascript; charset=utf-8",
+    ".css": "text/css; charset=utf-8",
+    ".json": "application/json",
+    ".svg": "image/svg+xml",
+    ".png": "image/png",
+    ".ico": "image/x-icon",
+    ".csv": "text/csv; charset=utf-8",
+}
 HOST = os.environ.get("TOP_HOST", "127.0.0.1")
 PORT = int(os.environ.get("TOP_PORT", "8000"))
 _sync_thread = None
@@ -152,7 +164,7 @@ class Handler(BaseHTTPRequestHandler):
         if not target.is_relative_to(WEB_ROOT) or not target.is_file():
             self._send(404, {"error": "missing file"})
             return
-        mime = mimetypes.guess_type(target.name)[0] or "application/octet-stream"
+        mime = STATIC_TYPES.get(target.suffix.lower()) or mimetypes.guess_type(target.name)[0] or "application/octet-stream"
         data = target.read_bytes()
         self.send_response(200)
         self.send_header("Content-Type", mime)

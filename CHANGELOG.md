@@ -2,6 +2,18 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.1] - 2026-11-02
+
+### Fixed
+- **Windows: leaderboard button grey / pages unstyled.** Static files are served with fixed content types instead of `mimetypes`, which on Windows reads the registry and often maps `.css` and `.js` to `text/plain`. The leaderboard page also carries its own colour palette, so it stays usable even if `styles.css` can't load.
+- The leaderboard run checks that its worker processes start (within 2 minutes) and otherwise continues inside the server, instead of hanging with the button disabled.
+- "Running" is reported only while the run thread is alive, so the button can't stay disabled after a crash.
+- A run with nothing to compute now says so ("no script has 250+ daily bars yet … click Sync history"), and the status includes the database path.
+- Page errors (including an un-restarted server after an update) are shown under the progress bar and leave **Run backtests** usable; the page retries every 15 seconds.
+
+### Docs
+- Windows upgrade steps, and why `top-platform` must be restarted after `git pull`.
+
 ## [0.3.0] - 2026-11-02
 
 ### Added

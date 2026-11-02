@@ -117,7 +117,7 @@ pipx install "git+https://github.com/garv08/Trade-Observability-Platform.git"
 top-platform
 ```
 
-To pin a release, add `@v0.3.0` to the URL.
+To pin a release, add `@v0.3.1` to the URL.
 
 ---
 
@@ -197,6 +197,16 @@ git pull
 source .venv/bin/activate && pip install -e .
 ```
 
+On Windows (PowerShell or Command Prompt):
+
+```bat
+cd Trade-Observability-Platform
+git pull
+.venv\Scripts\pip install -e .
+```
+
+`git pull` changes the files, but a `top-platform` that is already running keeps the old code. Always stop it (<kbd>Ctrl</kbd>+<kbd>C</kbd> in its window) and start it again from the same folder, so it also finds the same `data\nse.duckdb`.
+
 **Virtual environment or pipx:**
 
 ```bash
@@ -258,6 +268,8 @@ TOP pins `duckdb==1.1.3` and avoids NumPy so it runs on older x86 processors wit
 
 | Problem | Fix |
 | --- | --- |
+| Leaderboard **Run backtests** button grey, or a page looks unstyled (often on Windows) | Update to 0.3.1 or later and **restart** `top-platform`, then hard-reload (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>). Older versions let Windows' registry serve `.css`/`.js` as `text/plain`. Then read the line under the progress bar: it says when the store has nothing to compute yet (click **Sync history** first) or when the server needs a restart |
+| Leaderboard says *nothing to compute* | The server is using a database without history, usually because it was started from another folder. Start it from the project folder, set `TOP_DB`, or click **Sync history** in the charting desk |
 | `Command 'pip' not found` | `sudo apt install python3-pip`, then install inside a virtual environment as above |
 | `error: externally-managed-environment` | Ubuntu/Debian protect the system Python. Use a virtual environment or `pipx`, not `sudo pip` |
 | `python3 -m venv` fails with `ensurepip is not available` | `sudo apt install python3-venv` (or `python3.12-venv`, matching your Python) |

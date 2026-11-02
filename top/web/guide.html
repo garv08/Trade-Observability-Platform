@@ -367,7 +367,8 @@ http://127.0.0.1:8000/?symbol=TCS&amp;strategy=ut_ahl_trend&amp;run=backtest</co
         <thead><tr><th>Problem</th><th>What to do</th></tr></thead>
         <tbody>
           <tr><td>"Failed to fetch" or "The desk did not answer"</td><td>Make sure the server is still running, then reload. The desk retries automatically. Pick the stock again after a second.</td></tr>
-          <tr><td>Page looks old after an update</td><td>Hard-reload the page (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>).</td></tr>
+          <tr><td>Page looks old after an update</td><td>Stop <code>top-platform</code> and start it again (a running server keeps the old code after <code>git pull</code>), then hard-reload the page (<kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd>).</td></tr>
+          <tr><td>Leaderboard <b>Run backtests</b> is grey or does nothing</td><td>Restart <code>top-platform</code> after updating, then read the line under the progress bar. <i>Nothing to compute</i> means the database has no history yet: click <b>Sync history</b> on the desk first, and start the server from the same folder each time. If worker processes can't start (some Windows setups), the run continues inside the server, more slowly.</td></tr>
           <tr><td>No harmonic patterns on a stock</td><td>Lower <b>Swing %</b> or raise <b>Tolerance</b> on Carney all harmonics. The legend says when none were found.</td></tr>
           <tr><td>Chart is too busy</td><td>Remove Carney all harmonics, or pick a single pattern from the Harmonics dropdown instead.</td></tr>
           <tr><td>"no stored history yet"</td><td>Click <b>Sync history</b> and wait for the pill to show 50/50.</td></tr>

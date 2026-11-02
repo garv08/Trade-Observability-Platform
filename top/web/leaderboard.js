@@ -13,9 +13,20 @@ const cls = (v) => (v == null ? "" : v > 0 ? "up" : v < 0 ? "down" : "");
 
 async function api(path, options) {
   const response = await fetch(path, options);
-  const data = await response.json();
-  if (!response.ok) throw new Error(data.error || response.statusText);
+  let data = {};
+  try { data = await response.json(); } catch (_) { /* non-JSON error page */ }
+  if (response.status === 404 && path.startsWith("/api/leaderboard")) {
+    throw new Error("This TOP server is older than this page. Stop top-platform (Ctrl+C) and start it again after updating.");
+  }
+  if (!response.ok) throw new Error(data.error || `${response.status} ${response.statusText}`);
   return data;
+}
+
+function setRunnable(enabled, label) {
+  $("run-btn").disabled = !enabled;
+  $("force-btn").disabled = !enabled;
+  $("stop-btn").disabled = enabled;
+  if (label) $("run-btn").textContent = label;
 }
 
 function params(extra = {}) {
@@ -63,11 +74,8 @@ function renderChips(counts = {}) {
 }
 
 function renderStatus(st, computed) {
-  const running = st.running;
-  $("run-btn").disabled = running;
-  $("force-btn").disabled = running;
-  $("stop-btn").disabled = !running;
-  $("run-btn").textContent = running ? "Running…" : computed && computed.symbols ? "Run / resume" : "Run backtests";
+  const running = st.running === true;
+  setRunnable(!running, running ? "Running…" : computed && computed.symbols ? "Run / resume" : "Run backtests");
   if (computed) {
     $("st-scripts").textContent = computed.symbols.toLocaleString("en-IN");
     $("st-rows").textContent = computed.rows.toLocaleString("en-IN");
@@ -156,6 +164,9 @@ async function load() {
     schedule(data.status.running);
   } catch (error) {
     $("lb-body").innerHTML = `<tr><td colspan="13" class="empty">${esc(error.message)}</td></tr>`;
+    $("st-msg").textContent = error.message;
+    setRunnable(true);
+    schedule(true);
   } finally {
     state.loading = false;
     if (state.again) { state.again = false; load(); }
@@ -173,11 +184,13 @@ function reload() {
 }
 
 async function control(body) {
+  if (body.action !== "stop") setRunnable(false, "Starting…");
   try {
     const st = await api("/api/leaderboard", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     renderStatus(st, state.last && state.last.computed);
   } catch (error) {
-    $("st-msg").textContent = error.message;
+    $("st-msg").textContent = `Could not ${body.action === "stop" ? "stop" : "start"} the run: ${error.message}`;
+    setRunnable(true, "Run backtests");
   }
   setTimeout(load, 1500);
 }

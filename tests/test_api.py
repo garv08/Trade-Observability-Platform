@@ -58,6 +58,21 @@ class ApiTests(unittest.TestCase):
         status, body, _ = self.get("/")
         self.assertIn(b"Trade Observability Platform", body)
 
+    def test_static_types_ignore_the_os_registry(self):
+        import mimetypes
+
+        real = mimetypes.guess_type
+        mimetypes.guess_type = lambda *args, **kwargs: ("text/plain", None)
+        try:
+            for path, kind in (("/styles.css", "text/css"), ("/leaderboard.js", "text/javascript"), ("/app.js", "text/javascript"),
+                               ("/leaderboard.html", "text/html")):
+                with self.subTest(path=path):
+                    status, _, ctype = self.get(path)
+                    self.assertEqual(status, 200)
+                    self.assertTrue(ctype.startswith(kind), ctype)
+        finally:
+            mimetypes.guess_type = real
+
     def test_path_traversal_is_refused(self):
         for path in ("/../pyproject.toml", "/%2e%2e/top/server.py", "/vendor/../../server.py"):
             with self.subTest(path=path):

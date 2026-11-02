@@ -56,13 +56,49 @@ COLUMNS = (
 _lock = threading.Lock()
 _stop = threading.Event()
 _thread = None
+_runner = None
+POOL_START_TIMEOUT = 120
 _status = {"running": False, "done": 0, "total": 0, "skipped": 0, "symbol": None, "started": None, "finished": None,
-           "eta_seconds": None, "rate_per_min": None, "message": "idle", "errors": 0, "excluded": 0, "workers": 0}
+           "eta_seconds": None, "rate_per_min": None, "message": "idle", "errors": 0, "excluded": 0, "workers": 0, "db": None}
 
 
 def status():
     with _lock:
+        if _status["running"] and _runner is not None and not _runner.is_alive():
+            # The run thread ended without reporting (for example killed with the process): don't stay "running".
+            _status.update(running=False, message="stopped unexpectedly; press Run / resume to continue")
         return dict(_status)
+
+
+def _ping():
+    return os.getpid()
+
+
+class _Workers:
+    """A spawn process pool, or in-process evaluation when worker processes can't start (some Windows setups)."""
+
+    def __init__(self, workers, returns):
+        self.pool = None
+        self.mode = "in-process"
+        if workers > 1:
+            try:
+                pool = multiprocessing.get_context("spawn").Pool(workers, initializer=_init, initargs=(returns,))
+                pool.apply_async(_ping).get(timeout=POOL_START_TIMEOUT)
+                self.pool, self.mode = pool, f"{workers} worker processes"
+            except Exception:  # noqa: BLE001 - fall back rather than hang or fail
+                try:
+                    pool.terminate()
+                except Exception:  # noqa: BLE001
+                    pass
+
+    def map(self, payloads):
+        if self.pool is not None:
+            return self.pool.map(evaluate, payloads, chunksize=1)
+        return [evaluate(payload) for payload in payloads]
+
+    def close(self):
+        if self.pool is not None:
+            self.pool.terminate()
 
 
 def _set(**kwargs):
@@ -258,7 +294,9 @@ def save(con, results, key):
 
 def run_all(workers=None, force=False, limit=None, progress=None):
     """Compute the leaderboard. Blocking; use start() for the background version."""
+    global _runner
     workers = max(1, workers or min(2, os.cpu_count() or 1))
+    _runner = threading.current_thread()
     _stop.clear()
     _set(running=True, done=0, total=0, skipped=0, errors=0, excluded=0, symbol=None, started=datetime.now().isoformat(timespec="seconds"),
          finished=None, eta_seconds=None, rate_per_min=None, workers=workers, message="listing symbols")
@@ -275,9 +313,18 @@ def run_all(workers=None, force=False, limit=None, progress=None):
         returns = market.daily_returns()
         key = catalog_key()
         _set(total=len(todo), skipped=current, message=f"{len(todo)} to compute, {current} already current of {eligible}")
+        if not todo:
+            message = ("nothing to compute: no script has 250+ daily bars yet. Open the charting desk and click Sync history first"
+                       if eligible == 0 else f"complete: all {current:,} scripts are already current")
+            with store.session() as con:
+                refresh_liquidity(con)
+            _set(running=False, finished=datetime.now().isoformat(timespec="seconds"), message=message, db=str(store.DB_PATH))
+            return status()
         began, done, errors, excluded, total = time.time(), 0, 0, 0, len(todo)
-        ctx = multiprocessing.get_context("spawn")
-        with ctx.Pool(workers, initializer=_init, initargs=(returns,)) as pool:
+        _set(message="starting worker processes")
+        pool = _Workers(workers, returns)
+        _set(workers=workers if pool.pool is not None else 1, message=f"{len(todo):,} to compute with {pool.mode}")
+        try:
             # Later passes pick up scripts whose bars changed while this run was going (a sync finishing meanwhile).
             for attempt in range(3):
                 for start in range(0, len(todo), BATCH):
@@ -286,7 +333,7 @@ def run_all(workers=None, force=False, limit=None, progress=None):
                     batch = todo[start:start + BATCH]
                     with store.session() as con:
                         payloads = [_load(con, symbol) for symbol in batch]
-                    results = pool.map(evaluate, payloads, chunksize=1)
+                    results = pool.map(payloads)
                     with store.session() as con:
                         save(con, results, key)
                     done += len(batch)
@@ -307,6 +354,8 @@ def run_all(workers=None, force=False, limit=None, progress=None):
                     break
                 total += len(todo)
                 _set(total=total, message=f"{len(todo)} scripts changed during the run; recomputing")
+        finally:
+            pool.close()
         with store.session() as con:
             refresh_liquidity(con)
         stopped = _stop.is_set()

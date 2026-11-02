@@ -124,6 +124,48 @@ class DataQualityTests(unittest.TestCase):
         self.assertIn("thin", leaderboard.data_problem(sparse, [100.0] * len(sparse)))
 
 
+class RunRobustnessTests(unittest.TestCase):
+    def test_falls_back_to_in_process_when_workers_cannot_start(self):
+        use_temp_store()
+        real = leaderboard.multiprocessing.get_context
+
+        def broken(_method):
+            raise OSError("spawn is not available here")
+
+        leaderboard.multiprocessing.get_context = broken
+        try:
+            out = leaderboard.run_all(workers=2, limit=1)
+        finally:
+            leaderboard.multiprocessing.get_context = real
+        self.assertFalse(out["running"])
+        self.assertEqual(out["done"], 1)
+        self.assertEqual(out["workers"], 1)
+
+    def test_empty_store_explains_itself(self):
+        import tempfile
+        from pathlib import Path
+
+        store.DB_PATH = Path(tempfile.mkdtemp(prefix="top-empty-")) / "empty.duckdb"
+        store._schema_ready = False
+        out = leaderboard.run_all(workers=1)
+        self.assertFalse(out["running"])
+        self.assertIn("Sync history", out["message"])
+
+    def test_dead_run_thread_does_not_stay_running(self):
+        import threading
+
+        thread = threading.Thread(target=lambda: None)
+        thread.start()
+        thread.join()
+        leaderboard._runner = thread
+        leaderboard._set(running=True)
+        try:
+            self.assertFalse(leaderboard.status()["running"])
+        finally:
+            leaderboard._runner = None
+            leaderboard._set(running=False)
+
+
 class LeaderboardTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
