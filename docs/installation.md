@@ -117,7 +117,7 @@ pipx install "git+https://github.com/garv08/Trade-Observability-Platform.git"
 top-platform
 ```
 
-To pin a release, add `@v0.3.1` to the URL.
+To pin a release, add `@v0.4.0` to the URL.
 
 ---
 

@@ -421,7 +421,7 @@ def _filtered(min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_ye
         WHERE {' AND '.join(where)}
     """
     if best:
-        base += " QUALIFY row_number() OVER (PARTITION BY l.symbol ORDER BY l.ratio DESC NULLS LAST) = 1"
+        base += " QUALIFY row_number() OVER (PARTITION BY l.symbol ORDER BY l.ratio DESC NULLS LAST, l.strategy) = 1"
     return base, args, order, chip_where, chip_args
 
 
@@ -502,6 +502,98 @@ def query(con, min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_y
     }
 
 
+# ---------------------------------------------------------------- strategy ranking
+
+STRATEGY_SORTS = {
+    "median_return_dd": "median_return_dd DESC NULLS LAST",
+    "mean_return_dd": "mean_return_dd DESC NULLS LAST",
+    "median_cagr_dd": "median_cagr_dd DESC NULLS LAST",
+    "pct_profitable": "pct_profitable DESC NULLS LAST",
+    "pct_beat_hold": "pct_beat_hold DESC NULLS LAST",
+    "scripts": "scripts DESC",
+}
+STRATEGY_COLUMNS = ("rank", "strategy", "strategy_name", "section", "creator", "scripts", "median_return_dd", "mean_return_dd",
+                    "p25_return_dd", "p75_return_dd", "median_return_pct", "median_max_dd_pct", "median_cagr_pct", "median_cagr_dd",
+                    "pct_profitable", "pct_beat_hold", "median_trades", "median_years", "best_symbol", "best_return_dd")
+
+
+def strategy_ranking(con, universe="all", min_trades=3, min_years=2.0, min_value=10.0, min_scripts=50, sort="median_return_dd"):
+    """Rank strategies by total return / |max drawdown| across scripts.
+
+    Per (script, strategy): return_dd = total_return_pct / max(|max_dd_pct|, DD_FLOOR). Per strategy: the median
+    across every qualifying script (robust to a few multibaggers), plus mean, quartiles, hit rates, and the best script.
+    No CAGR cut: losing scripts count, so a strategy has to work broadly to rank high.
+    """
+    from top.strategies import catalog
+
+    ensure_tables(con)
+    base, args, _, _, _ = _filtered(min_cagr=None, universe=universe, min_trades=min_trades, min_years=min_years, min_value=min_value)
+    order = STRATEGY_SORTS.get(sort, STRATEGY_SORTS["median_return_dd"])
+    rows = con.execute(
+        f"""
+        WITH r AS (
+            SELECT *, total_return_pct / greatest(abs(max_dd_pct), {DD_FLOOR}) AS return_dd FROM ({base})
+            WHERE total_return_pct IS NOT NULL AND max_dd_pct IS NOT NULL
+        )
+        SELECT strategy, COUNT(*) AS scripts,
+               median(return_dd) AS median_return_dd, avg(return_dd) AS mean_return_dd,
+               quantile_cont(return_dd, 0.25) AS p25_return_dd, quantile_cont(return_dd, 0.75) AS p75_return_dd,
+               median(total_return_pct) AS median_return_pct, median(max_dd_pct) AS median_max_dd_pct,
+               median(cagr_pct) AS median_cagr_pct, median(ratio) AS median_cagr_dd,
+               100.0 * avg(CASE WHEN total_return_pct > 0 THEN 1 ELSE 0 END) AS pct_profitable,
+               100.0 * avg(CASE WHEN total_return_pct > buy_hold_pct THEN 1 ELSE 0 END) AS pct_beat_hold,
+               median(trades) AS median_trades, median(years) AS median_years,
+               first(symbol ORDER BY return_dd DESC, symbol) AS best_symbol, max(return_dd) AS best_return_dd
+        FROM r GROUP BY strategy HAVING COUNT(*) >= ?
+        ORDER BY {order}, strategy
+        """,
+        [*args, int(min_scripts)],
+    ).fetchall()
+    meta = {item["id"]: item for item in catalog()}
+    out = []
+    for rank, row in enumerate(rows, start=1):
+        strategy = row[0]
+        item = meta.get(strategy, {})
+        values = dict(zip(STRATEGY_COLUMNS[5:], row[1:]))
+        for key, value in values.items():
+            if isinstance(value, float):
+                values[key] = round(value, 4 if key.endswith("_dd") else 2)
+        out.append({"rank": rank, "strategy": strategy, "strategy_name": item.get("name", strategy), "section": item.get("section", ""),
+                    "creator": item.get("creator") or "", **values})
+    return out
+
+
+def export_strategy_csv(handle, rows):
+    import csv
+
+    writer = csv.writer(handle)
+    writer.writerow(STRATEGY_COLUMNS)
+    for row in rows:
+        writer.writerow(["" if row.get(c) is None else row.get(c) for c in STRATEGY_COLUMNS])
+    return len(rows)
+
+
+# Committed snapshot files and the exact settings that produce them (`top-leaderboard --results results/`).
+RESULT_FILTERS = {"min_cagr": 15.0, "min_trades": 3, "min_years": 2.0, "min_value": 10.0}
+STRATEGY_FILTERS = {"min_trades": 3, "min_years": 2.0, "min_value": 10.0, "min_scripts": 50}
+
+
+def write_results(con, folder):
+    """Write every committed results file into folder. Returns {file name: rows}."""
+    from pathlib import Path
+
+    folder = Path(folder)
+    folder.mkdir(parents=True, exist_ok=True)
+    written = {}
+    with open(folder / "leaderboard-cagr15.csv", "w", newline="", encoding="utf-8") as handle:
+        written["leaderboard-cagr15.csv"] = export_csv(con, handle, **RESULT_FILTERS)
+    with open(folder / "leaderboard-best-per-script.csv", "w", newline="", encoding="utf-8") as handle:
+        written["leaderboard-best-per-script.csv"] = export_csv(con, handle, best=True, **RESULT_FILTERS)
+    with open(folder / "strategy-ranking-return-dd.csv", "w", newline="", encoding="utf-8") as handle:
+        written["strategy-ranking-return-dd.csv"] = export_strategy_csv(handle, strategy_ranking(con, **STRATEGY_FILTERS))
+    return written
+
+
 def main(argv=None) -> int:
     import argparse
 
@@ -516,6 +608,8 @@ def main(argv=None) -> int:
     parser.add_argument("--best", action="store_true", help="with --export: only each script's best strategy")
     parser.add_argument("--min-years", type=float, default=0.0, help="with --export: minimum years tested")
     parser.add_argument("--min-value", type=float, default=None, help="with --export: minimum median daily traded value in ₹ lakh (indices exempt)")
+    parser.add_argument("--strategies", metavar="CSV", help="write the strategy ranking (median total return / max DD across scripts) to this CSV")
+    parser.add_argument("--results", metavar="DIR", help="compute (resuming), then write every committed results file into DIR")
     args = parser.parse_args(argv)
     if args.db:
         from pathlib import Path
@@ -527,9 +621,19 @@ def main(argv=None) -> int:
             n = export_csv(con, handle, min_cagr=args.min_cagr, min_trades=args.min_trades, best=args.best, min_value=args.min_value, min_years=args.min_years)
         print(f"wrote {n:,} rows to {args.export}", flush=True)
         return 0
+    if args.strategies:
+        with store.session() as con, open(args.strategies, "w", newline="", encoding="utf-8") as handle:
+            n = export_strategy_csv(handle, strategy_ranking(con, min_trades=args.min_trades or 3, min_years=args.min_years or 2.0,
+                                                             min_value=10.0 if args.min_value is None else args.min_value))
+        print(f"wrote {n} strategies to {args.strategies}", flush=True)
+        return 0
     out = run_all(workers=args.workers, force=args.force, limit=args.limit,
                   progress=lambda done, total, symbol: print(f"  {done:>5}/{total} {symbol}", flush=True))
     print(out["message"], flush=True)
+    if args.results:
+        with store.session() as con:
+            for name, rows in write_results(con, args.results).items():
+                print(f"wrote {rows:,} rows to {args.results}/{name}", flush=True)
     return 0
 
 

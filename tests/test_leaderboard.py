@@ -200,6 +200,32 @@ class LeaderboardTests(unittest.TestCase):
         self.assertLessEqual(years["above_sma200"], round((bars - 199) / 252, 2))
         self.assertGreater(max(years.values()), years["above_sma200"])
 
+    def test_strategy_ranking_and_results(self):
+        import tempfile
+        from pathlib import Path
+
+        with store.session() as con:
+            leaderboard.refresh_liquidity(con)
+            ranked = leaderboard.strategy_ranking(con, min_trades=0, min_years=0, min_value=0, min_scripts=1)
+            self.assertGreater(len(ranked), 60)
+            values = [r["median_return_dd"] for r in ranked]
+            self.assertEqual(values, sorted(values, reverse=True))
+            self.assertEqual([r["rank"] for r in ranked], list(range(1, len(ranked) + 1)))
+            top = ranked[0]
+            per_script = [ret / max(abs(dd), leaderboard.DD_FLOOR) for ret, dd in con.execute(
+                "SELECT total_return_pct, max_dd_pct FROM leaderboard WHERE strategy = ?", [top["strategy"]]).fetchall()]
+            per_script.sort()
+            mid = len(per_script) // 2
+            median = per_script[mid] if len(per_script) % 2 else (per_script[mid - 1] + per_script[mid]) / 2
+            self.assertAlmostEqual(top["median_return_dd"], median, places=3)
+            self.assertEqual(top["scripts"], len(per_script))
+            self.assertEqual(leaderboard.strategy_ranking(con, min_scripts=10_000), [])
+            folder = Path(tempfile.mkdtemp(prefix="top-results-"))
+            written = leaderboard.write_results(con, folder)
+        self.assertEqual(set(written), {"leaderboard-cagr15.csv", "leaderboard-best-per-script.csv", "strategy-ranking-return-dd.csv"})
+        header = (folder / "strategy-ranking-return-dd.csv").read_text().splitlines()[0]
+        self.assertTrue(header.startswith("rank,strategy,strategy_name,section,creator,scripts,median_return_dd"))
+
     def test_ranking_and_filters(self):
         with store.session() as con:
             out = leaderboard.query(con, min_cagr=None, min_trades=0, limit=1000)

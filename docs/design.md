@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Product | TOP — Trade Observability Platform |
-| Version | 0.3.1 |
+| Version | 0.4.0 |
 | Status | Working local release |
 | Scope | Nifty 50, daily bars, research and backtesting. No order routing |
 
@@ -177,6 +177,7 @@ meta(key PK, value)          -- last_sync, bhav_last_sync, index_last_sync
 - **Order.** Nifty 50, NSE indices, BSE indices, NSE ETFs, BSE ETFs, then BSE stocks by recent traded value, so the most useful rows appear first.
 - **Data-quality gate.** In the worker, on the split-adjusted series: skip a symbol if it has bars on fewer than 50% of the weekdays in its span, or any close-to-close ratio outside 0.5–2.0. Such series (thin BSE listings, bad ticks, unmatched corporate actions) otherwise produce CAGRs in the thousands of percent. Skipped symbols are recorded with zero strategies so they are not retried until new bars arrive. Dividend Points and VIX indices are excluded by name.
 - **Ranking.** `ratio = cagr_pct / max(|max_dd_pct|, 5)` (MAR with a 5% drawdown floor). `years` is the time tested after the strategy's warm-up, not the listing's age; older rows are converted in place from `(1 + total) = (1 + cagr) ^ years`. `leaderboard_liquidity` holds each symbol's median daily traded value (₹ lakh, last 250 bars), refreshed after each run, for the traded-value filter (indices exempt). The query filters (`cagr > min`, trades, years, universe, strategy, search) before ranking, `QUALIFY row_number()` keeps the best row per symbol when asked, and a second aggregate counts how many scripts each strategy passes on.
+- **Strategy ranking.** `strategy_ranking()` aggregates per strategy over the same filtered rows, without the CAGR cut: median/mean/quartiles of `total_return_pct / max(|max_dd_pct|, 5)`, hit rates, and the best script, keeping strategies with ≥ 50 scripts. `write_results()` writes the three committed CSVs from fixed `RESULT_FILTERS`/`STRATEGY_FILTERS`. All orderings have name tie-breakers, so the same database gives byte-identical files.
 - **Cost.** A list-based `backtest.metrics()` (same rules as `run()`, checked by a test for every strategy) skips the equity, benchmark, and trade output. All 88 strategies take 2–4 s per symbol, so the full run (~4,750 symbols) takes 2–4 hours on two cores. DuckDB is capped at 768 MB and 2 threads (`TOP_DB_MEMORY`) so a long run leaves room for the browser.
 
 ### Sync

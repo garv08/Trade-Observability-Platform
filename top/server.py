@@ -146,6 +146,14 @@ class Handler(BaseHTTPRequestHandler):
                 payload = run_verify()
             elif parsed.path == "/api/leaderboard":
                 payload = _leaderboard(query)
+            elif parsed.path in ("/api/leaderboard/strategies", "/api/leaderboard/strategies.csv"):
+                rows = _strategy_ranking(query)
+                if parsed.path.endswith(".csv"):
+                    buffer = io.StringIO()
+                    leaderboard.export_strategy_csv(buffer, rows)
+                    self._send_text(buffer.getvalue().encode("utf-8"), "text/csv; charset=utf-8", "top-strategy-ranking.csv")
+                    return
+                payload = {"strategies": rows, "status": leaderboard.status()}
             elif parsed.path == "/api/leaderboard.csv":
                 self._send_csv(query)
                 return
@@ -172,6 +180,19 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(data)
+
+    def _send_text(self, data, mime, filename=None):
+        self.send_response(200)
+        self.send_header("Content-Type", mime)
+        if filename:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Cache-Control", "no-cache")
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except (BrokenPipeError, ConnectionResetError):
+            pass
 
     def _send_csv(self, query):
         import tempfile
@@ -395,6 +416,21 @@ def _leaderboard_filters(query):
         "sort": one("sort", "ratio"),
         "min_value": float(one("min_value", "0")),
     }, one
+
+
+def _strategy_ranking(query):
+    filters, one = _leaderboard_filters(query)
+    with session() as con:
+        ensure_schema(con)
+        return leaderboard.strategy_ranking(
+            con,
+            universe=filters["universe"],
+            min_trades=int(one("min_trades", "3")),
+            min_years=float(one("min_years", "2")),
+            min_value=float(one("min_value", "10")),
+            min_scripts=int(one("min_scripts", "50")),
+            sort=one("sort", "median_return_dd"),
+        )
 
 
 def _leaderboard(query):

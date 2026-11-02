@@ -122,6 +122,16 @@ All 88 strategies backtested on every stock, ETF, and index (**398,278 backtests
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top">
+
+### 9 · Which strategy works best across stocks?
+**By strategy** ranks the strategies themselves by **median total return ÷ max drawdown across all qualifying scripts**, with no CAGR cut so losers count. It also shows the middle half, % profitable, % beating buy-and-hold, and the best script. Donchian 55 and 20 breakouts lead, then MACD zero line, EMA 12/26, and AHL-style trend following. [Full table →](results/strategy-ranking-return-dd.csv) · reproduce with `top-leaderboard --results results`.
+
+<img src="docs/images/strategy-ranking.png" alt="Strategies ranked by median total return divided by max drawdown across thousands of scripts"/>
+
+</td>
+</tr>
 </table>
 
 ---
@@ -141,7 +151,7 @@ All 88 strategies backtested on every stock, ETF, and index (**398,278 backtests
 | 📦 | **Darvas box & breakout detector** | Boxes, breakouts, breakdowns, failed breakouts, and ATR trailing trend, each with a strategy |
 | 🧪 | **88 strategies** | Trend, breakout, trend reversal, harmonics, oscillators, mean reversion, price action, volume, and two creator groups. [Full catalog →](docs/strategies.md) |
 | 📈 | **NSE and BSE indices** | ~170 NSE indices (Nifty 50, Bank, sectoral, thematic, strategy, India VIX) for five years, and ~80 BSE indices (Sensex, BSE 100/500, sectoral) from April 2025, from the exchanges' daily index files. An **Indices** chip lists them |
-| 🏆 | **Strategy leaderboard** | A separate page that backtests all 88 strategies on every script and index (~450,000 backtests, resumable background job on all CPU cores) and ranks them by **CAGR ÷ \|max drawdown\|** (drawdown floored at 5%). Default view: CAGR above 15%, ≥ 3 trades, ≥ 2 tested years, ≥ ₹10 lakh traded a day. Filter by universe, strategy, and script; best strategy per script; full CSV export; click a row to open it on the chart. A data-quality gate skips thin or glitchy series |
+| 🏆 | **Strategy leaderboard** | A separate page that backtests all 88 strategies on every script and index (~450,000 backtests, resumable background job on all CPU cores) and ranks them by **CAGR ÷ \|max drawdown\|** (drawdown floored at 5%). Default view: CAGR above 15%, ≥ 3 trades, ≥ 2 tested years, ≥ ₹10 lakh traded a day. Filter by universe, strategy, and script; best strategy per script; a **By strategy** view ranking strategies by median total return ÷ max drawdown across scripts; full CSV export; click a row to open it on the chart. `top-leaderboard --results results` rebuilds the committed CSVs on any machine. A data-quality gate skips thin or glitchy series |
 | 🏁 | **Backtest universe** | Run one strategy on all 50 Nifty stocks, or on all indices, or on the 200 most traded names of the ETF, BSE, or combined universe, ranked by return |
 | 🎥 | **YouTube creator strategies** | 13 rules adapted from @neurotrader888's MIT-licensed code and the public sources @UnbiasedTradingGoshawk tests. [Details →](docs/creators.md) |
 | 🗣️ | **Interpretation pane** | Plain-English reading of every selected study and strategy, a technical rating (MA and oscillator votes), and a swing plan with trigger, entry, stop, T1/T2, position size, and historical odds on the same stock |

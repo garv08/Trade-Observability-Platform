@@ -2,6 +2,17 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.4.0] - 2026-11-02
+
+### Added
+- **By strategy** view on the Leaderboard page: strategies ranked by the **median of total return ÷ |max drawdown|** across every qualifying script (≥ 3 trades, ≥ 2 tested years, ≥ ₹10 lakh a day, no CAGR cut, ≥ 50 scripts). Also shows the mean, middle half, median return/DD/CAGR, % profitable, % beating buy-and-hold, median trades, and best script. Re-sortable, CSV download, click through to the strategy's scripts.
+- `GET /api/leaderboard/strategies` (+ `.csv`), `top-leaderboard --strategies FILE`.
+- `top-leaderboard --results DIR`: compute (resuming), then write all committed snapshots with fixed settings, so any machine can reproduce `results/` after `git pull` + `top-sync`.
+- `results/strategy-ranking-return-dd.csv` and a README section with the top strategies.
+
+### Fixed
+- Leaderboard orderings break ties by name (best strategy per script, best script per strategy), so exports are byte-identical for the same database.
+
 ## [0.3.1] - 2026-11-02
 
 ### Fixed

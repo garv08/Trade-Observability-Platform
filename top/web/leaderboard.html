@@ -63,6 +63,11 @@
     .side .row .n { text-align: right; white-space: nowrap; }
     .note { color: var(--muted); font-size: 12px; line-height: 1.5; }
     .empty { padding: 40px; text-align: center; color: var(--muted); }
+    .views { display: inline-flex; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; margin-right: 6px; }
+    .views button { border: 0; border-radius: 0; background: var(--panel-2); color: var(--text); padding: 6px 14px; cursor: pointer; font: inherit; }
+    .views button.on { background: var(--blue); color: #fff; }
+    .hidden { display: none !important; }
+    .filters label.off { opacity: .45; }
     @media (max-width: 1100px) { main.lb { grid-template-columns: 1fr; } }
   </style>
 </head>
@@ -95,13 +100,13 @@
           <div class="msg" id="st-msg">Loading…</div>
         </div>
         <div class="filters">
-          <div class="chips" id="lb-chips"></div>
-          <label>Min CAGR %<input id="f-cagr" type="number" step="1" value="15" /></label>
+          <div class="chips"><span class="views" id="lb-views"><button type="button" data-view="scripts" class="on" title="Every script and strategy pair">By script</button><button type="button" data-view="strategies" title="Strategies ranked by median total return ÷ max drawdown across scripts">By strategy</button></span><span id="lb-chips" class="chips" style="display:inline-flex"></span></div>
+          <label id="l-cagr">Min CAGR %<input id="f-cagr" type="number" step="1" value="15" /></label>
           <label>Min trades<input id="f-trades" type="number" min="0" step="1" value="3" /></label>
           <label title="Years the strategy was actually invested-or-flat after its warm-up, not the listing's age">Min tested years<input id="f-years" type="number" min="0" step="0.5" value="2" /></label>
           <label title="Median daily traded value over the last year, in ₹ lakh. Indices are exempt.">Min daily value (₹ lakh)<input id="f-value" type="number" min="0" step="5" value="10" /></label>
-          <label>Strategy<select id="f-strategy"><option value="">All strategies</option></select></label>
-          <label>Sort by<select id="f-sort">
+          <label id="l-strategy">Strategy<select id="f-strategy"><option value="">All strategies</option></select></label>
+          <label id="l-sort">Sort by<select id="f-sort">
             <option value="ratio">CAGR ÷ |Max DD|</option>
             <option value="cagr">CAGR</option>
             <option value="max_dd">Smallest drawdown</option>
@@ -110,13 +115,43 @@
             <option value="win_rate">Win rate</option>
             <option value="trades">Trades</option>
           </select></label>
-          <label>Search script<input id="f-q" type="search" placeholder="name, symbol or BSE code" /></label>
-          <label class="check"><input id="f-best" type="checkbox" /> Best strategy per script</label>
+          <label id="l-q">Search script<input id="f-q" type="search" placeholder="name, symbol or BSE code" /></label>
+          <label class="check" id="l-best"><input id="f-best" type="checkbox" /> Best strategy per script</label>
+          <label id="l-ssort" class="hidden">Rank strategies by<select id="f-ssort">
+            <option value="median_return_dd">Median return ÷ |Max DD|</option>
+            <option value="mean_return_dd">Mean return ÷ |Max DD|</option>
+            <option value="median_cagr_dd">Median CAGR ÷ |Max DD|</option>
+            <option value="pct_profitable">% of scripts profitable</option>
+            <option value="pct_beat_hold">% beating buy &amp; hold</option>
+            <option value="scripts">Scripts tested</option>
+          </select></label>
         </div>
       </div>
 
       <div class="summary" id="lb-summary"></div>
-      <div class="table-wrap">
+      <div class="table-wrap hidden" id="strat-wrap">
+        <table class="lb-table">
+          <thead>
+            <tr>
+              <th class="nosort">#</th>
+              <th class="l nosort">Strategy</th>
+              <th class="nosort" title="Scripts that pass the trade, tested-years and traded-value filters">Scripts</th>
+              <th class="nosort" title="Median across scripts of total return ÷ |max drawdown| (drawdown floored at 5%)">Median return ÷ DD</th>
+              <th class="nosort">Mean</th>
+              <th class="nosort" title="25th to 75th percentile across scripts">Middle half</th>
+              <th class="nosort">Median return</th>
+              <th class="nosort">Median max DD</th>
+              <th class="nosort">Median CAGR</th>
+              <th class="nosort">Profitable</th>
+              <th class="nosort">Beat buy &amp; hold</th>
+              <th class="nosort">Median trades</th>
+              <th class="l nosort">Best script</th>
+            </tr>
+          </thead>
+          <tbody id="strat-body"><tr><td colspan="13" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="table-wrap" id="script-wrap">
         <table class="lb-table">
           <thead>
             <tr>

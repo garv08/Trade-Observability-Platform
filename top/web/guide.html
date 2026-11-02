@@ -309,6 +309,7 @@ top-platform           # or: python -m top</code></pre>
         <li>Filter by universe chip, strategy, or script; tick <b>Best strategy per script</b>; click a column header to sort; <b>Download CSV</b> for every matching row.</li>
         <li><b>Strategies that pass most often</b> shows how many scripts each strategy passes on. Click one to filter.</li>
         <li>Click a row to open that script on the chart with the strategy backtested.</li>
+        <li><b>By strategy</b> ranks the strategies themselves by the median of total return ÷ |max drawdown| across every script that passes the filters (no CAGR cut, so losers count; at least 50 scripts). It also shows the middle half, % profitable, % beating buy-and-hold, and the best script. Click a strategy to see its scripts.</li>
       </ul>
       <p>Scripts with unreliable data are skipped: traded on fewer than half the weekdays, or a one-day move above +100% or below −50% after split adjustment. Dividend Points and India VIX are left out because they are not prices.</p>
       <p>Many strategies on many scripts means some winners are luck. Prefer rules that pass widely, with many trades and full history.</p>

@@ -113,6 +113,20 @@ Ranked backtests from the stored leaderboard. Query parameters (all optional):
 
 The same filters as `/api/leaderboard` (no paging), returned as a CSV attachment with every matching row in rank order: `rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`. With the server stopped, `top-leaderboard --export file.csv [--min-cagr 15] [--min-trades 3] [--min-years 2] [--min-value 10] [--best]` writes the same file.
 
+### `GET /api/leaderboard/strategies` and `/api/leaderboard/strategies.csv`
+
+Strategies ranked across scripts. Per (script, strategy), `return_dd = total_return_pct / max(|max_dd_pct|, 5)`; per strategy, the median and other statistics across every qualifying script. Parameters: `universe`, `min_trades` (default 3), `min_years` (2), `min_value` (10, ₹ lakh), `min_scripts` (50), and `sort` (`median_return_dd`, `mean_return_dd`, `median_cagr_dd`, `pct_profitable`, `pct_beat_hold`, or `scripts`).
+
+```json
+{"strategies": [{"rank": 1, "strategy": "donchian_55", "strategy_name": "Donchian 55 break", "section": "Breakout", "scripts": 270,
+                 "median_return_dd": 2.313, "mean_return_dd": 9.0065, "p25_return_dd": 0.1483, "p75_return_dd": 6.7595,
+                 "median_return_pct": 70.54, "median_max_dd_pct": -46.86, "median_cagr_pct": 13.75, "median_cagr_dd": 0.4156,
+                 "pct_profitable": 77.04, "pct_beat_hold": 29.26, "median_trades": 4.0, "median_years": 4.66,
+                 "best_symbol": "BSE:SPRIGHT", "best_return_dd": 235.5512}]}
+```
+
+`top-leaderboard --strategies file.csv` writes the same CSV, and `top-leaderboard --results DIR` rebuilds every committed results file.
+
 ### `GET /api/leaderboard/status`
 
 Just the job state: `running`, `done`, `total`, `skipped`, `rate_per_min`, `eta_seconds`, `message`, `workers`.

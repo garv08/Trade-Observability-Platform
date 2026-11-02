@@ -4,7 +4,7 @@ const $ = (id) => document.getElementById(id);
 const CHIPS = [["all", "All"], ["nifty50", "Nifty 50"], ["index", "Indices"], ["etf", "ETFs"], ["bse", "BSE"]];
 const UNIVERSE_LABEL = { nifty50: "Nifty 50", nse_index: "NSE index", bse_index: "BSE index", nse_etf: "NSE ETF", bse_etf: "BSE ETF", bse: "BSE" };
 const PAGE = 100;
-const state = { universe: "all", offset: 0, strategies: {}, last: null, timer: null, loading: false };
+const state = { view: "scripts", universe: "all", offset: 0, strategies: {}, last: null, timer: null, loading: false };
 
 const esc = (text) => String(text ?? "").replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
 const num = (v, d = 1) => (v == null ? "–" : Number(v).toLocaleString("en-IN", { minimumFractionDigits: d, maximumFractionDigits: d }));
@@ -49,6 +49,7 @@ function params(extra = {}) {
 
 function saveUrl() {
   const q = params();
+  if (state.view === "strategies") { q.set("view", "strategies"); q.set("ssort", $("f-ssort").value); }
   q.delete("limit");
   if (state.offset === 0) q.delete("offset");
   history.replaceState(null, "", `?${q}`);
@@ -57,6 +58,8 @@ function saveUrl() {
 function restoreUrl() {
   const q = new URLSearchParams(location.search);
   if (CHIPS.some(([k]) => k === q.get("universe"))) state.universe = q.get("universe");
+  if (q.get("view") === "strategies") state.view = "strategies";
+  if (q.has("ssort")) $("f-ssort").value = q.get("ssort");
   if (q.has("min_cagr")) $("f-cagr").value = q.get("min_cagr") === "none" ? "" : q.get("min_cagr");
   if (q.has("min_trades")) $("f-trades").value = q.get("min_trades");
   if (q.has("min_years")) $("f-years").value = q.get("min_years");
@@ -150,16 +153,68 @@ function renderByStrategy(rows) {
   }).join("");
 }
 
+function strategyParams() {
+  const q = params();
+  for (const key of ["min_cagr", "strategy", "q", "best", "limit", "offset", "sort"]) q.delete(key);
+  q.set("sort", $("f-ssort").value);
+  return q;
+}
+
+function renderView() {
+  const strategies = state.view === "strategies";
+  document.querySelectorAll("#lb-views [data-view]").forEach((b) => b.classList.toggle("on", b.dataset.view === state.view));
+  $("strat-wrap").classList.toggle("hidden", !strategies);
+  $("script-wrap").classList.toggle("hidden", strategies);
+  document.querySelector(".pager").querySelectorAll("#prev-btn, #next-btn, #page-label").forEach((n) => n.classList.toggle("hidden", strategies));
+  for (const id of ["l-cagr", "l-strategy", "l-sort", "l-q", "l-best"]) $(id).classList.toggle("hidden", strategies);
+  $("l-ssort").classList.toggle("hidden", !strategies);
+}
+
+function renderStrategies(rows) {
+  const body = $("strat-body");
+  if (!rows.length) {
+    body.innerHTML = `<tr><td colspan="13" class="empty">${state.last && state.last.computed.rows ? "No strategy has 50+ scripts passing these filters. Lower Min trades, tested years, or daily value." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
+    $("lb-summary").innerHTML = "";
+    return;
+  }
+  body.innerHTML = rows.map((r) => {
+    const s = state.strategies[r.strategy] || {};
+    return `<tr data-strategy="${esc(r.strategy)}" title="Show every script for ${esc(r.strategy_name)}">
+      <td>${r.rank}</td>
+      <td class="l strat"><b>${esc(r.strategy_name)}</b><small>${esc(r.section)}${r.creator && r.creator !== r.section ? ` · ${esc(r.creator)}` : ""}</small></td>
+      <td>${Number(r.scripts).toLocaleString("en-IN")}</td>
+      <td class="ratio">${num(r.median_return_dd, 2)}</td>
+      <td>${num(r.mean_return_dd, 2)}</td>
+      <td>${num(r.p25_return_dd, 2)} – ${num(r.p75_return_dd, 2)}</td>
+      <td class="${cls(r.median_return_pct)}">${pct(r.median_return_pct, 0)}</td>
+      <td class="down">${num(r.median_max_dd_pct, 1)}%</td>
+      <td class="${cls(r.median_cagr_pct)}">${pct(r.median_cagr_pct)}</td>
+      <td>${num(r.pct_profitable, 0)}%</td>
+      <td>${num(r.pct_beat_hold, 0)}%</td>
+      <td>${num(r.median_trades, 0)}</td>
+      <td class="l sym"><b>${esc(r.best_symbol || "")}</b><small>return ÷ DD ${num(r.best_return_dd, 1)}</small></td>
+    </tr>`;
+  }).join("");
+  const n = rows.reduce((max, r) => Math.max(max, r.scripts), 0);
+  $("lb-summary").innerHTML = `<span><b>${rows.length}</b> strategies ranked by ${esc($("f-ssort").selectedOptions[0].textContent)} across up to <b>${n.toLocaleString("en-IN")}</b> scripts with ≥ ${esc($("f-trades").value || 0)} trades, ≥ ${esc($("f-years").value || 0)} years tested${Number($("f-value").value) > 0 ? `, ≥ ₹${esc($("f-value").value)} lakh traded a day` : ""}. No CAGR cut: losing scripts count. Click a strategy to see its scripts.</span>`;
+}
+
 async function load() {
   if (state.loading) { state.again = true; return; }
   state.loading = true;
   saveUrl();
+  renderView();
   try {
-    const data = await api(`/api/leaderboard?${params()}`);
+    const data = await api(`/api/leaderboard?${params(state.view === "strategies" ? { limit: "1" } : {})}`);
     state.last = data;
     renderChips(data.universes);
     renderStatus(data.status, data.computed);
-    renderTable(data);
+    if (state.view === "strategies") {
+      const ranked = await api(`/api/leaderboard/strategies?${strategyParams()}`);
+      renderStrategies(ranked.strategies);
+    } else {
+      renderTable(data);
+    }
     renderByStrategy(data.by_strategy);
     schedule(data.status.running);
   } catch (error) {
@@ -196,6 +251,13 @@ async function control(body) {
 }
 
 function downloadCsv() {
+  if (state.view === "strategies") {
+    const link = document.createElement("a");
+    link.href = `/api/leaderboard/strategies.csv?${strategyParams()}`;
+    link.download = "top-strategy-ranking.csv";
+    link.click();
+    return;
+  }
   const q = params();
   q.delete("limit");
   q.delete("offset");
@@ -222,6 +284,21 @@ async function init() {
   } catch (error) {
     $("st-msg").textContent = error.message;
   }
+  $("lb-views").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-view]");
+    if (!button || button.dataset.view === state.view) return;
+    state.view = button.dataset.view;
+    reload();
+  });
+  $("f-ssort").addEventListener("change", reload);
+  $("strat-body").addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-strategy]");
+    if (!row) return;
+    $("f-strategy").value = row.dataset.strategy;
+    $("f-cagr").value = "";
+    state.view = "scripts";
+    reload();
+  });
   $("lb-chips").addEventListener("click", (event) => {
     const button = event.target.closest("[data-u]");
     if (!button) return;
