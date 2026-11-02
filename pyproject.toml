@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trade-observability-platform"
-version = "0.2.1"
+version = "0.3.0"
 description = "TOP - Trade Observability Platform: a local Nifty 50 research desk with DuckDB history, 148 studies, Scott Carney harmonics, 88 backtestable strategies (incl. @neurotrader888 and @UnbiasedTradingGoshawk rules), and plain-language swing-trade readings."
 readme = "README.md"
 license = { file = "LICENSE" }
@@ -29,6 +29,7 @@ dependencies = ["duckdb==1.1.3"]
 [project.scripts]
 top-platform = "top.server:main"
 top-sync = "top.store:main"
+top-leaderboard = "top.leaderboard:main"
 
 [project.urls]
 Homepage = "https://github.com/garv08/Trade-Observability-Platform"

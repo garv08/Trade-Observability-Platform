@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Leaderboard · TOP</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    body { display: block; }
+    .lb-top { display: flex; align-items: center; gap: 14px; padding: 10px 18px; border-bottom: 1px solid var(--line); background: var(--panel); position: sticky; top: 0; z-index: 5; }
+    .lb-top h1 { font-size: 17px; margin: 0; font-weight: 600; }
+    .lb-top .sub { color: var(--muted); font-size: 13px; }
+    .lb-top .spacer { flex: 1; }
+    .lb-logo { background: var(--blue); color: #fff; font-weight: 700; border-radius: 6px; padding: 3px 7px; font-size: 13px; text-decoration: none; }
+    main.lb { padding: 14px 18px 40px; display: grid; grid-template-columns: minmax(0, 1fr) 270px; gap: 14px; }
+    .card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+    .card h2 { font-size: 13px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+    .run { display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center; }
+    .run .stat b { display: block; font-size: 18px; }
+    .run .stat span { color: var(--muted); font-size: 12px; }
+    .bar { height: 6px; background: var(--panel-2); border-radius: 4px; overflow: hidden; flex-basis: 100%; }
+    .bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--blue), var(--up)); width: 0; transition: width .6s; }
+    .run .msg { color: var(--muted); font-size: 12px; flex-basis: 100%; }
+    .btn { background: var(--panel-2); border: 1px solid var(--line); border-radius: 6px; padding: 7px 12px; }
+    .btn.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .btn:disabled { opacity: .5; cursor: default; }
+    .filters { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px 12px; align-items: end; margin-top: 12px; }
+    .filters label { display: flex; flex-direction: column; gap: 4px; font-size: 12px; color: var(--muted); }
+    .filters label.check { flex-direction: row; align-items: center; gap: 8px; color: var(--text); padding-bottom: 8px; }
+    .filters label.check input { width: auto; }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; grid-column: 1 / -1; }
+    .chips button { border-radius: 16px; padding: 5px 12px; }
+    .chips button.on { background: var(--blue); border-color: var(--blue); color: #fff; }
+    .chips em { font-style: normal; opacity: .75; margin-left: 4px; font-size: 12px; }
+    .summary { color: var(--muted); font-size: 13px; margin: 14px 2px 8px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+    .summary b { color: var(--text); }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; }
+    table.lb-table { border-collapse: collapse; width: 100%; font-size: 12.5px; font-variant-numeric: tabular-nums; }
+    .lb-table th, .lb-table td { padding: 7px 7px; border-bottom: 1px solid var(--line); text-align: right; white-space: nowrap; }
+    .lb-table th { background: var(--panel); color: var(--muted); font-weight: 600; position: sticky; top: 0; cursor: pointer; user-select: none; }
+    .lb-table th.sorted { color: var(--text); }
+    .lb-table th.sorted::after { content: " ▾"; }
+    .lb-table th.nosort { cursor: default; }
+    .lb-table td.l, .lb-table th.l { text-align: left; }
+    .lb-table tbody tr { cursor: pointer; }
+    .lb-table tbody tr:hover { background: var(--panel-2); }
+    .lb-table .sym b { display: block; }
+    .lb-table .sym small, .lb-table .strat small { color: var(--muted); }
+    .lb-table .strat b { display: block; font-weight: 500; }
+    .ratio { font-weight: 700; color: var(--amber); }
+    .up { color: var(--up); } .down { color: var(--down); }
+    .tag { display: inline-block; font-size: 10px; padding: 1px 6px; border-radius: 8px; background: var(--panel-2); border: 1px solid var(--line); color: var(--muted); margin-left: 6px; vertical-align: 1px; }
+    .tag.in { color: var(--up); border-color: var(--up); }
+    .pager { display: flex; gap: 8px; align-items: center; justify-content: flex-end; margin-top: 10px; color: var(--muted); font-size: 13px; }
+    .side .row { display: flex; justify-content: space-between; gap: 8px; padding: 6px 0; border-bottom: 1px solid var(--line); font-size: 13px; cursor: pointer; }
+    .side .row:hover b { color: var(--blue); }
+    .side .row small { color: var(--muted); display: block; }
+    .side .row .n { text-align: right; white-space: nowrap; }
+    .note { color: var(--muted); font-size: 12px; line-height: 1.5; }
+    .empty { padding: 40px; text-align: center; color: var(--muted); }
+    @media (max-width: 1100px) { main.lb { grid-template-columns: 1fr; } }
+  </style>
+</head>
+<body>
+  <header class="lb-top">
+    <a class="lb-logo" href="/" title="Back to the charting desk">TOP</a>
+    <div>
+      <h1>Strategy leaderboard</h1>
+      <div class="sub">Every backtest strategy on every stock, ETF and index, ranked by CAGR ÷ |max drawdown|</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="guide-link" href="/">Charting desk</a>
+    <a class="guide-link" href="/guide.html#leaderboard" target="_blank" rel="noopener">Guide</a>
+  </header>
+
+  <main class="lb">
+    <section>
+      <div class="card">
+        <h2>Backtest run</h2>
+        <div class="run">
+          <div class="stat"><b id="st-scripts">–</b><span>scripts computed</span></div>
+          <div class="stat"><b id="st-rows">–</b><span>backtests stored</span></div>
+          <div class="stat"><b id="st-data">–</b><span>data up to</span></div>
+          <div class="stat"><b id="st-eta">–</b><span id="st-eta-label">time left</span></div>
+          <div class="spacer" style="flex:1"></div>
+          <button id="run-btn" class="btn primary" type="button">Run / resume</button>
+          <button id="stop-btn" class="btn" type="button" disabled>Stop</button>
+          <button id="force-btn" class="btn" type="button" title="Recompute every script, even ones already current">Recompute all</button>
+          <div class="bar"><i id="st-bar"></i></div>
+          <div class="msg" id="st-msg">Loading…</div>
+        </div>
+        <div class="filters">
+          <div class="chips" id="lb-chips"></div>
+          <label>Min CAGR %<input id="f-cagr" type="number" step="1" value="15" /></label>
+          <label>Min trades<input id="f-trades" type="number" min="0" step="1" value="3" /></label>
+          <label title="Years the strategy was actually invested-or-flat after its warm-up, not the listing's age">Min tested years<input id="f-years" type="number" min="0" step="0.5" value="2" /></label>
+          <label title="Median daily traded value over the last year, in ₹ lakh. Indices are exempt.">Min daily value (₹ lakh)<input id="f-value" type="number" min="0" step="5" value="10" /></label>
+          <label>Strategy<select id="f-strategy"><option value="">All strategies</option></select></label>
+          <label>Sort by<select id="f-sort">
+            <option value="ratio">CAGR ÷ |Max DD|</option>
+            <option value="cagr">CAGR</option>
+            <option value="max_dd">Smallest drawdown</option>
+            <option value="sharpe">Sharpe</option>
+            <option value="return">Total return</option>
+            <option value="win_rate">Win rate</option>
+            <option value="trades">Trades</option>
+          </select></label>
+          <label>Search script<input id="f-q" type="search" placeholder="name, symbol or BSE code" /></label>
+          <label class="check"><input id="f-best" type="checkbox" /> Best strategy per script</label>
+        </div>
+      </div>
+
+      <div class="summary" id="lb-summary"></div>
+      <div class="table-wrap">
+        <table class="lb-table">
+          <thead>
+            <tr>
+              <th class="nosort">#</th>
+              <th class="l nosort">Script</th>
+              <th class="l nosort">Strategy</th>
+              <th data-sort="ratio" title="CAGR divided by the absolute maximum drawdown">CAGR ÷ DD</th>
+              <th data-sort="cagr">CAGR</th>
+              <th data-sort="max_dd">Max DD</th>
+              <th data-sort="return">Total return</th>
+              <th class="nosort">Buy &amp; hold</th>
+              <th data-sort="trades">Trades</th>
+              <th data-sort="win_rate">Win rate</th>
+              <th data-sort="sharpe">Sharpe</th>
+              <th class="nosort">Exposure</th>
+              <th class="nosort" title="Years tested after the strategy's warm-up">Tested yrs</th>
+            </tr>
+          </thead>
+          <tbody id="lb-body"><tr><td colspan="13" class="empty">Loading…</td></tr></tbody>
+        </table>
+      </div>
+      <div class="pager">
+        <button id="csv-btn" class="btn" type="button">Download CSV</button><span class="note">all rows matching the filters</span>
+        <span style="flex:1"></span>
+        <button id="prev-btn" class="btn" type="button">‹ Prev</button>
+        <span id="page-label"></span>
+        <button id="next-btn" class="btn" type="button">Next ›</button>
+      </div>
+    </section>
+
+    <aside class="side">
+      <div class="card">
+        <h2>Strategies that pass most often</h2>
+        <div id="by-strategy" class="note">–</div>
+      </div>
+      <div class="card" style="margin-top:16px">
+        <h2>How to read this</h2>
+        <p class="note"><b>CAGR ÷ |Max DD|</b> (the MAR ratio) rewards growth earned with shallow drawdowns. 30% CAGR with a −15% worst drawdown scores 2.0; 30% with −60% scores 0.5. Drawdowns smaller than 5% count as 5%, so a rule that barely traded can't top the table.</p>
+        <p class="note">Each row is one long/flat strategy with its default settings on one script, with ₹10 lakh, 5 bps cost per side, on all stored daily history (about 5 years; BSE indices start in April 2025). Click a row to open it on the chart.</p>
+        <p class="note">Scripts with thin trading (bars on under half the weekdays) or impossible one-day moves (above +100% or below −50% after split adjustment) are skipped, as are Dividend Points and VIX.</p>
+        <p class="note">With 88 strategies tried on 5,000+ scripts, some results are luck. Prefer strategies that pass on many scripts, enough trades, and full history. Research only, not investment advice.</p>
+      </div>
+    </aside>
+  </main>
+
+  <script src="/leaderboard.js"></script>
+</body>
+</html>

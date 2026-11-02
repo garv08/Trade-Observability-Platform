@@ -16,10 +16,14 @@ Trade-Observability-Platform/
 │   ├── patterns.py             Darvas boxes, breakout and trend detector
 │   ├── creators.py             @neurotrader888 and @UnbiasedTradingGoshawk rules
 │   ├── market.py               Equal-weight Nifty 50 proxy from stored bars
+│   ├── bhav.py                 BSE stocks and ETFs from exchange bhavcopies
+│   ├── indices.py              NSE and BSE indices from daily index files
+│   ├── levels.py               Key levels plan and pattern breakouts
+│   ├── leaderboard.py          Every strategy on every script (top-leaderboard)
 │   ├── explain.py              Readings, technical rating, swing plan, odds
 │   ├── fundamentals.py         Screener.in fetch and parser
 │   ├── verify.py               Named self-checks (python -m top.verify)
-│   └── web/                    index.html, app.js, styles.css, guide.html, vendor/
+│   └── web/                    index.html, app.js, styles.css, guide.html, leaderboard.html/.js, vendor/
 ├── tests/                      Offline unit and HTTP integration tests
 ├── scripts/                    generate_catalog_docs.py
 ├── docs/                       Guides, catalogs, design, API; images/ holds screenshots

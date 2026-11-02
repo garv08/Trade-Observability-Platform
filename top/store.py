@@ -43,6 +43,8 @@ UNIVERSES = {
     "nse_etf": "NSE ETFs",
     "bse_etf": "BSE ETFs",
     "bse": "BSE stocks",
+    "nse_index": "NSE indices",
+    "bse_index": "BSE indices",
 }
 
 
@@ -65,7 +67,9 @@ def set_bhav_status(**kwargs) -> None:
 
 def connect() -> duckdb.DuckDBPyConnection:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
-    return duckdb.connect(str(DB_PATH))
+    # DuckDB defaults to 80% of RAM; on small laptops that starves the browser and worker processes.
+    limit = os.environ.get("TOP_DB_MEMORY", "768MB")
+    return duckdb.connect(str(DB_PATH), config={"memory_limit": limit, "threads": "2"})
 
 
 @contextmanager
@@ -358,7 +362,7 @@ def list_symbols(con: duckdb.DuckDBPyConnection) -> list[dict]:
         LEFT JOIN recent a ON a.symbol = s.symbol AND a.rn = 1
         LEFT JOIN recent b ON b.symbol = s.symbol AND b.rn = 2
         LEFT JOIN adjustments adj ON adj.symbol = s.symbol AND adj.ex_date = a.ts
-        ORDER BY CASE s.universe WHEN 'nifty50' THEN 0 WHEN 'nse_etf' THEN 1 WHEN 'bse_etf' THEN 2 ELSE 3 END,
+        ORDER BY CASE s.universe WHEN 'nifty50' THEN 0 WHEN 'nse_index' THEN 1 WHEN 'bse_index' THEN 2 WHEN 'nse_etf' THEN 3 WHEN 'bse_etf' THEN 4 ELSE 5 END,
                  s.rank NULLS LAST, s.symbol
         """,
         [INTERVAL],
@@ -458,7 +462,8 @@ def main(argv=None) -> int:
     parser.add_argument("--db", help="DuckDB file (default: TOP_DB or ./data/nse.duckdb)")
     which = parser.add_mutually_exclusive_group()
     which.add_argument("--nifty", action="store_true", help="only the Nifty 50 (Yahoo)")
-    which.add_argument("--bhav", action="store_true", help="only BSE stocks and ETFs (bhavcopies)")
+    which.add_argument("--bhav", action="store_true", help="only BSE stocks, ETFs and indices (exchange files)")
+    which.add_argument("--indices", action="store_true", help="only NSE and BSE indices")
     parser.add_argument("--years", type=int, default=5, help="history for BSE stocks and ETFs (default 5)")
     args = parser.parse_args(argv)
     global DB_PATH, _schema_ready
@@ -466,7 +471,7 @@ def main(argv=None) -> int:
         DB_PATH = Path(args.db)
         _schema_ready = False
     failed = False
-    if not args.bhav:
+    if not (args.bhav or args.indices):
         print(f"Syncing the Nifty 50 from Yahoo into {DB_PATH}", flush=True)
         result = sync_all(lambda symbol, done, errors: print(f"  {done:>2}/{len(UNIVERSE)} {symbol}", flush=True))
         for error in result["errors"]:
@@ -475,7 +480,7 @@ def main(argv=None) -> int:
         with session() as con:
             info = coverage(con)
         print(f"Nifty 50: {info['symbols_with_bars']}/{len(UNIVERSE)} names, {info['bars']} bars.", flush=True)
-    if not args.nifty:
+    if not (args.nifty or args.indices):
         from top.bhav import sync_bhav
 
         print(f"Syncing BSE stocks and ETFs ({args.years} years of bhavcopies) into {DB_PATH}", flush=True)
@@ -484,6 +489,16 @@ def main(argv=None) -> int:
             print(f"BSE/ETFs: {out['listings']} listings, {out['bars']} new bars, {out['adjustments']} split/bonus adjustments, latest {out['latest']}.", flush=True)
         except Exception as exc:  # noqa: BLE001
             print(f"BSE/ETF sync failed: {exc}", flush=True)
+            failed = True
+    if not args.nifty:
+        from top.indices import sync_indices
+
+        print(f"Syncing NSE and BSE indices into {DB_PATH}", flush=True)
+        try:
+            out = sync_indices(years=args.years, progress=lambda exchange, day, n, total: print(f"  {n:>4}/{total} {exchange} {day}", flush=True))
+            print(f"Indices: {out['nse_bars']} NSE and {out['bse_bars']} BSE new bars.", flush=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Index sync failed: {exc}", flush=True)
             failed = True
     return 1 if failed else 0
 

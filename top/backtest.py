@@ -153,3 +153,100 @@ def _ratio(rets, downside):
 
 def _pct(value):
     return round(float(value) * 100, 2)
+
+
+def _finite(value):
+    return value is not None and isinstance(value, (int, float)) and math.isfinite(value)
+
+
+def metrics(open_, close, position, capital=1_000_000.0, cost_bps=5.0):
+    """The same rules and metrics as run(), on plain lists, without equity/benchmark/trade output.
+
+    About 10x faster than run(); used by the leaderboard, which needs only the numbers.
+    """
+    open_ = [float(x) if x is not None else math.nan for x in open_]
+    close = [float(x) if x is not None else math.nan for x in close]
+    position = [float(x) if x is not None else math.nan for x in position]
+    n = len(close)
+    if n < 3:
+        raise ValueError("not enough bars")
+    start = next((i for i, p in enumerate(position) if p == p), 0)
+    cost = float(cost_bps) / 10_000.0
+    capital = float(capital)
+    cash, shares, entry_i, entry_cost = capital, 0.0, None, 0.0
+    closed_pnl, closed_ret, bars_held, open_trades = [], [], 0, 0
+    equity = [capital]
+    for i in range(start + 1, n):
+        desired = 1 if position[i - 1] == 1 else 0
+        px = open_[i]
+        if not math.isfinite(px) or px <= 0:
+            equity.append(cash + shares * close[i - 1])
+            continue
+        if (1 if shares > 0 else 0) != desired:
+            if shares > 0:
+                proceeds = shares * px * (1 - cost)
+                cash += proceeds
+                closed_pnl.append(round(proceeds - entry_cost, 2))
+                closed_ret.append(round((proceeds / entry_cost - 1) * 100 if entry_cost else 0, 2))
+                bars_held += i - entry_i
+                shares, entry_i = 0.0, None
+            if desired == 1 and cash > 0:
+                shares = (cash - cash * cost) / px
+                entry_cost, entry_i, cash = cash, i, 0.0
+        mark = close[i] if math.isfinite(close[i]) else px
+        equity.append(cash + shares * mark)
+    if shares > 0 and entry_i is not None:
+        open_trades = 1
+        bars_held += n - 1 - entry_i
+    for i in range(1, len(equity)):
+        if not math.isfinite(equity[i]):
+            equity[i] = equity[i - 1]
+    rets = []
+    for a, b in zip(equity, equity[1:]):
+        r = (b - a) / a if a else math.nan
+        if math.isfinite(r):
+            rets.append(r)
+    last = equity[-1]
+    years = max(len(equity) / 252, 1 / 252)
+    cagr = (last / capital) ** (1 / years) - 1 if last > 0 else -1
+    peak, max_dd = -math.inf, 0.0
+    for value in equity:
+        peak = max(peak, value)
+        max_dd = min(max_dd, value / peak - 1)
+    wins = [p for p in closed_pnl if p > 0]
+    gross_win, gross_loss = sum(wins), abs(sum(p for p in closed_pnl if p <= 0))
+    bh = close[-1] / close[start] - 1
+    sharpe = _list_ratio(rets, False)
+    sortino = _list_ratio(rets, True)
+    trades = len(closed_pnl) + open_trades
+    return {
+        "total_return_pct": _pct(last / capital - 1),
+        "cagr_pct": _pct(cagr),
+        "max_drawdown_pct": _pct(max_dd),
+        "sharpe": None if sharpe is None else round(sharpe, 2),
+        "sortino": None if sortino is None else round(sortino, 2),
+        "win_rate_pct": None if not closed_pnl else round(100 * len(wins) / len(closed_pnl), 1),
+        "profit_factor": None if gross_loss == 0 else round(gross_win / gross_loss, 2),
+        "trades": trades,
+        "closed_trades": len(closed_pnl),
+        "avg_trade_pct": None if not closed_pnl else round(sum(closed_ret) / len(closed_ret), 2),
+        "exposure_pct": round(100 * min(bars_held, len(equity)) / len(equity), 1),
+        "buy_hold_pct": _pct(bh),
+        "ending_equity": round(float(last), 2),
+    }
+
+
+def _list_ratio(rets, downside):
+    if len(rets) < 2:
+        return None
+    mean = sum(rets) / len(rets)
+    sample = [r for r in rets if r < 0] if downside else rets
+    if downside and not sample:
+        return None
+    if len(sample) < 2:
+        return None
+    m = sum(sample) / len(sample)
+    dev = math.sqrt(sum((r - m) ** 2 for r in sample) / (len(sample) - 1))
+    if dev == 0 or math.isnan(dev):
+        return None
+    return mean / dev * math.sqrt(252)

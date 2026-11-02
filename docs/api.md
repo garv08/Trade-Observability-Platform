@@ -82,6 +82,41 @@ Runs every named check in-process.
 {"ok": true, "hooks": [{"name": "duckdb universe", "ok": true, "detail": "50/50"}]}
 ```
 
+### `GET /api/leaderboard`
+
+Ranked backtests from the stored leaderboard. Query parameters (all optional):
+
+| Parameter | Default | Meaning |
+| --- | --- | --- |
+| `min_cagr` | `15` | Keep rows with CAGR above this %; `none` disables |
+| `universe` | `all` | `all`, `nifty50`, `index`, `etf`, or `bse` |
+| `strategy` | – | One strategy id |
+| `min_trades` | `1` | Minimum trades |
+| `min_years` | `0` | Minimum years tested (after the strategy's warm-up) |
+| `min_value` | `0` | Minimum median daily traded value in ₹ lakh over the last year (indices exempt) |
+| `q` | – | Script search (symbol, name, or BSE code) |
+| `best` | `0` | `1` keeps each script's best row |
+| `sort` | `ratio` | `ratio`, `cagr`, `max_dd`, `sharpe`, `return`, `win_rate`, `trades` |
+| `limit`, `offset` | `100`, `0` | Paging (limit up to 1000) |
+
+```json
+{"rows": [{"symbol": "IDX:NIFTYBANK", "strategy": "darvas_breakout", "cagr_pct": 18.4, "max_dd_pct": -9.1, "ratio": 2.02,
+           "total_return_pct": 131.0, "buy_hold_pct": 62.0, "trades": 14, "win_rate_pct": 57.1, "sharpe": 1.2,
+           "exposure_pct": 41.0, "in_position": false, "years": 4.96, "name": "Nifty Bank", "universe": "nse_index"}],
+ "total": 5210, "symbols": 1830, "universes": {"all": 1830, "nifty50": 44, "index": 120, "etf": 150, "bse": 1516},
+ "by_strategy": [{"strategy": "darvas_breakout", "scripts": 410, "median_ratio": 0.9, "median_cagr": 21.0, "median_dd": -22.0}],
+ "computed": {"rows": 448000, "symbols": 5100, "at": "2026-11-02 14:10:00", "data_to": "2026-10-30"},
+ "status": {"running": false, "done": 5100, "total": 5100, "message": "complete: 5,100 symbols computed"}}
+```
+
+### `GET /api/leaderboard.csv`
+
+The same filters as `/api/leaderboard` (no paging), returned as a CSV attachment with every matching row in rank order: `rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`. With the server stopped, `top-leaderboard --export file.csv [--min-cagr 15] [--min-trades 3] [--min-years 2] [--min-value 10] [--best]` writes the same file.
+
+### `GET /api/leaderboard/status`
+
+Just the job state: `running`, `done`, `total`, `skipped`, `rate_per_min`, `eta_seconds`, `message`, `workers`.
+
 ## POST routes
 
 Send `Content-Type: application/json`.
@@ -92,7 +127,15 @@ Send `Content-Type: application/json`.
 {"what": "all"}
 ```
 
-`what` is `nifty` (Yahoo, Nifty 50), `bhav` (BSE stocks and ETFs from bhavcopies), or `all` (default). Starts background downloads and returns the current state immediately; poll `/api/status`, whose `sync.bhav` holds `done`, `total`, `message`, and `last_day` for the bhavcopy sync.
+`what` is `nifty` (Yahoo, Nifty 50), `bhav` (BSE stocks and ETFs from bhavcopies, then NSE/BSE indices), `indices` (only indices), or `all` (default). Starts background downloads and returns the current state immediately; poll `/api/status`, whose `sync.bhav` holds `done`, `total`, `message`, and `last_day` for the bhavcopy sync.
+
+### `POST /api/leaderboard`
+
+```json
+{"action": "start", "force": false}
+```
+
+`action` is `start` (default; resumes and skips scripts that are already current unless `force` is true) or `stop`. Optional `workers` sets the process count. Returns the job state immediately.
 
 ### `POST /api/studies`
 

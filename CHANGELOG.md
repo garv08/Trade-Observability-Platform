@@ -2,6 +2,22 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.3.0] - 2026-11-02
+
+### Added
+- **Strategy leaderboard** page (`/leaderboard.html`, **Leaderboard** in the top bar): all 88 strategies backtested on every stock, ETF, and index with at least a year of data, ranked by **CAGR ÷ |max drawdown|**, with CAGR above 15% by default. Filters for universe, strategy, minimum trades and history, and script search; best strategy per script; sortable columns; per-strategy pass counts; CSV export; rows open the script and strategy on the chart.
+- Resumable background leaderboard job across worker processes (`POST /api/leaderboard`, `GET /api/leaderboard`, `GET /api/leaderboard/status`, `top-leaderboard`). After a daily sync only scripts with new bars are recomputed.
+- **NSE and BSE indices**: ~170 NSE indices for five years and ~80 BSE indices from April 2025, from the exchanges' daily index files (`top-sync --indices`, `POST /api/sync {"what": "indices"}`; also part of **Sync history**). An **Indices** universe chip in the desk and in Backtest universe.
+- The ratio floors drawdown at 5%; `years` means years tested after warm-up; a traded-value filter (₹10 lakh a day by default on the page) keeps illiquid listings out.
+- A data-quality gate keeps thinly traded or glitchy series out of the ranking, and non-price indices (Dividend Points, VIX) are excluded.
+- A full CSV export of any filtered view (`GET /api/leaderboard.csv`, **Download CSV**, `top-leaderboard --export`), and saved snapshots in `results/`.
+- Verify checks for indices and the leaderboard; offline tests for index parsing, index sync, and leaderboard ranking and resume.
+
+### Changed
+- `bhav_days` now also tracks index files, under `NSE-IDX` and `BSE-IDX`; the bhavcopy sync only looks at its own rows.
+- Fundamentals refuse indices with a clear message.
+- DuckDB connections are capped at 768 MB and 2 threads (`TOP_DB_MEMORY` to change). The default of 80% of RAM could starve a 3 GB laptop during a leaderboard run.
+
 ## [0.2.1] - 2026-11-01
 
 ### Fixed

@@ -40,11 +40,12 @@ Nothing is drawn over the chart; panels stack below it. In windows narrower than
 | Chip | What's in it | Source |
 | --- | --- | --- |
 | **Nifty 50** | The 50 index stocks | Yahoo, adjusted for splits and dividends |
+| **Indices** | ~170 NSE indices (Nifty 50, Nifty Bank, sectoral, thematic, strategy, India VIX) and ~80 BSE indices (Sensex, BSE 100, BSE 500, sectoral) | NSE and BSE daily index files. NSE goes back five years; BSE only publishes from April 2025 |
 | **ETFs** | ~355 NSE ETFs and ~35 BSE-only ETFs | Exchange bhavcopies, split adjusted |
 | **BSE** | ~4,700 BSE equities, grouped by BSE group (A, B, T, X, …) | BSE bhavcopies, split and bonus adjusted |
 | **All** | Everything | |
 
-The ETF, BSE, and All chips appear once you've run **Sync history** (or `top-sync --bhav`). Symbols for these universes carry an exchange prefix, for example `BSE:ABB` or `NSE:NIFTYBEES`.
+The Indices, ETF, BSE, and All chips appear once you've run **Sync history** (or `top-sync --bhav`). Symbols for these universes carry a prefix, for example `BSE:ABB`, `NSE:NIFTYBEES`, `IDX:NIFTYBANK` (NSE index), or `IDX:BSE:SENSEX` (BSE index). Index volume is the constituents' traded volume for NSE and zero for BSE, so volume studies say little on BSE indices.
 
 1. Click the **Stock** box, or press <kbd>/</kbd> anywhere.
 2. Type a symbol, a company name, or a sector, for example `infy`, `mahindra`, `pharma`, `energy`, or `financ bank`. Every word must match.
@@ -165,6 +166,23 @@ The pane under the chart refreshes whenever you change anything on the left.
 Results show Return, CAGR, Max DD, Buy & hold, Sharpe, Sortino, Win rate, Profit factor, Trades, Avg trade, Exposure, and Ending equity, plus the equity curve and every trade.
 
 **Backtest universe** (labelled *Backtest Nifty 50*, *Backtest ETFs*, *Backtest BSE*, or *Backtest all*) runs the selected strategy on the current universe and ranks the results. For ETFs, BSE, and All, it uses the 200 most traded names over the last ~45 days, so a scan takes 1–2 minutes.
+
+---
+
+## Strategy leaderboard
+
+Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 88 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 450,000 backtests.
+
+1. Press **Run backtests**. The work runs in the background on all CPU cores at low priority, and the page shows progress, speed, and time left. The Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value, so useful rows appear early. It takes a few hours on a slow two-core PC.
+2. **Stop** at any time. **Run / resume** carries on where it stopped and, after a daily sync, recomputes only scripts with new bars. **Recompute all** starts over.
+3. Rows are ranked by **CAGR ÷ |max drawdown|** (the MAR ratio), with drawdowns under 5% counted as 5% so a rule that barely moved can't top the table. By default only backtests with **CAGR above 15%**, at least 3 trades, at least **2 tested years**, and a median of at least **₹10 lakh traded a day** over the last year are shown. Tested years count only the time after the strategy's warm-up (a 200-day average needs 200 bars first), so short tests don't annualise into silly CAGRs. Indices are exempt from the traded-value floor. Change any of these, or clear Min CAGR to see everything.
+4. Narrow with the universe chips (All · Nifty 50 · Indices · ETFs · BSE), a strategy, or a script search. Tick **Best strategy per script** to keep only each script's top row. Click a column header to sort by it.
+5. **Strategies that pass most often** on the right counts how many scripts each strategy passes on, with median CAGR, drawdown, and ratio. Click one to filter.
+6. Click any row to open that script with that strategy backtested on the chart. **Download CSV** saves every row that matches the filters, in rank order.
+
+Scripts with unreliable data are skipped rather than ranked: those that traded on fewer than half the weekdays in their history, and those with a one-day move above +100% or below −50% after split adjustment (usually a bad tick or an unadjusted corporate action on a thin BSE listing). Index series that are not prices (Nifty50 Dividend Points, India VIX) are left out too. The run status shows how many were skipped.
+
+Each backtest uses ₹10 lakh, 5 bps per side, long/flat, filling at the next open, over all stored history. With so many strategies and scripts some winners are luck: prefer strategies that pass on many scripts, with plenty of trades and full five-year history. From the command line, with the server stopped, `top-leaderboard` runs the same job.
 
 ---
 

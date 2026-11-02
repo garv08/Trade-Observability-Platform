@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import io
 import json
 import mimetypes
 import os
@@ -22,6 +23,7 @@ from top.store import coverage, ensure_schema, known_symbols, list_symbols, load
 from top.strategies import catalog as strategy_catalog
 from top.strategies import signal
 from top.verify import run as run_verify
+from top import leaderboard
 from top.universe import UNIVERSE
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -79,6 +81,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, _scan(body))
             elif parsed.path == "/api/explain":
                 self._send(200, _explain(body))
+            elif parsed.path == "/api/leaderboard":
+                action = body.get("action") or "start"
+                if action == "stop":
+                    self._send(200, leaderboard.stop())
+                else:
+                    self._send(200, leaderboard.start(workers=body.get("workers"), force=bool(body.get("force"))))
             else:
                 self._send(404, {"error": "not found"})
         except Exception as exc:  # noqa: BLE001 - return the research error to the desk
@@ -118,10 +126,19 @@ class Handler(BaseHTTPRequestHandler):
                     info = symbol_info(con, symbol) or {}
                 if info.get("kind") == "etf":
                     raise ValueError("Fundamentals are not available for ETFs. Screener.in covers companies only.")
+                if info.get("kind") == "index":
+                    raise ValueError("Fundamentals are not available for indices. Screener.in covers companies only.")
                 screener_id = info.get("code") if info.get("exchange") == "BSE" else symbol
                 payload = load_fundamentals(symbol, screener_id)
             elif parsed.path == "/api/verify":
                 payload = run_verify()
+            elif parsed.path == "/api/leaderboard":
+                payload = _leaderboard(query)
+            elif parsed.path == "/api/leaderboard.csv":
+                self._send_csv(query)
+                return
+            elif parsed.path == "/api/leaderboard/status":
+                payload = leaderboard.status()
             else:
                 self._send(404, {"error": "not found"})
                 return
@@ -143,6 +160,34 @@ class Handler(BaseHTTPRequestHandler):
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(data)
+
+    def _send_csv(self, query):
+        import tempfile
+
+        filters, _ = _leaderboard_filters(query)
+        with tempfile.TemporaryFile("w+b") as raw:
+            text = io.TextIOWrapper(raw, encoding="utf-8", newline="")
+            with session() as con:
+                ensure_schema(con)
+                leaderboard.export_csv(con, text, **filters)
+            text.flush()
+            size = raw.tell()
+            raw.seek(0)
+            self.send_response(200)
+            self.send_header("Content-Type", "text/csv; charset=utf-8")
+            self.send_header("Content-Disposition", f'attachment; filename="top-leaderboard-{filters["universe"]}.csv"')
+            self.send_header("Content-Length", str(size))
+            self.send_header("Cache-Control", "no-cache")
+            self.end_headers()
+            try:
+                while True:
+                    block = raw.read(1 << 16)
+                    if not block:
+                        break
+                    self.wfile.write(block)
+            except (BrokenPipeError, ConnectionResetError):
+                pass
+            text.detach()
 
     def _send(self, code, payload):
         data = json.dumps(_json_ready(payload)).encode("utf-8")
@@ -253,7 +298,13 @@ def _trend(body):
 
 
 SCAN_LIMIT = 200
-UNIVERSE_GROUPS = {"nifty50": ("nifty50",), "etf": ("nse_etf", "bse_etf"), "bse": ("bse",), "all": ("nifty50", "nse_etf", "bse_etf", "bse")}
+UNIVERSE_GROUPS = {
+    "nifty50": ("nifty50",),
+    "index": ("nse_index", "bse_index"),
+    "etf": ("nse_etf", "bse_etf"),
+    "bse": ("bse",),
+    "all": ("nifty50", "nse_index", "bse_index", "nse_etf", "bse_etf", "bse"),
+}
 
 
 def _scan_members(universe, limit):
@@ -315,6 +366,39 @@ def _scan(body):
     return {"strategy": strategy_id, "universe": universe, "rows": rows, "note": note}
 
 
+def _leaderboard_filters(query):
+    def one(name, default=None):
+        values = query.get(name)
+        return values[0] if values and values[0] != "" else default
+
+    min_cagr = one("min_cagr", "15")
+    return {
+        "min_cagr": None if min_cagr in ("none", "off") else float(min_cagr),
+        "universe": one("universe", "all"),
+        "strategy": one("strategy"),
+        "min_trades": int(one("min_trades", "1")),
+        "min_years": float(one("min_years", "0")),
+        "search": one("q", ""),
+        "best": one("best", "0") in ("1", "true", "yes"),
+        "sort": one("sort", "ratio"),
+        "min_value": float(one("min_value", "0")),
+    }, one
+
+
+def _leaderboard(query):
+    filters, one = _leaderboard_filters(query)
+    with session() as con:
+        ensure_schema(con)
+        out = leaderboard.query(
+            con,
+            **filters,
+            limit=max(1, min(int(one("limit", "100")), 1000)),
+            offset=max(0, int(one("offset", "0"))),
+        )
+    out["status"] = leaderboard.status()
+    return out
+
+
 def _explain(body):
     symbol = body.get("symbol")
     _known(symbol)
@@ -337,24 +421,43 @@ def _explain(body):
 _bhav_thread = None
 
 
-def _run_bhav():
+def _run_bhav(what="bhav"):
     from top.bhav import sync_bhav
+    from top.indices import sync_indices
 
+    if what in ("bhav", "all"):
+        try:
+            sync_bhav()
+        except Exception:  # noqa: BLE001 - status already carries the message
+            pass
     try:
-        sync_bhav()
-    except Exception:  # noqa: BLE001 - status already carries the message
+        sync_indices()
+    except Exception:  # noqa: BLE001
+        pass
+    _refresh_leaderboard()
+
+
+def _refresh_leaderboard():
+    """After new bars arrive, recompute leaderboard rows for changed scripts (only if a leaderboard exists)."""
+    try:
+        with session() as con:
+            leaderboard.ensure_tables(con)
+            has_rows = con.execute("SELECT COUNT(*) FROM leaderboard_done").fetchone()[0] > 0
+        if has_rows and not leaderboard.status()["running"]:
+            leaderboard.start()
+    except Exception:  # noqa: BLE001 - best effort
         pass
 
 
 def _start_sync(what="all"):
-    """Start background syncs: 'nifty' (Yahoo, adjusted), 'bhav' (BSE stocks + ETFs), or 'all'."""
+    """Start background syncs: 'nifty' (Yahoo, adjusted), 'bhav' (BSE stocks + ETFs + indices), 'indices', or 'all'."""
     global _sync_thread, _bhav_thread
     current = status()
     if what in ("nifty", "all") and not current["syncing"]:
         _sync_thread = threading.Thread(target=sync_all, daemon=True)
         _sync_thread.start()
-    if what in ("bhav", "all") and not current["bhav"]["syncing"]:
-        _bhav_thread = threading.Thread(target=_run_bhav, daemon=True)
+    if what in ("bhav", "indices", "all") and not current["bhav"]["syncing"]:
+        _bhav_thread = threading.Thread(target=_run_bhav, args=(what,), daemon=True)
         _bhav_thread.start()
     return status()
 

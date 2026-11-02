@@ -2,9 +2,9 @@
 
 # 📈 TOP — Trade Observability Platform
 
-**A local, TradingView-style research desk for Indian markets: the Nifty 50, ~4,700 BSE stocks, and ~390 ETFs.**<br/>
+**A local, TradingView-style research desk for Indian markets: the Nifty 50, ~4,700 BSE stocks, ~390 ETFs, and ~250 NSE/BSE indices.**<br/>
 Chart any of them, stack 148 indicators, spot Scott Carney harmonics and Darvas boxes,<br/>
-backtest 88 strategies on one stock or a whole universe, and read a plain-English swing-trade plan, all on your own machine.
+backtest 88 strategies on one stock or a whole universe, rank every strategy on every script in a leaderboard (CSV in <a href="results/">results/</a>),<br/>and read a plain-English swing-trade plan, all on your own machine.
 
 [![CI](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
@@ -13,7 +13,7 @@ backtest 88 strategies on one stock or a whole universe, and read a plain-Englis
 [![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 ![Platforms](https://img.shields.io/badge/runs%20on-Linux%20%7C%20macOS%20%7C%20Windows-555)
 
-[Quick start](#-quick-start) · [Screenshots](#-a-quick-tour) · [Features](#-features) · [Install guide](docs/installation.md) · [User guide](docs/user-guide.md) · [Docs](docs/README.md)
+[Quick start](#-quick-start) · [Screenshots](#-a-quick-tour) · [Leaderboard results](results/) · [Features](#-features) · [Install guide](docs/installation.md) · [User guide](docs/user-guide.md) · [Docs](docs/README.md)
 
 <img src="docs/images/overview.png" alt="TOP main screen: ICICI Bank with SMA 20/50/200, shaded Bollinger Bands, harmonic patterns, swing-plan levels, and the Interpretation pane" width="100%"/>
 
@@ -36,7 +36,9 @@ top-platform
 
 Open **http://127.0.0.1:8000**. On the first run TOP downloads about five years of daily history for the Nifty 50 (1–2 minutes). The top bar shows `Nifty sync 12/50`, then `DuckDB 50/50`.
 
-To add **all BSE stocks and NSE/BSE ETFs**, click **Sync history** in the app, or run `top-sync --bhav`. This downloads five years of exchange bhavcopies, about 1,300 files and 30–40 minutes the first time, then seconds per day after that.
+To add **all BSE stocks, NSE/BSE ETFs, and NSE/BSE indices**, click **Sync history** in the app, or run `top-sync --bhav`. This downloads five years of exchange bhavcopies and index files, about 2,600 files and an hour the first time, then seconds per day after that.
+
+Then open **Leaderboard** in the top bar and press **Run backtests** to rank all 88 strategies on every script by CAGR ÷ max drawdown (a few hours in the background on a slow PC; resumable).
 
 > [!TIP]
 > On Ubuntu/Debian you may first need `sudo apt install -y git python3-venv python3-pip`. Windows and macOS steps, `pipx`, upgrading, and troubleshooting are in the **[installation guide](docs/installation.md)**.
@@ -110,6 +112,16 @@ Universe chips switch between the Nifty 50, about 390 ETFs and about 4,700 BSE s
 <td><img src="docs/images/key-levels.png" alt="Infosys with key support/resistance levels and a falling wedge breakout"/></td>
 <td><img src="docs/images/bse-universe.png" alt="BSE universe selected in the stock picker"/></td>
 </tr>
+<tr>
+<td colspan="2" valign="top">
+
+### 8 · Strategy leaderboard: every strategy on every script
+All 88 strategies backtested on every stock, ETF, and index (**398,278 backtests on 4,526 scripts**), ranked by **CAGR ÷ |max drawdown|**. The default view keeps CAGR above 15%, at least 3 trades, at least 2 tested years, and ₹10 lakh traded a day. Filter, sort, see which strategies pass most often, open any row on the chart, or download the CSV. Snapshots are in [`results/`](results/).
+
+<img src="docs/images/leaderboard.png" alt="Strategy leaderboard ranking every strategy on every script by CAGR divided by max drawdown"/>
+
+</td>
+</tr>
 </table>
 
 ---
@@ -128,7 +140,9 @@ Universe chips switch between the Nifty 50, about 390 ETFs and about 4,700 BSE s
 | 📐 | **Key levels plan & pattern breakouts** | Next-session long and short triggers, three stepped targets, and outer support/resistance written up like a daily analysis post. Wedge, triangle, channel, and range breakouts with buying zone, stop, and a measured-move target. Method inspired by [@TradZoo](https://x.com/TradZoo)'s public chart posts |
 | 📦 | **Darvas box & breakout detector** | Boxes, breakouts, breakdowns, failed breakouts, and ATR trailing trend, each with a strategy |
 | 🧪 | **88 strategies** | Trend, breakout, trend reversal, harmonics, oscillators, mean reversion, price action, volume, and two creator groups. [Full catalog →](docs/strategies.md) |
-| 🏁 | **Backtest universe** | Run one strategy on all 50 Nifty stocks, or on the 200 most traded names of the ETF, BSE, or combined universe, ranked by return |
+| 📈 | **NSE and BSE indices** | ~170 NSE indices (Nifty 50, Bank, sectoral, thematic, strategy, India VIX) for five years, and ~80 BSE indices (Sensex, BSE 100/500, sectoral) from April 2025, from the exchanges' daily index files. An **Indices** chip lists them |
+| 🏆 | **Strategy leaderboard** | A separate page that backtests all 88 strategies on every script and index (~450,000 backtests, resumable background job on all CPU cores) and ranks them by **CAGR ÷ \|max drawdown\|** (drawdown floored at 5%). Default view: CAGR above 15%, ≥ 3 trades, ≥ 2 tested years, ≥ ₹10 lakh traded a day. Filter by universe, strategy, and script; best strategy per script; full CSV export; click a row to open it on the chart. A data-quality gate skips thin or glitchy series |
+| 🏁 | **Backtest universe** | Run one strategy on all 50 Nifty stocks, or on all indices, or on the 200 most traded names of the ETF, BSE, or combined universe, ranked by return |
 | 🎥 | **YouTube creator strategies** | 13 rules adapted from @neurotrader888's MIT-licensed code and the public sources @UnbiasedTradingGoshawk tests. [Details →](docs/creators.md) |
 | 🗣️ | **Interpretation pane** | Plain-English reading of every selected study and strategy, a technical rating (MA and oscillator votes), and a swing plan with trigger, entry, stop, T1/T2, position size, and historical odds on the same stock |
 | 🔎 | **Trend scan** | Every trend, breakout, and reversal rule on the selected stock in one click |
@@ -146,7 +160,8 @@ flowchart LR
   S --> E["Engines<br/>indicators · strategies · backtest<br/>harmonics · Darvas · explain"]
   S <--> D[("DuckDB<br/>data/nse.duckdb")]
   S -- "first run / Sync" --> Y["Yahoo Finance<br/>Nifty 50 (adjusted)"]
-  S -- "Sync / top-sync --bhav" --> X["BSE & NSE bhavcopies<br/>+ NSE corporate actions"]
+  S -- "Sync / top-sync --bhav" --> X["BSE & NSE bhavcopies<br/>+ index files<br/>+ NSE corporate actions"]
+  S -- "Leaderboard run" --> W["Worker processes<br/>88 strategies × every script"]
   S -- "on demand" --> F["Screener.in<br/>fundamentals"]
 ```
 
@@ -168,6 +183,7 @@ Read the full [design document](docs/design.md) for the architecture, algorithms
 | 🧪 [Strategy catalog](docs/strategies.md) | All 88 strategies with rules and settings |
 | 🎥 [Creator strategies](docs/creators.md) | @neurotrader888 and @UnbiasedTradingGoshawk: sources, confidence, adaptations, results |
 | 🏗️ [Design](docs/design.md) | Architecture, data, algorithms, decisions, performance, security, testing |
+| 🏆 [Leaderboard results](results/) | CSV snapshots of every strategy on every script, with the filters used and how to refresh them |
 | 🔌 [HTTP API](docs/api.md) | Every route with request and response examples |
 | 🧰 [Development](docs/development.md) | Code layout, tests, adding an indicator or strategy, releases |
 | 🤝 [Contributing](CONTRIBUTING.md) · 📝 [Changelog](CHANGELOG.md) · 🔐 [Security](SECURITY.md) | Project process |
@@ -184,6 +200,7 @@ The same user guide is built into the app: click **Guide** in the top bar.
 | Port | `--port` | `TOP_PORT` | `8000` |
 | Database file | `top-sync --db` | `TOP_DB` | `./data/nse.duckdb` (relative to where you start TOP) |
 | Download on first start | `--no-sync` turns it off | `TOP_AUTO_SYNC=0` turns it off | on |
+| DuckDB memory cap | | `TOP_DB_MEMORY` | `768MB` (keeps small laptops responsive during long leaderboard runs) |
 
 ```bash
 TOP_DB=~/top-data/nse.duckdb top-platform --port 8050

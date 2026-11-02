@@ -49,7 +49,7 @@ class ApiTests(unittest.TestCase):
 
     def test_static_files(self):
         for path, kind in (("/", "text/html"), ("/guide.html", "text/html"), ("/app.js", "javascript"), ("/styles.css", "text/css"),
-                           ("/vendor/lightweight-charts.standalone.production.js", "javascript")):
+                           ("/leaderboard.html", "text/html"), ("/leaderboard.js", "javascript"), ("/vendor/lightweight-charts.standalone.production.js", "javascript")):
             with self.subTest(path=path):
                 status, body, ctype = self.get(path)
                 self.assertEqual(status, 200)
@@ -114,6 +114,23 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(payload["items"][0]["id"], "rsi")
         self.assertIn(payload["plan"]["bias"], ("Bullish", "Bearish", "Neutral"))
         self.assertIn("not investment advice", payload["disclaimer"].lower())
+
+    def test_leaderboard_routes(self):
+        status, payload = self.get_json("/api/leaderboard")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["rows"], [])
+        self.assertIn("running", payload["status"])
+        self.assertEqual(set(payload["universes"]), {"all", "nifty50", "index", "etf", "bse"})
+        status, payload = self.get_json("/api/leaderboard?min_cagr=none&universe=bse&sort=cagr&best=1&q=bse")
+        self.assertEqual(status, 200)
+        status, payload = self.get_json("/api/leaderboard/status")
+        self.assertFalse(payload["running"])
+        status, payload = self.post("/api/leaderboard", {"action": "stop"})
+        self.assertEqual(status, 200)
+        status, body, ctype = self.get("/api/leaderboard.csv?min_cagr=none")
+        self.assertEqual(status, 200)
+        self.assertIn("text/csv", ctype)
+        self.assertTrue(body.decode().startswith("rank,symbol,name,universe"))
 
     def test_verify_route(self):
         status, payload = self.get_json("/api/verify")

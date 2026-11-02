@@ -74,6 +74,7 @@
       <a href="#creators">YouTube creator strategies</a>
       <a href="#backtest">Strategy tester</a>
       <a href="#scan50">Backtest universe</a>
+      <a href="#leaderboard">Strategy leaderboard</a>
       <a href="#trend">Trend scan</a>
       <a href="#fundamentals">Fundamentals</a>
       <a href="#verify">Verify</a>
@@ -297,7 +298,20 @@ top-platform           # or: python -m top</code></pre>
       <p>Results appear at the bottom in <b>Backtest results</b>, which stays collapsed until your first backtest. The equity curve is shown in blue, with buy and hold in grey. The trade table lists each entry, exit, price, return, and profit or loss. Use <b>Hide</b> to collapse the results and give the chart more room. Running a new backtest opens them again.</p>
 
       <h2 id="scan50">Backtest universe</h2>
-      <p>Click <b>Backtest universe</b> (<i>Backtest Nifty 50</i>, <i>ETFs</i>, <i>BSE</i>, or <i>all</i>, following the universe chip) to run the selected strategy, with its current settings, on all 50 Nifty stocks or on the 200 most traded names of a larger universe. The output panel below the chart ranks them by return and shows whether each is long now, its max drawdown, and its trade count. This takes a few seconds. A harmonic strategy takes about 6 seconds.</p>
+      <p>Click <b>Backtest universe</b> (<i>Backtest Nifty 50</i>, <i>ETFs</i>, <i>BSE</i>, or <i>all</i>, following the universe chip) to run the selected strategy, with its current settings, on all 50 Nifty stocks, on all indices, or on the 200 most traded names of a larger universe. The output panel below the chart ranks them by return and shows whether each is long now, its max drawdown, and its trade count. This takes a few seconds. A harmonic strategy takes about 6 seconds.</p>
+
+      <h2 id="leaderboard">Strategy leaderboard</h2>
+      <p>Click <b>Leaderboard</b> in the top bar to open a separate page that backtests all 88 strategies, with default settings, on every stock, ETF, and index with at least a year of bars (about 450,000 backtests) and ranks them by <b>CAGR ÷ |max drawdown|</b>.</p>
+      <ul>
+        <li><b>Run backtests</b> starts a background job on all CPU cores at low priority. Progress, speed, and time left update every 15 seconds. Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value. Expect a few hours on a slow PC.</li>
+        <li><b>Stop</b> and <b>Run / resume</b> pick up where it left off. After a daily sync only scripts with new bars are recomputed. <b>Recompute all</b> starts over.</li>
+        <li>Defaults: CAGR above 15%, at least 3 trades, at least 2 tested years (after the strategy's warm-up), and a median of ₹10 lakh traded a day (indices exempt). Drawdowns under 5% count as 5% in the ratio. Clear Min CAGR to see everything.</li>
+        <li>Filter by universe chip, strategy, or script; tick <b>Best strategy per script</b>; click a column header to sort; <b>Download CSV</b> for every matching row.</li>
+        <li><b>Strategies that pass most often</b> shows how many scripts each strategy passes on. Click one to filter.</li>
+        <li>Click a row to open that script on the chart with the strategy backtested.</li>
+      </ul>
+      <p>Scripts with unreliable data are skipped: traded on fewer than half the weekdays, or a one-day move above +100% or below −50% after split adjustment. Dividend Points and India VIX are left out because they are not prices.</p>
+      <p>Many strategies on many scripts means some winners are luck. Prefer rules that pass widely, with many trades and full history.</p>
 
       <h2 id="trend">Trend scan</h2>
       <p>Click <b>Trend scan</b> to run every Trend, Breakout, and Trend reversal rule on the selected stock in one pass. Rules that are long now are listed first, then the rest by return. Each row shows its section, so you can see whether trend-following, breakout, or reversal rules are firing.</p>
@@ -342,7 +356,7 @@ http://127.0.0.1:8000/?symbol=TCS&amp;strategy=ut_ahl_trend&amp;run=backtest</co
 
       <h2 id="data">Data and sync</h2>
       <ul>
-        <li>Sources: Yahoo Finance daily chart data for the Nifty 50 (adjusted for splits and dividends), and the exchanges' daily bhavcopies for BSE stocks and ETFs (adjusted for splits and bonus issues using NSE corporate actions plus a price-gap rule).</li>
+        <li>Sources: Yahoo Finance daily chart data for the Nifty 50 (adjusted for splits and dividends), the exchanges' daily bhavcopies for BSE stocks and ETFs (adjusted for splits and bonus issues using NSE corporate actions plus a price-gap rule), and the NSE and BSE daily index files for indices (NSE five years; BSE from April 2025).</li>
         <li>Store: DuckDB file at <code>data/nse.duckdb</code>.</li>
         <li><b>Sync history</b> re-downloads all 50 names in the background. The pill shows progress, and the chart reloads when it finishes.</li>
         <li>The universe follows the current Nifty 50, including <code>M&amp;M</code>, <code>ETERNAL</code> (formerly Zomato), and <code>TMPV</code> (Tata Motors passenger vehicles).</li>

@@ -486,8 +486,8 @@ def sync_bhav(years=5, today=None, progress=None):
             store.ensure_schema(con)
             save_listings(con, listings)
             maps = _maps(con)
-            done_days = {d for (d,) in con.execute("SELECT DISTINCT day FROM bhav_days").fetchall()}
-            first_bar = con.execute("SELECT MIN(day) FROM bhav_days WHERE rows > 0").fetchone()[0]
+            done_days = {d for (d,) in con.execute("SELECT DISTINCT day FROM bhav_days WHERE exchange = 'BSE+NSE'").fetchall()}
+            first_bar = con.execute("SELECT MIN(day) FROM bhav_days WHERE exchange = 'BSE+NSE' AND rows > 0").fetchone()[0]
         start = date(today.year - years, today.month, min(today.day, 28))
         pending = [d for d in _weekdays(start, latest_day) if d not in done_days]
         store.set_bhav_status(total=len(pending), message=f"{len(listings)} listings; {len(pending)} days to fetch")

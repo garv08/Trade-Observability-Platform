@@ -117,7 +117,7 @@ pipx install "git+https://github.com/garv08/Trade-Observability-Platform.git"
 top-platform
 ```
 
-To pin a release, add `@v0.2.1` to the URL.
+To pin a release, add `@v0.3.0` to the URL.
 
 ---
 
@@ -139,13 +139,15 @@ Prefer to download the data first, without the server?
 
 ```bash
 top-sync --nifty          # the Nifty 50 from Yahoo (1–2 minutes)
-top-sync --bhav           # all BSE stocks + NSE/BSE ETFs from bhavcopies (first run 30–40 minutes)
+top-sync --bhav           # all BSE stocks + NSE/BSE ETFs + indices (first run about an hour)
+top-sync --indices        # only NSE and BSE indices (first run 20–30 minutes)
+top-leaderboard           # every strategy on every script for the Leaderboard page (hours; resumable)
 top-sync                  # both
 top-sync --bhav --years 2 # less history, faster first run
 ```
 
 > [!NOTE]
-> Don't run `top-sync` while `top-platform` is running on the same database; DuckDB allows one process at a time. Use **Sync history** in the app instead, which runs inside the server.
+> Don't run `top-sync` or `top-leaderboard` while `top-platform` is running on the same database; DuckDB allows one process at a time. Use **Sync history** and the Leaderboard page's **Run backtests** in the app instead, which run inside the server.
 
 Useful options:
 

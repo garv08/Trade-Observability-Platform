@@ -77,6 +77,17 @@ def run():
             ("not synced yet (Sync history or top-sync --bhav)" if listed == 0 else
              f"BSE {extended.get('bse', 0):,} · NSE ETFs {extended.get('nse_etf', 0)} · BSE ETFs {extended.get('bse_etf', 0)} · {adjusted} split/bonus adjustments"),
         )
+        check(
+            "NSE and BSE indices",
+            True,
+            (f"NSE {extended.get('nse_index', 0)} · BSE {extended.get('bse_index', 0)}" if extended.get("nse_index") or extended.get("bse_index")
+             else "not synced yet (Sync history or top-sync --indices)"),
+        )
+        from top import leaderboard
+
+        board = leaderboard.query(con, min_cagr=None, min_trades=0, limit=1)["computed"]
+        check("strategy leaderboard", True,
+              f"{board['symbols']:,} scripts · {board['rows']:,} backtests" if board["rows"] else "not computed yet (Leaderboard page → Run backtests)")
         bars = load_bars(con, "RELIANCE")
     frame = Frame(
         [bar["time"] for bar in bars],

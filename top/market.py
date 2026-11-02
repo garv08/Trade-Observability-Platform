@@ -14,6 +14,13 @@ from top import store
 
 _lock = threading.Lock()
 _cache: dict = {"key": None, "returns": {}}
+_pinned: dict | None = None
+
+
+def pin(returns: dict[str, float] | None) -> None:
+    """Use these proxy returns without touching the store (for worker processes)."""
+    global _pinned
+    _pinned = returns
 
 
 def _key():
@@ -24,6 +31,8 @@ def _key():
 
 def daily_returns() -> dict[str, float]:
     """Equal-weight mean close-to-close return per date, keyed by ISO date."""
+    if _pinned is not None:
+        return _pinned
     key = _key()
     with _lock:
         if _cache["key"] == key:
