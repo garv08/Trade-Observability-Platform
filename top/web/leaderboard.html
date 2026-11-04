@@ -80,6 +80,8 @@
     </div>
     <div class="spacer"></div>
     <a class="guide-link" href="/">Charting desk</a>
+    <a class="guide-link" href="/markets.html">Markets</a>
+    <a class="guide-link" href="/portfolio.html">Portfolio</a>
     <a class="guide-link" href="/guide.html#leaderboard" target="_blank" rel="noopener">Guide</a>
   </header>
 
@@ -105,10 +107,12 @@
           <label>Min trades<input id="f-trades" type="number" min="0" step="1" value="3" /></label>
           <label title="Years the strategy was actually invested-or-flat after its warm-up, not the listing's age">Min tested years<input id="f-years" type="number" min="0" step="0.5" value="2" /></label>
           <label title="Median daily traded value over the last year, in ₹ lakh. Indices are exempt.">Min daily value (₹ lakh)<input id="f-value" type="number" min="0" step="5" value="10" /></label>
+          <label id="l-dsr" title="Deflated Sharpe: probability the Sharpe beats the best you'd expect by luck from this script's ~92 strategy trials. 95 = strict. Empty = off.">Min deflated Sharpe %<input id="f-dsr" type="number" min="0" max="99.9" step="5" placeholder="off" /></label>
           <label id="l-strategy">Strategy<select id="f-strategy"><option value="">All strategies</option></select></label>
           <label id="l-sort">Sort by<select id="f-sort">
             <option value="ratio">CAGR ÷ |Max DD|</option>
             <option value="return_dd">Most return ÷ |Max DD|</option>
+            <option value="dsr">Deflated Sharpe</option>
             <option value="cagr">CAGR</option>
             <option value="max_dd">Smallest drawdown</option>
             <option value="sharpe">Sharpe</option>
@@ -124,6 +128,7 @@
             <option value="median_cagr_dd">Median CAGR ÷ |Max DD|</option>
             <option value="pct_profitable">% of scripts profitable</option>
             <option value="pct_beat_hold">% beating buy &amp; hold</option>
+            <option value="pct_dsr95">% passing deflated Sharpe 95%</option>
             <option value="scripts">Scripts tested</option>
           </select></label>
         </div>
@@ -145,11 +150,12 @@
               <th class="nosort">Median CAGR</th>
               <th class="nosort">Profitable</th>
               <th class="nosort">Beat buy &amp; hold</th>
+              <th class="nosort" title="Share of scripts where the deflated Sharpe is at least 95%">DSR ≥ 95%</th>
               <th class="nosort">Median trades</th>
               <th class="l nosort">Best script</th>
             </tr>
           </thead>
-          <tbody id="strat-body"><tr><td colspan="13" class="empty">Loading…</td></tr></tbody>
+          <tbody id="strat-body"><tr><td colspan="14" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
       <div class="table-wrap" id="script-wrap">
@@ -161,6 +167,7 @@
               <th class="l nosort">Strategy</th>
               <th data-sort="ratio" title="CAGR divided by the absolute maximum drawdown">CAGR ÷ DD</th>
               <th data-sort="return_dd" title="Total return divided by the absolute maximum drawdown (drawdown floored at 5%)">Return ÷ DD</th>
+              <th data-sort="dsr" title="Probabilistic Sharpe (chance the true Sharpe > 0) / Deflated Sharpe (chance it beats the best expected by luck from this script's strategy trials). Normal returns assumed.">PSR / DSR</th>
               <th data-sort="cagr">CAGR</th>
               <th data-sort="max_dd">Max DD</th>
               <th data-sort="return">Total return</th>
@@ -172,7 +179,7 @@
               <th class="nosort" title="Years tested after the strategy's warm-up">Tested yrs</th>
             </tr>
           </thead>
-          <tbody id="lb-body"><tr><td colspan="14" class="empty">Loading…</td></tr></tbody>
+          <tbody id="lb-body"><tr><td colspan="15" class="empty">Loading…</td></tr></tbody>
         </table>
       </div>
       <div class="pager">
@@ -192,9 +199,10 @@
       <div class="card" style="margin-top:16px">
         <h2>How to read this</h2>
         <p class="note"><b>CAGR ÷ |Max DD|</b> (the MAR ratio) rewards growth earned with shallow drawdowns. 30% CAGR with a −15% worst drawdown scores 2.0; 30% with −60% scores 0.5. Drawdowns smaller than 5% count as 5%, so a rule that barely traded can't top the table.</p>
+        <p class="note"><b>PSR / DSR</b>: with ~92 strategies tried per script, some Sharpes are high by luck. PSR is the chance the true Sharpe is above zero; DSR (deflated Sharpe) is the chance it beats the best Sharpe expected from that many lucky tries. Set <i>Min deflated Sharpe</i> to 95 to keep only results unlikely to be luck. Both assume normal daily returns, so treat them as optimistic.</p>
         <p class="note">Each row is one long/flat strategy with its default settings on one script, with ₹10 lakh, 5 bps cost per side, on all stored daily history (about 5 years; BSE indices start in April 2025). Click a row to open it on the chart.</p>
         <p class="note">Scripts with thin trading (bars on under half the weekdays) or impossible one-day moves (above +100% or below −50% after split adjustment) are skipped, as are Dividend Points and VIX.</p>
-        <p class="note">With 88 strategies tried on 5,000+ scripts, some results are luck. Prefer strategies that pass on many scripts, enough trades, and full history. Research only, not investment advice.</p>
+        <p class="note">With 92 strategies tried on 5,000+ scripts, some results are luck. Prefer strategies that pass on many scripts, enough trades, and full history. Research only, not investment advice.</p>
       </div>
     </aside>
   </main>

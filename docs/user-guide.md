@@ -57,7 +57,7 @@ Your studies stay on when you switch stocks.
 
 ## Indicators and durations
 
-There are **148 studies** in 10 searchable dropdowns: Harmonics, @neurotrader888, @UnbiasedTradingGoshawk, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, and Price statistics. They are listed in full in the [indicator catalog](indicators.md).
+There are **152 studies** in 10 searchable dropdowns: Harmonics, @neurotrader888, @UnbiasedTradingGoshawk, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, and Price statistics. They are listed in full in the [indicator catalog](indicators.md).
 
 - **Add or remove**: pick a study in its dropdown. The list stays open so you can add several, and ✓ marks the ones that are on.
 - **Overlay or Pane**: overlays draw on price; panes open below the chart.
@@ -152,8 +152,11 @@ The pane under the chart refreshes whenever you change anything on the left.
 ![Backtest](images/backtest.png)
 
 1. Pick a stock.
-2. In **Backtest**, search a strategy (for example `gartley`, `darvas`, `breakout`, `rsi`, or `@neuro`). There are 86, listed in the [strategy catalog](strategies.md).
-3. Adjust its settings, **Capital** (default ₹10,00,000), and **Cost bps** (default 5).
+2. In **Backtest**, search a strategy (for example `gartley`, `darvas`, `breakout`, `rsi`, or `@neuro`). There are 92, listed in the [strategy catalog](strategies.md).
+3. Adjust its settings, **Capital** (default ₹10,00,000), **Cost bps** (default 5), and **Sizing**:
+   - **Full**: every entry uses all equity (default).
+   - **Vol target**: each entry uses *Target vol %* ÷ the stock's 20-day volatility of equity, capped at 100%, so calm stocks get full size and wild ones less.
+   - **Half Kelly**: each entry uses half the Kelly fraction estimated from the strategy's *earlier* trades on this stock (50% until there are 10 trades, nothing while the estimate is negative).
 4. Click **Run backtest**.
 
 | Rule | Detail |
@@ -163,7 +166,11 @@ The pane under the chart refreshes whenever you change anything on the left.
 | Costs | Basis points on entry and on each exit |
 | Benchmark | Buy and hold from the same first bar |
 
-Results show Return, CAGR, Max DD, Buy & hold, Sharpe, Sortino, Win rate, Profit factor, Trades, Avg trade, Exposure, and Ending equity, plus the equity curve and every trade.
+Results show Return, CAGR, Max DD, Buy & hold, Sharpe, Sortino, Win rate, Profit factor, Trades, Avg trade, Exposure, **Kelly** (the Kelly fraction from the trades), **Avg position**, and Ending equity, plus the equity curve and every trade.
+
+Under the cards, **Monte Carlo** reshuffles the closed trades 1,000 times and reports the range of maximum drawdown: same trades, different order. Plan for the bad 5% case rather than the backtest's own drawdown.
+
+**Walk-forward** (next to Run backtest) checks whether the strategy's main setting is over-tuned. For each calendar year after the first two, it picks the best of five values around your setting using only earlier data, then joins those out-of-sample years into one result and compares it with keeping your setting fixed. *Stable* means the chosen value rarely changed.
 
 **Backtest universe** (labelled *Backtest Nifty 50*, *Backtest ETFs*, *Backtest BSE*, or *Backtest all*) runs the selected strategy on the current universe and ranks the results. For ETFs, BSE, and All, it uses the 200 most traded names over the last ~45 days, so a scan takes 1–2 minutes.
 
@@ -171,7 +178,7 @@ Results show Return, CAGR, Max DD, Buy & hold, Sharpe, Sortino, Win rate, Profit
 
 ## Strategy leaderboard
 
-Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 88 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 450,000 backtests.
+Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 92 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 450,000 backtests.
 
 1. Press **Run backtests**. The work runs in the background on all CPU cores at low priority, and the page shows progress, speed, and time left. The Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value, so useful rows appear early. It takes a few hours on a slow two-core PC.
 2. **Stop** at any time. **Run / resume** carries on where it stopped and, after a daily sync, recomputes only scripts with new bars. **Recompute all** starts over.
@@ -186,6 +193,47 @@ To rebuild the committed snapshots in `results/` on any machine: stop the server
 Scripts with unreliable data are skipped rather than ranked: those that traded on fewer than half the weekdays in their history, and those with a one-day move above +100% or below −50% after split adjustment (usually a bad tick or an unadjusted corporate action on a thin BSE listing). Index series that are not prices (Nifty50 Dividend Points, India VIX) are left out too. The run status shows how many were skipped.
 
 Each backtest uses ₹10 lakh, 5 bps per side, long/flat, filling at the next open, over all stored history. With so many strategies and scripts some winners are luck: prefer strategies that pass on many scripts, with plenty of trades and full five-year history. From the command line, with the server stopped, `top-leaderboard` runs the same job.
+
+---
+
+## Markets page
+
+Click **Markets** in the top bar for a market-wide view built from TOP's own data. Its ideas come from the [X research digest](research/x-digest.md).
+
+![Markets page](images/markets.png)
+
+| Section | What it shows |
+| --- | --- |
+| Cards | Nifty's volatility regime, distance from its 52-week high and 200-day average, % of stocks above their 50- and 200-day averages, new highs vs lows, advances vs declines |
+| **Volatility regime chart** | Nifty with its regime shaded: Nifty's 20-day realised volatility ranked against its own past year as *calm* (bottom third), *normal*, or *stressed* (top third) |
+| **Breadth** | % of BSE group A and B stocks above their 50- and 200-day averages, and daily new 52-week highs minus new lows. Prices are split adjusted, so a split never counts as a new low |
+| **Sector rotation** | NSE sector indices ranked by 3-month return relative to Nifty, with 1- and 6-month figures and a quadrant: Leading, Weakening, Improving, or Lagging |
+| **FII / DII** | NSE's provisional daily cash figures in ₹ crore. NSE publishes only the latest day, so the history starts from your first sync |
+| **Scans** | Bloodbath (30–60% below the 52-week high, still 10% above the low), Multi-year breakout, 52-week breakout on volume, Breakout soon, Leaders while Nifty falls, 1-year multibaggers near highs, Near 52-week low, and Delivery surge. Set the minimum daily traded value; click a stock to chart it |
+
+On the desk, the **Market volatility regime (Nifty)** study (Volatility section) draws the same regime under any chart, and **Delivery %** (Volume section) shows NSE delivery % with its 20-day average.
+
+---
+
+## Portfolio page
+
+Click **Portfolio** for backtests that rank a whole universe each month and hold the top *N*, instead of trading one stock.
+
+![Portfolio page](images/portfolio.png)
+
+| Strategy | Default universe | Rule |
+| --- | --- | --- |
+| **Momentum 12-1** | BSE group A | Return from 12 months ago to 1 month ago; hold the top 20 |
+| **Low volatility** | BSE group A | Lowest 1-year volatility of daily returns; hold the top 20 |
+| **Sector rotation** | NSE sector indices | Best 6-month return; hold the top 3 |
+| **ETF momentum with trend filter** | NSE ETFs | Best 12-month return among ETFs above their 10-month average; hold up to 3, rest in cash |
+
+Universes: Nifty 50, BSE group A, NSE sector indices, or NSE ETFs. **Filter** adds absolute momentum (only positive scores) or a market filter (cash while Nifty is below its 200-day average). Names below the **Min daily value** are skipped.
+
+Ranking happens at each month-end close using only data to that close; trades happen at the next open, to equal weights, with costs on every rupee traded. The page shows CAGR, drawdown, CAGR ÷ DD, Sharpe and turnover against Nifty 50, the equity curve, an underwater (drawdown) chart, current holdings, and recent rebalances. **Sweep N** reruns the strategy for N = 1, 3, 5, 10, 20, 30 and 50, because the number of names changes results the most.
+
+> [!WARNING]
+> The universe is today's listing, so stocks that were delisted in the last five years are missing. That survivorship bias flatters these results, especially for small caps.
 
 ---
 

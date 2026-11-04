@@ -23,7 +23,8 @@ from top.store import coverage, ensure_schema, known_symbols, list_symbols, load
 from top.strategies import catalog as strategy_catalog
 from top.strategies import signal
 from top.verify import run as run_verify
-from top import leaderboard
+from top import leaderboard, markets, portfolio
+from top.robust import monte_carlo, walk_forward
 from top.universe import UNIVERSE
 
 WEB_ROOT = Path(__file__).resolve().parent / "web"
@@ -87,6 +88,10 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(200, _studies(body))
             elif parsed.path == "/api/backtest":
                 self._send(200, _backtest(body))
+            elif parsed.path == "/api/portfolio":
+                self._send(200, _portfolio(body))
+            elif parsed.path == "/api/walkforward":
+                self._send(200, _walkforward(body))
             elif parsed.path == "/api/trend":
                 self._send(200, _trend(body))
             elif parsed.path == "/api/scan":
@@ -157,6 +162,19 @@ class Handler(BaseHTTPRequestHandler):
             elif parsed.path == "/api/leaderboard.csv":
                 self._send_csv(query)
                 return
+            elif parsed.path == "/api/markets/overview":
+                payload = _markets_overview(query)
+            elif parsed.path == "/api/markets/breadth":
+                with session() as con:
+                    ensure_schema(con)
+                    payload = {"breadth": markets.breadth(con)}
+            elif parsed.path == "/api/markets/scan":
+                name = (query.get("name") or ["bloodbath"])[0]
+                with session() as con:
+                    ensure_schema(con)
+                    payload = markets.scan(con, name, min_value=float((query.get("min_value") or ["10"])[0] or 0))
+            elif parsed.path == "/api/portfolio/strategies":
+                payload = {"strategies": portfolio.catalog(), "universes": {k: v[0] for k, v in portfolio.UNIVERSES.items()}, "gates": portfolio.GATES}
             elif parsed.path == "/api/leaderboard/status":
                 payload = leaderboard.status()
             else:
@@ -235,12 +253,20 @@ class Handler(BaseHTTPRequestHandler):
             return
 
 
-def _frame(symbol):
+def _frame(symbol, context=()):
+    """Bars for one symbol. context may ask for extra per-date data that some studies use: 'delivery', 'regime'."""
+    from top.delivery import load_delivery
+
+    extra = {}
     with session() as con:
         bars = load_bars(con, symbol)
+        if "delivery" in context:
+            extra["delivery"] = load_delivery(con, symbol)
+        if "regime" in context:
+            extra["regime"] = markets.regime_for(con, [bar["time"] for bar in bars])
     if len(bars) < 30:
         raise ValueError(f"{symbol} has no stored history yet")
-    return Frame(
+    frame = Frame(
         [bar["time"] for bar in bars],
         [bar["open"] for bar in bars],
         [bar["high"] for bar in bars],
@@ -248,13 +274,20 @@ def _frame(symbol):
         [bar["close"] for bar in bars],
         [bar["volume"] for bar in bars],
     )
+    frame.context = extra
+    return frame
 
 
 def _studies(body):
     symbol = body.get("symbol")
     if symbol not in known_symbols():
         raise ValueError("unknown symbol")
-    frame = _frame(symbol)
+    wanted = {spec.get("id") for spec in body.get("studies") or [] if isinstance(spec, dict)}
+    needs = set()
+    for item in indicator_catalog():
+        if item["id"] in wanted:
+            needs.update(item.get("needs") or [])
+    frame = _frame(symbol, tuple(needs))
     studies = []
     for spec in body.get("studies") or []:
         result = compute_study(spec["id"], frame, spec.get("params") or {})
@@ -286,10 +319,27 @@ def _backtest(body):
         position,
         capital=float(body.get("capital") or 1_000_000),
         cost_bps=float(body.get("cost_bps") if body.get("cost_bps") is not None else 5),
+        sizing=body.get("sizing") or "full",
+        target_vol=float(body.get("target_vol") or 15),
     )
     result["symbol"] = symbol
     result["strategy"] = body.get("strategy")
+    result["monte_carlo"] = monte_carlo(result["trades"])
     return result
+
+
+def _walkforward(body):
+    symbol = body.get("symbol")
+    _known(symbol)
+    spec = next((item for item in strategy_catalog() if item["id"] == body.get("strategy")), None)
+    if spec is None:
+        raise ValueError("unknown strategy")
+    frame = _frame(symbol)
+    out = walk_forward(frame, spec, signal, body.get("params") or {},
+                       capital=float(body.get("capital") or 1_000_000),
+                       cost_bps=float(body.get("cost_bps") if body.get("cost_bps") is not None else 5))
+    out["symbol"], out["strategy"] = symbol, spec["id"]
+    return out
 
 
 TREND_SECTIONS = {"Trend", "Breakout", "Trend reversal"}
@@ -415,7 +465,40 @@ def _leaderboard_filters(query):
         "best": one("best", "0") in ("1", "true", "yes"),
         "sort": one("sort", "ratio"),
         "min_value": float(one("min_value", "0")),
+        "min_dsr": float(one("min_dsr", "0")) or None,
     }, one
+
+
+def _markets_overview(query):
+    from top.delivery import load_fii_dii
+
+    min_value = float((query.get("min_value") or ["10"])[0] or 0)
+    with session() as con:
+        ensure_schema(con)
+        reg = markets.regime(con)
+        return {
+            "regime": {"latest": reg["latest"], "series": reg["series"][-504:]},
+            "sectors": markets.sector_rotation(con),
+            "scans": [{"name": key, "title": title, "rule": rule} for key, (title, rule) in markets.SCANS.items()],
+            "counts": markets.scan_counts(con, min_value),
+            "fii_dii": load_fii_dii(con, 60),
+        }
+
+
+def _portfolio(body):
+    with session() as con:
+        ensure_schema(con)
+        return portfolio.run(
+            con,
+            body.get("strategy") or "momentum_12_1",
+            universe=body.get("universe") or None,
+            top_n=body.get("top_n") or None,
+            cost_bps=float(body.get("cost_bps") if body.get("cost_bps") is not None else 5),
+            capital=float(body.get("capital") or 1_000_000),
+            min_value_lakh=None if body.get("min_value") in (None, "") else float(body.get("min_value")),
+            gate=body.get("gate") or "none",
+            sweep=bool(body.get("sweep")),
+        )
 
 
 def _strategy_ranking(query):
@@ -450,7 +533,9 @@ def _leaderboard(query):
 def _explain(body):
     symbol = body.get("symbol")
     _known(symbol)
-    frame = _frame(symbol)
+    wanted = {spec.get("id") for spec in body.get("studies") or [] if isinstance(spec, dict)}
+    needs = {n for item in indicator_catalog() if item["id"] in wanted for n in (item.get("needs") or [])}
+    frame = _frame(symbol, tuple(needs))
     strategy = body.get("strategy") or None
     if strategy and strategy.get("id") not in {item["id"] for item in strategy_catalog()}:
         strategy = None
@@ -473,15 +558,23 @@ def _run_bhav(what="bhav"):
     from top.bhav import sync_bhav
     from top.indices import sync_indices
 
+    from top.delivery import sync_delivery
+
     if what in ("bhav", "all"):
         try:
             sync_bhav()
         except Exception:  # noqa: BLE001 - status already carries the message
             pass
-    try:
-        sync_indices()
-    except Exception:  # noqa: BLE001
-        pass
+    if what in ("bhav", "all", "indices"):
+        try:
+            sync_indices()
+        except Exception:  # noqa: BLE001
+            pass
+    if what in ("bhav", "all", "delivery"):
+        try:
+            sync_delivery()
+        except Exception:  # noqa: BLE001
+            pass
     _refresh_leaderboard()
 
 
@@ -504,7 +597,7 @@ def _start_sync(what="all"):
     if what in ("nifty", "all") and not current["syncing"]:
         _sync_thread = threading.Thread(target=sync_all, daemon=True)
         _sync_thread.start()
-    if what in ("bhav", "indices", "all") and not current["bhav"]["syncing"]:
+    if what in ("bhav", "indices", "delivery", "all") and not current["bhav"]["syncing"]:
         _bhav_thread = threading.Thread(target=_run_bhav, args=(what,), daemon=True)
         _bhav_thread.start()
     return status()

@@ -2,8 +2,10 @@
 
 from __future__ import annotations
 
+import atexit
 import math
 import random
+import shutil
 import tempfile
 from datetime import date, timedelta
 from pathlib import Path
@@ -40,9 +42,27 @@ def synthetic_rows(symbol: str, count: int = 800) -> list[tuple]:
     return rows
 
 
+_TEMP_DIRS: list[Path] = []
+
+
+def _remove_temp_dirs() -> None:
+    for folder in _TEMP_DIRS:
+        shutil.rmtree(folder, ignore_errors=True)
+
+
+atexit.register(_remove_temp_dirs)
+
+
+def temp_dir(prefix: str = "top-test-") -> Path:
+    """A temporary folder that is deleted when the test run ends (/tmp is often RAM-backed)."""
+    folder = Path(tempfile.mkdtemp(prefix=prefix))
+    _TEMP_DIRS.append(folder)
+    return folder
+
+
 def use_temp_store() -> Path:
     """Point the store at a fresh file in a temp folder and seed every symbol."""
-    folder = Path(tempfile.mkdtemp(prefix="top-test-"))
+    folder = temp_dir()
     store.DB_PATH = folder / "test.duckdb"
     store._schema_ready = False
     with store.session() as con:

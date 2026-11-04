@@ -117,7 +117,7 @@ pipx install "git+https://github.com/garv08/Trade-Observability-Platform.git"
 top-platform
 ```
 
-To pin a release, add `@v0.4.1` to the URL.
+To pin a release, add `@v0.5.0` to the URL.
 
 ---
 
@@ -139,8 +139,9 @@ Prefer to download the data first, without the server?
 
 ```bash
 top-sync --nifty          # the Nifty 50 from Yahoo (1–2 minutes)
-top-sync --bhav           # all BSE stocks + NSE/BSE ETFs + indices (first run about an hour)
+top-sync --bhav           # all BSE stocks + NSE/BSE ETFs + indices + delivery % (first run 1–2 hours)
 top-sync --indices        # only NSE and BSE indices (first run 20–30 minutes)
+top-sync --delivery       # only NSE delivery % and the FII/DII snapshot (first run 20–30 minutes)
 top-leaderboard           # every strategy on every script for the Leaderboard page (hours; resumable)
 top-sync                  # both
 top-sync --bhav --years 2 # less history, faster first run

@@ -881,9 +881,59 @@ function renderMetrics(metrics) {
     ["Trades", metrics.trades, null],
     ["Avg trade", metrics.avg_trade_pct == null ? "—" : pct(metrics.avg_trade_pct), metrics.avg_trade_pct],
     ["Exposure", `${metrics.exposure_pct}%`, null],
+    ["Kelly", metrics.kelly_pct == null ? "—" : `${metrics.kelly_pct}%`, metrics.kelly_pct],
+    ["Avg position", metrics.avg_position_pct == null ? "—" : `${metrics.avg_position_pct}%`, null],
     ["Ending", fmt(metrics.ending_equity), null],
   ];
   $("metrics").innerHTML = cards.map(([label, value, signed]) => `<div class="metric"><span>${label}</span><b class="${typeof signed === "number" ? cls(signed) : ""}">${value}</b></div>`).join("");
+}
+
+function renderMonteCarlo(mc, metrics) {
+  const box = $("robust");
+  if (!mc || !mc.runs) {
+    box.innerHTML = `<p class="muted">Monte Carlo: ${esc(mc ? mc.note : "not available")}</p>`;
+    box.classList.remove("hidden");
+    return;
+  }
+  const dd = mc.max_dd_pct;
+  box.innerHTML = `<p><b>Monte Carlo</b> · ${mc.runs.toLocaleString("en-IN")} reshuffles of ${mc.trades} closed trades. Max drawdown between trades ranged from <b class="down">${pct(dd.p5)}</b> (bad 5%) to ${pct(dd.p95)} (good 5%), median ${pct(dd.p50)}; this backtest's order gave ${pct(mc.actual_trade_dd_pct)}, and ${mc.worse_dd_share_pct}% of orders were worse. Plan for the bad case, not the backtest. ${metrics.kelly_pct != null ? `Kelly from these trades: ${metrics.kelly_pct}%${metrics.kelly_pct <= 0 ? " (no edge on these trades)" : ""}.` : ""}</p>`;
+  box.classList.remove("hidden");
+}
+
+async function runWalkForward() {
+  const button = $("wf-btn");
+  button.disabled = true;
+  button.textContent = "Walk-forward…";
+  try {
+    const out = await api("/api/walkforward", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ symbol: state.active, strategy: $("strategy-select").value, params: strategyParams(), capital: Number($("capital").value), cost_bps: Number($("cost-bps").value) }),
+    });
+    let html;
+    if (!out.ok) {
+      html = `<p class="muted">${esc(out.note)}</p>`;
+    } else {
+      const rows = out.years.map((y) => `<tr><td>${esc(y.year)}</td><td>${esc(String(y.value))}</td><td class="${cls(y.oos_return_pct)}">${pct(y.oos_return_pct)}</td><td class="${cls(y.fixed_return_pct)}">${pct(y.fixed_return_pct)}</td></tr>`).join("");
+      html = `<p><b>${esc(selectedStrategy().name)}</b> on ${esc(state.active)}: each year from ${esc(out.test_from)}, <b>${esc(out.param.label)}</b> was re-picked from ${out.param.grid.map(esc).join(", ")} using only earlier data (best CAGR ÷ max DD).</p>
+        <div class="metrics">
+          <div class="metric"><span>Walk-forward CAGR</span><b class="${cls(out.oos.cagr_pct)}">${pct(out.oos.cagr_pct)}</b></div>
+          <div class="metric"><span>Walk-forward max DD</span><b class="down">${pct(out.oos.max_dd_pct)}</b></div>
+          <div class="metric"><span>Fixed ${esc(String(out.param.current))} CAGR</span><b class="${cls(out.fixed.cagr_pct)}">${pct(out.fixed.cagr_pct)}</b></div>
+          <div class="metric"><span>Fixed max DD</span><b class="down">${pct(out.fixed.max_dd_pct)}</b></div>
+          <div class="metric"><span>Setting changes</span><b>${out.changes}</b></div>
+          <div class="metric"><span>Verdict</span><b class="${out.verdict === "stable" ? "up" : "down"}">${esc(out.verdict)}</b></div>
+        </div>
+        <table><thead><tr><th>Test year</th><th>Chosen ${esc(out.param.label)}</th><th>Walk-forward return</th><th>Fixed setting</th></tr></thead><tbody>${rows}</tbody></table>
+        <p class="muted">${esc(out.note)} Switching costs between settings are ignored.</p>`;
+    }
+    showInsight(`Walk-forward · ${selectedStrategy().name}`, html);
+  } catch (error) {
+    showInsight("Walk-forward", `<p class="muted">${esc(error.message)}</p>`);
+  } finally {
+    button.disabled = false;
+    button.textContent = "Walk-forward";
+  }
 }
 
 async function runBacktest(event) {
@@ -901,9 +951,12 @@ async function runBacktest(event) {
         params: strategyParams(),
         capital: Number($("capital").value),
         cost_bps: Number($("cost-bps").value),
+        sizing: $("sizing").value,
+        target_vol: Number($("target-vol").value),
       }),
     });
     renderMetrics(result.metrics);
+    renderMonteCarlo(result.monte_carlo, result.metrics);
     drawEquity(result);
     $("trades").innerHTML = result.trades.slice().reverse().map((trade) => `<tr>
       <td>${trade.entry}</td><td>${trade.exit}${trade.open ? " open" : ""}</td>
@@ -1105,6 +1158,7 @@ function bind() {
   });
   $("harm-btn").addEventListener("click", runHarmonics);
   $("trend-btn").addEventListener("click", runTrend);
+  $("wf-btn").addEventListener("click", runWalkForward);
   $("scan-50").addEventListener("click", runScan);
   $("universe-chips").addEventListener("click", (event) => {
     const button = event.target.closest("[data-universe]");

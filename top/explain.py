@@ -239,6 +239,13 @@ WHAT.update({
     "pattern_breakout": "Pattern breakout projector (method inspired by @TradZoo's chart posts): fits support and resistance lines over recent bars, names the pattern (wedge, triangle, channel, range), and on a close through resistance gives a buying zone, a stop under support, target 1 at the prior swing high, and target 2 at the pattern height projected from the breakout.",
 })
 FAMILY.update({"darvas": "pattern", "breakout_trend": "pattern", "key_levels": "pattern", "pattern_breakout": "pattern"})
+FAMILY.update({"kalman_level": "ma"})
+WHAT.update({
+    "kalman_level": "Kalman level: a local-level Kalman filter of price, a smooth trend line that adapts to each stock's noise. Price above a rising level reads as an uptrend.",
+    "hurst": "Hurst exponent (variance-ratio estimate over the window): about 0.5 is a random walk, above 0.55 the stock has tended to trend, below 0.45 to mean-revert. Use it to choose trend or reversion rules.",
+    "delivery_pct": "Delivery %: the share of NSE traded quantity that was actually delivered rather than squared off intraday. High delivery on a volume surge suggests genuine buying or selling rather than day-trading.",
+    "market_regime": "Market volatility regime: Nifty 50's 20-day realised volatility ranked against its own past year. Below 33 is calm, above 67 stressed. It is the same for every stock and describes the market, not this chart.",
+})
 FAMILY.update({"nt_zigzag": "trend", "nt_trendlines": "band", "nt_hawkes": "vol", "nt_vsa": "zero", "nt_cmma": "zero",
                "nt_perm_entropy": "stat", "ut_ewmac": "zero", "ut_rel_return": "zero"})
 
@@ -632,6 +639,32 @@ def _read_stat(ctx, study_id, name, series):
         return f"Price is {_f(now, 1)}% below its highest close in the stored history.", "neutral"
     if study_id == "rolling_sharpe":
         return f"Rolling Sharpe {_f(now)}. Above 1 means the recent trend has been strong relative to its noise; below 0 means the recent period lost money.", "bull" if (now or 0) > 1 else "bear" if (now or 0) < 0 else "neutral"
+    if study_id == "hurst":
+        if now is None:
+            return "Hurst exponent needs more history.", "neutral"
+        kind = "has tended to trend, so trend-following rules fit better" if now > 0.55 else "has tended to mean-revert, so pullback and reversion rules fit better" if now < 0.45 else "behaves close to a random walk, so neither trend nor reversion has an edge from this measure"
+        return f"Hurst {_f(now)}: over the window this stock {kind}.", "neutral"
+    if study_id == "market_regime":
+        if now is None:
+            return "No Nifty 50 index history yet for the market regime. Run Sync history.", "neutral"
+        state = "calm" if now < 33.3 else "stressed" if now > 66.7 else "normal"
+        advice = {"calm": "Calm markets have historically suited trend and breakout entries.",
+                  "normal": "Volatility is middling; no regime tilt.",
+                  "stressed": "Stressed markets bring wider swings and more failed breakouts; smaller positions or tighter filters help."}[state]
+        return f"The market is {state}: Nifty's 20-day volatility is higher than {now:.0f}% of the past year. {advice}", "bear" if state == "stressed" else "bull" if state == "calm" else "neutral"
+    if study_id == "delivery_pct":
+        delivery = series.get("delivery") or values
+        avg = series.get("average") or []
+        last_i = next((i for i in range(len(delivery) - 1, -1, -1) if _ok(delivery[i])), None)
+        if last_i is None:
+            return "No NSE delivery data for this name (BSE-only listings and ETFs have none, or the delivery sync has not run).", "neutral"
+        d, a = delivery[last_i], avg[last_i] if last_i < len(avg) and _ok(avg[last_i]) else None
+        stale = "" if last_i == len(delivery) - 1 else f" (latest available: {ctx.ts[last_i]})"
+        if a:
+            ratio = d / a
+            tilt = "well above" if ratio >= 1.5 else "above" if ratio > 1.1 else "below" if ratio < 0.9 else "in line with"
+            return f"Delivery was {d:.0f}% of traded quantity{stale}, {tilt} its 20-day average of {a:.0f}%.", "bull" if ratio >= 1.5 and ctx.close and ctx.prev and ctx.close > ctx.prev else "neutral"
+        return f"Delivery was {d:.0f}% of traded quantity{stale}.", "neutral"
     if now is None:
         return f"{name} is not ready.", "neutral"
     rank = _rank(values, now)

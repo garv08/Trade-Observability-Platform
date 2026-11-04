@@ -7,7 +7,47 @@ import math
 from top import arrays as np
 
 
-def run(ts, open_, high, low, close, position, capital=1_000_000.0, cost_bps=5.0):
+SIZING = ("full", "vol_target", "half_kelly")
+KELLY_MIN_TRADES = 10
+
+
+def kelly_fraction(returns_pct):
+    """Full Kelly fraction p - (1 - p) / b from trade returns in %, or None without both wins and losses."""
+    wins = [r for r in returns_pct if r > 0]
+    losses = [-r for r in returns_pct if r <= 0]
+    if not wins or not losses:
+        return None
+    p = len(wins) / len(returns_pct)
+    avg_loss = sum(losses) / len(losses)
+    if avg_loss == 0:
+        return None
+    b = (sum(wins) / len(wins)) / avg_loss
+    return p - (1 - p) / b
+
+
+def _realised_vol(close, i, length=20):
+    """Annualised volatility of the daily returns ending at bar i (uses bars up to i only)."""
+    rets = []
+    for k in range(max(1, i - length + 1), i + 1):
+        a, b = close[k - 1], close[k]
+        if math.isfinite(a) and math.isfinite(b) and a > 0:
+            rets.append(b / a - 1)
+    if len(rets) < max(5, length // 2):
+        return None
+    m = sum(rets) / len(rets)
+    var = sum((r - m) ** 2 for r in rets) / (len(rets) - 1)
+    return math.sqrt(var * 252) if var > 0 else None
+
+
+def run(ts, open_, high, low, close, position, capital=1_000_000.0, cost_bps=5.0, sizing="full", target_vol=15.0):
+    """Backtest a long/flat position series.
+
+    sizing:
+      full        invest all equity on every entry (default)
+      vol_target  invest target_vol / 20-day realised volatility of equity, capped at 100%, set at entry
+      half_kelly  invest half the Kelly fraction estimated from the strategy's earlier signal trades
+                  (50% until 10 trades exist; nothing while the estimate is ≤ 0)
+    """
     ts = list(ts)
     open_ = np.asarray(open_, dtype=float)
     close = np.asarray(close, dtype=float)
@@ -27,6 +67,10 @@ def run(ts, open_, high, low, close, position, capital=1_000_000.0, cost_bps=5.0
     entry_px = None
     entry_cost = 0.0
     trades = []
+    sizing = sizing if sizing in SIZING else "full"
+    shadow = []  # full-size returns of every signal trade, taken or not, for the Kelly estimate
+    shadow_entry = None
+    fractions = []
     equity = np.full(n, np.nan)
     equity[start] = capital
 
@@ -36,25 +80,41 @@ def run(ts, open_, high, low, close, position, capital=1_000_000.0, cost_bps=5.0
         if not np.isfinite(px) or px <= 0:
             equity[i] = cash + shares * close[i - 1]
             continue
-        current = 1 if shares > 0 else 0
-        if current != desired:
-            if shares > 0:
-                proceeds = shares * px * (1 - cost)
-                cash += proceeds
-                trades.append(_trade(ts, entry_i, i, entry_px, px, shares, entry_cost, proceeds, False))
-                shares = 0.0
-                entry_i = None
-            if desired == 1 and cash > 0:
-                fee = cash * cost
-                shares = (cash - fee) / px
-                entry_cost = cash
+        started = desired == 1 and shadow_entry is None
+        if started:
+            shadow_entry = px
+        elif desired == 0 and shadow_entry is not None:
+            shadow.append((px * (1 - cost) / (shadow_entry * (1 + cost)) - 1) * 100)
+            shadow_entry = None
+        if desired == 0 and entry_i is not None:
+            proceeds = shares * px * (1 - cost)
+            cash += proceeds
+            trades.append(_trade(ts, entry_i, i, entry_px, px, shares, entry_cost, proceeds, False))
+            shares = 0.0
+            entry_i = None
+        if started and entry_i is None and cash > 0:
+            fraction = 1.0
+            if sizing == "vol_target":
+                vol = _realised_vol(close, i - 1)
+                fraction = 1.0 if vol is None else min(1.0, float(target_vol) / 100 / vol)
+            elif sizing == "half_kelly":
+                if len(shadow) < KELLY_MIN_TRADES:
+                    fraction = 0.5
+                else:
+                    fraction = max(0.0, min(1.0, 0.5 * (kelly_fraction(shadow) or 0.0)))
+            fractions.append(fraction)
+            stake = cash * fraction
+            if stake > 0:
+                fee = stake * cost
+                shares = (stake - fee) / px
+                entry_cost = stake
                 entry_px = px
                 entry_i = i
-                cash = 0.0
+                cash -= stake
         mark = close[i] if np.isfinite(close[i]) else px
         equity[i] = cash + shares * mark
 
-    if shares > 0 and entry_i is not None:
+    if entry_i is not None:
         mark = close[-1]
         proceeds = shares * mark
         trades.append(_trade(ts, entry_i, n - 1, entry_px, mark, shares, entry_cost, proceeds, True))
@@ -63,6 +123,9 @@ def run(ts, open_, high, low, close, position, capital=1_000_000.0, cost_bps=5.0
     curve = _fill(curve, capital)
     bench = capital * close[start:] / close[start]
     metrics = _metrics(curve, bench, trades, capital)
+    metrics["avg_position_pct"] = round(100 * sum(fractions) / len(fractions), 1) if fractions else None
+    how = {"full": "fully invested", "vol_target": f"sized at entry to {float(target_vol):g}% annual volatility (capped at 100%)",
+           "half_kelly": "sized at entry to half the Kelly fraction from earlier signal trades (50% until 10 trades)"}[sizing]
     return {
         "start": ts[start],
         "end": ts[-1],
@@ -70,7 +133,8 @@ def run(ts, open_, high, low, close, position, capital=1_000_000.0, cost_bps=5.0
         "benchmark": [{"time": ts[i], "value": round(float(bench[i - start]), 2)} for i in range(start, n)],
         "trades": trades,
         "metrics": metrics,
-        "methodology": "Signal at the close. Fill at the next session open. Long or flat, fully invested. Cost is charged on entry and on a closed exit. Buy-and-hold uses the same start bar and no costs.",
+        "sizing": sizing,
+        "methodology": f"Signal at the close. Fill at the next session open. Long or flat, {how}; uninvested cash earns nothing. Cost is charged on entry and on a closed exit. Buy-and-hold uses the same start bar and no costs.",
     }
 
 
@@ -129,6 +193,7 @@ def _metrics(equity, benchmark, trades, capital):
         "trades": len(trades),
         "closed_trades": len(closed),
         "avg_trade_pct": None if not closed else round(sum(t["return_pct"] for t in closed) / len(closed), 2),
+        "kelly_pct": _kelly_pct([t["return_pct"] for t in closed]),
         "exposure_pct": round(100 * min(exposed, len(equity)) / len(equity), 1),
         "buy_hold_pct": _pct(bh),
         "ending_equity": round(float(equity[-1]), 2),
@@ -230,10 +295,17 @@ def metrics(open_, close, position, capital=1_000_000.0, cost_bps=5.0):
         "trades": trades,
         "closed_trades": len(closed_pnl),
         "avg_trade_pct": None if not closed_pnl else round(sum(closed_ret) / len(closed_ret), 2),
+        "kelly_pct": _kelly_pct(closed_ret),
+        "avg_position_pct": 100.0 if trades else None,
         "exposure_pct": round(100 * min(bars_held, len(equity)) / len(equity), 1),
         "buy_hold_pct": _pct(bh),
         "ending_equity": round(float(last), 2),
     }
+
+
+def _kelly_pct(returns_pct):
+    value = kelly_fraction(returns_pct)
+    return None if value is None else round(100 * value, 1)
 
 
 def _list_ratio(rets, downside):

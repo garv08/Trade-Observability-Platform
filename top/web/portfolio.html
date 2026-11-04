@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Portfolio · TOP</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/pages.css" />
+</head>
+<body class="page">
+  <header class="page-top">
+    <a class="page-logo" href="/" title="Back to the charting desk">TOP</a>
+    <div>
+      <h1>Portfolio backtests</h1>
+      <div class="sub">Rank a whole universe each month and hold the top N: momentum, low volatility, sector rotation, ETF momentum</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="guide-link" href="/">Charting desk</a>
+    <a class="guide-link" href="/markets.html">Markets</a>
+    <a class="guide-link" href="/leaderboard.html">Leaderboard</a>
+    <a class="guide-link" href="/guide.html#portfolio" target="_blank" rel="noopener">Guide</a>
+  </header>
+
+  <main class="page-main">
+    <section class="card">
+      <form class="form" id="pf-form">
+        <label>Strategy<select id="pf-strategy"></select></label>
+        <label>Universe<select id="pf-universe"></select></label>
+        <label>Hold top N<input id="pf-n" type="number" min="1" max="100" step="1" value="20" /></label>
+        <label title="Median daily traded value over the last 3 months; names below it are skipped">Min daily value (₹ lakh)<input id="pf-value" type="number" min="0" step="5" value="10" /></label>
+        <label>Filter<select id="pf-gate"></select></label>
+        <label>Cost bps per side<input id="pf-cost" type="number" min="0" max="100" step="0.5" value="5" /></label>
+        <label>Capital<input id="pf-capital" type="number" min="10000" step="10000" value="1000000" /></label>
+        <button class="btn primary" id="pf-run" type="submit">Run backtest</button>
+        <button class="btn" id="pf-sweep" type="button" title="Run the same strategy for N = 1, 3, 5, 10, 20, 30, 50">Sweep N</button>
+      </form>
+      <p class="note" id="pf-blurb"></p>
+    </section>
+
+    <section class="cards" id="pf-metrics"></section>
+
+    <section class="grid2">
+      <div class="card">
+        <h2>Equity vs Nifty 50</h2>
+        <div id="pf-equity" class="chart"></div>
+      </div>
+      <div class="card">
+        <h2>Drawdown (underwater)</h2>
+        <p class="note">How far the portfolio sat below its previous peak, day by day.</p>
+        <div id="pf-underwater" class="chart"></div>
+      </div>
+    </section>
+
+    <section class="card hidden-empty" id="pf-sweep-card">
+      <h2>How many names to hold? (sweep)</h2>
+      <p class="note">The number of names held changes results the most: fewer names usually mean higher returns and deeper drawdowns. Prefer an N where neighbouring values give similar results.</p>
+      <div class="table-wrap"><table class="data"><thead><tr><th>Top N</th><th>CAGR</th><th>Max DD</th><th>CAGR ÷ DD</th><th>Return ÷ DD</th><th>Sharpe</th><th>Turnover / month</th></tr></thead><tbody id="pf-sweep-body"></tbody></table></div>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <h2>Holding now</h2>
+        <div class="table-wrap"><table class="data"><thead><tr><th class="l">Name</th><th>Close</th><th>Since last rebalance</th></tr></thead><tbody id="pf-holdings"></tbody></table></div>
+      </div>
+      <div class="card">
+        <h2>Recent rebalances</h2>
+        <div class="table-wrap"><table class="data"><thead><tr><th class="l">Ranked at close</th><th class="l">Traded at open</th><th>Names</th><th>Cash</th></tr></thead><tbody id="pf-log"></tbody></table></div>
+      </div>
+    </section>
+    <p class="note" id="pf-method"></p>
+  </main>
+
+  <script src="/vendor/lightweight-charts.standalone.production.js"></script>
+  <script src="/portfolio.js"></script>
+</body>
+</html>

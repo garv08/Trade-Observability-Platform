@@ -5,7 +5,7 @@ from __future__ import annotations
 import unittest
 from datetime import date
 
-from tests.support import use_temp_store
+from tests.support import temp_dir, use_temp_store
 from top import indices, leaderboard, market, store
 
 NSE_INDEX = (
@@ -103,6 +103,19 @@ class FastMetricsTests(unittest.TestCase):
             market.pin(None)
 
 
+class SharpeStatsTests(unittest.TestCase):
+    def test_normal_functions(self):
+        for p, z in ((0.5, 0.0), (0.975, 1.959964), (0.05, -1.644854), (0.001, -3.090232)):
+            self.assertAlmostEqual(leaderboard.norm_ppf(p), z, places=5)
+            self.assertAlmostEqual(leaderboard.norm_cdf(z), p, places=5)
+
+    def test_expected_max_sharpe_grows_with_trials(self):
+        few, many = leaderboard.expected_max_sharpe(0.02, 10), leaderboard.expected_max_sharpe(0.02, 88)
+        self.assertGreater(many, few)
+        self.assertGreater(few, 0)
+        self.assertEqual(leaderboard.expected_max_sharpe(0.02, 1), 0.0)
+
+
 class RatioTests(unittest.TestCase):
     def test_drawdown_floor(self):
         self.assertAlmostEqual(leaderboard.ratio_of(30.0, -15.0), 2.0)
@@ -142,10 +155,8 @@ class RunRobustnessTests(unittest.TestCase):
         self.assertEqual(out["workers"], 1)
 
     def test_empty_store_explains_itself(self):
-        import tempfile
-        from pathlib import Path
 
-        store.DB_PATH = Path(tempfile.mkdtemp(prefix="top-empty-")) / "empty.duckdb"
+        store.DB_PATH = temp_dir("top-empty-") / "empty.duckdb"
         store._schema_ready = False
         out = leaderboard.run_all(workers=1)
         self.assertFalse(out["running"])
@@ -180,6 +191,7 @@ class LeaderboardTests(unittest.TestCase):
                 con.execute("INSERT OR REPLACE INTO symbols (symbol, name, kind, universe, exchange) VALUES (?, ?, 'index', 'nse_index', 'NSE')", [symbol, name])
                 store.replace_bars(con, symbol, [(symbol, *row[1:]) for row in synthetic_rows("INFY")])
             todo, _, _ = leaderboard.members(con, force=True)
+        todo = [symbol for symbol, _ in todo]
         self.assertIn("IDX:NIFTYBANK", todo)
         self.assertNotIn("IDX:NIFTY50DIVIDENDPOINTS", todo)
         self.assertNotIn("IDX:INDIAVIX", todo)
@@ -193,6 +205,29 @@ class LeaderboardTests(unittest.TestCase):
             n = con.execute("SELECT COUNT(DISTINCT strategy) FROM leaderboard").fetchone()[0]
         self.assertGreater(n, 60)
 
+    def test_new_strategies_are_added_without_recomputing(self):
+        with store.session() as con:
+            symbol = con.execute("SELECT MIN(symbol) FROM leaderboard_done WHERE strategies > 0").fetchone()[0]
+            before = dict(con.execute("SELECT strategy, computed_at FROM leaderboard WHERE symbol = ?", [symbol]).fetchall())
+            # Pretend two strategies were added to the catalogue after this script was computed.
+            gone = sorted(before)[:2]
+            ids = ",".join(sorted(set(before) - set(gone)))
+            con.execute("DELETE FROM leaderboard WHERE symbol = ? AND strategy IN (?, ?)", [symbol, *gone])
+            con.execute("UPDATE leaderboard_done SET ids = ? WHERE symbol = ?", [ids, symbol])
+            todo, _, _ = leaderboard.members(con)
+        self.assertIn((symbol, tuple(gone)), todo)
+        leaderboard.run_all(workers=1, limit=1)
+        with store.session() as con:
+            after = dict(con.execute("SELECT strategy, computed_at FROM leaderboard WHERE symbol = ?", [symbol]).fetchall())
+            stored = con.execute("SELECT ids, strategies FROM leaderboard_done WHERE symbol = ?", [symbol]).fetchone()
+            todo, _, _ = leaderboard.members(con)
+        self.assertEqual(set(after), set(before))
+        untouched = [s for s in before if s not in gone]
+        self.assertTrue(all(after[s] == before[s] for s in untouched))
+        self.assertEqual(stored[1], len(after))
+        self.assertTrue(set(gone) <= set(stored[0].split(",")))
+        self.assertNotIn(symbol, [s for s, _ in todo])
+
     def test_years_are_tested_years(self):
         with store.session() as con:
             bars = con.execute("SELECT COUNT(*) FROM bars WHERE symbol = (SELECT MIN(symbol) FROM leaderboard)").fetchone()[0]
@@ -201,8 +236,6 @@ class LeaderboardTests(unittest.TestCase):
         self.assertGreater(max(years.values()), years["above_sma200"])
 
     def test_strategy_ranking_and_results(self):
-        import tempfile
-        from pathlib import Path
 
         with store.session() as con:
             leaderboard.refresh_liquidity(con)
@@ -220,7 +253,7 @@ class LeaderboardTests(unittest.TestCase):
             self.assertAlmostEqual(top["median_return_dd"], median, places=3)
             self.assertEqual(top["scripts"], len(per_script))
             self.assertEqual(leaderboard.strategy_ranking(con, min_scripts=10_000), [])
-            folder = Path(tempfile.mkdtemp(prefix="top-results-"))
+            folder = temp_dir("top-results-")
             written = leaderboard.write_results(con, folder)
         self.assertEqual(set(written), {"leaderboard-cagr15.csv", "leaderboard-best-per-script.csv", "strategy-ranking-return-dd.csv"})
         header = (folder / "strategy-ranking-return-dd.csv").read_text().splitlines()[0]
@@ -258,6 +291,15 @@ class LeaderboardTests(unittest.TestCase):
             self.assertEqual(len(lines), n + 1)
             self.assertTrue(lines[1].startswith(f"1,{rows[0]['symbol']},"))
             leaderboard.refresh_liquidity(con)
+            leaderboard.refresh_trials(con)
+            with_p = leaderboard.query(con, min_cagr=None, min_trades=0, limit=1000)["rows"]
+            for r in with_p:
+                if r["sharpe"] is not None:
+                    self.assertTrue(0 <= r["psr_pct"] <= 100 and 0 <= r["dsr_pct"] <= 100)
+                    self.assertLessEqual(r["dsr_pct"], r["psr_pct"] + 1e-9)
+            strict = leaderboard.query(con, min_cagr=None, min_trades=0, min_dsr=95, limit=1000)
+            self.assertTrue(all(r["dsr_pct"] >= 95 - 0.05 for r in strict["rows"]))
+            self.assertLessEqual(strict["total"], len(with_p))
             liquid = leaderboard.query(con, min_cagr=None, min_trades=0, min_value=1, limit=1000)
             self.assertEqual(liquid["total"], out["total"])
             self.assertTrue(all(r["median_value_lakh"] > 1 for r in liquid["rows"]))

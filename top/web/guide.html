@@ -75,6 +75,8 @@
       <a href="#backtest">Strategy tester</a>
       <a href="#scan50">Backtest universe</a>
       <a href="#leaderboard">Strategy leaderboard</a>
+      <a href="#markets">Markets page</a>
+      <a href="#portfolio">Portfolio page</a>
       <a href="#trend">Trend scan</a>
       <a href="#fundamentals">Fundamentals</a>
       <a href="#verify">Verify</a>
@@ -86,7 +88,7 @@
 
     <main>
       <h1>TOP user guide</h1>
-      <p class="lead">A local research desk for the Nifty 50, all BSE stocks, and NSE/BSE ETFs. It has daily charts, 148 indicators, Scott Carney harmonics, 88 backtestable strategies (including rules adapted from two YouTube channels), a one-click trend scan, and Screener.in fundamentals.</p>
+      <p class="lead">A local research desk for the Nifty 50, all BSE stocks, and NSE/BSE ETFs. It has daily charts, 152 indicators, Scott Carney harmonics, 92 backtestable strategies (including rules adapted from two YouTube channels), a one-click trend scan, and Screener.in fundamentals.</p>
       <div class="note">This desk uses delayed public daily data. It is not a live NSE feed, not a broker, and not TradingView or the Harmonic Trader product. Nothing here is investment advice.</div>
 
       <h2 id="start">Start the desk</h2>
@@ -132,7 +134,7 @@ top-platform           # or: python -m top</code></pre>
       </ul>
 
       <h2 id="indicators">Indicators</h2>
-      <p>The left panel has one searchable dropdown for each of the 10 sections, 148 studies in all. Pick a study to add it. Pick it again, or press <b>Remove</b> under <b>On the chart</b>, to take it off. Change a study's settings under <b>On the chart</b>, and the chart redraws.</p>
+      <p>The left panel has one searchable dropdown for each of the 10 sections, 152 studies in all. Pick a study to add it. Pick it again, or press <b>Remove</b> under <b>On the chart</b>, to take it off. Change a study's settings under <b>On the chart</b>, and the chart redraws.</p>
       <table>
         <thead><tr><th>Section</th><th>Studies</th><th>Examples</th></tr></thead>
         <tbody>
@@ -261,9 +263,10 @@ top-platform           # or: python -m top</code></pre>
       <h2 id="backtest">Strategy tester</h2>
       <ol class="steps">
         <li>Pick a stock.</li>
-        <li>Click the <b>Backtest</b> strategy box and type part of a name or idea, for example <code>gartley</code>, <code>breakout</code>, <code>rsi</code>, or <code>reversal</code>. There are 88 strategies, grouped as listed below. The strategy's description appears under the box.</li>
+        <li>Click the <b>Backtest</b> strategy box and type part of a name or idea, for example <code>gartley</code>, <code>breakout</code>, <code>rsi</code>, or <code>reversal</code>. There are 92 strategies, grouped as listed below. The strategy's description appears under the box.</li>
         <li>Adjust the strategy's settings if it has any, then set <b>Capital</b> (default ₹10,00,000) and <b>Cost bps</b> (default 5, charged on entry and exit).</li>
-        <li>Click <b>Run backtest</b>.</li>
+        <li>Pick <b>Sizing</b>: <i>Full</i> (all equity), <i>Vol target</i> (target vol ÷ the stock's 20-day volatility, capped at 100%), or <i>Half Kelly</i> (half the Kelly fraction from the strategy's earlier trades).</li>
+        <li>Click <b>Run backtest</b>. Under the result cards, <b>Monte Carlo</b> shows the range of drawdowns from 1,000 reshuffles of the same trades. <b>Walk-forward</b> re-picks the main setting each year from earlier data only and says whether the rule looks over-tuned.</li>
       </ol>
       <table>
         <thead><tr><th>Group</th><th>Count</th><th>Group</th><th>Count</th></tr></thead>
@@ -301,7 +304,7 @@ top-platform           # or: python -m top</code></pre>
       <p>Click <b>Backtest universe</b> (<i>Backtest Nifty 50</i>, <i>ETFs</i>, <i>BSE</i>, or <i>all</i>, following the universe chip) to run the selected strategy, with its current settings, on all 50 Nifty stocks, on all indices, or on the 200 most traded names of a larger universe. The output panel below the chart ranks them by return and shows whether each is long now, its max drawdown, and its trade count. This takes a few seconds. A harmonic strategy takes about 6 seconds.</p>
 
       <h2 id="leaderboard">Strategy leaderboard</h2>
-      <p>Click <b>Leaderboard</b> in the top bar to open a separate page that backtests all 88 strategies, with default settings, on every stock, ETF, and index with at least a year of bars (about 450,000 backtests) and ranks them by <b>CAGR ÷ |max drawdown|</b>.</p>
+      <p>Click <b>Leaderboard</b> in the top bar to open a separate page that backtests all 92 strategies, with default settings, on every stock, ETF, and index with at least a year of bars (about 450,000 backtests) and ranks them by <b>CAGR ÷ |max drawdown|</b>.</p>
       <ul>
         <li><b>Run backtests</b> starts a background job on all CPU cores at low priority. Progress, speed, and time left update every 15 seconds. Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value. Expect a few hours on a slow PC.</li>
         <li><b>Stop</b> and <b>Run / resume</b> pick up where it left off. After a daily sync only scripts with new bars are recomputed. <b>Recompute all</b> starts over.</li>
@@ -313,6 +316,12 @@ top-platform           # or: python -m top</code></pre>
       </ul>
       <p>Scripts with unreliable data are skipped: traded on fewer than half the weekdays, or a one-day move above +100% or below −50% after split adjustment. Dividend Points and India VIX are left out because they are not prices.</p>
       <p>Many strategies on many scripts means some winners are luck. Prefer rules that pass widely, with many trades and full history.</p>
+
+      <h2 id="markets">Markets page</h2>
+      <p>Click <b>Markets</b> in the top bar. It shows Nifty's volatility regime (calm, normal or stressed, from its 20-day volatility ranked against the past year) shaded on a Nifty chart; breadth (% of BSE A/B stocks above their 50- and 200-day averages, new highs minus new lows, advances vs declines); sector indices ranked by 3-month return against Nifty with rotation quadrants; daily FII/DII cash flows; and stock scans: Bloodbath, Multi-year breakout, 52-week breakout, Breakout soon, Leaders, Multibaggers, Near 52-week low and Delivery surge. Click a stock to chart it.</p>
+
+      <h2 id="portfolio">Portfolio page</h2>
+      <p>Click <b>Portfolio</b>. Pick a strategy (Momentum 12-1, Low volatility, Sector rotation, ETF momentum), a universe and N, then <b>Run backtest</b>. It ranks the universe at each month-end close and trades at the next open to equal weights, with costs. You get CAGR, drawdown and Sharpe against Nifty, an equity and an underwater chart, current holdings and recent rebalances. <b>Sweep N</b> compares N from 1 to 50. The universe is today's listing, so delisted stocks are missing and results are flattered.</p>
 
       <h2 id="trend">Trend scan</h2>
       <p>Click <b>Trend scan</b> to run every Trend, Breakout, and Trend reversal rule on the selected stock in one pass. Rules that are long now are listed first, then the rest by return. Each row shows its section, so you can see whether trend-following, breakout, or reversal rules are firing.</p>

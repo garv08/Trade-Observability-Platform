@@ -36,6 +36,7 @@ function params(extra = {}) {
     min_trades: $("f-trades").value || "0",
     min_years: $("f-years").value || "0",
     min_value: $("f-value").value || "0",
+    min_dsr: $("f-dsr").value || "0",
     sort: $("f-sort").value,
     limit: String(PAGE),
     offset: String(state.offset),
@@ -64,6 +65,7 @@ function restoreUrl() {
   if (q.has("min_trades")) $("f-trades").value = q.get("min_trades");
   if (q.has("min_years")) $("f-years").value = q.get("min_years");
   if (q.has("min_value")) $("f-value").value = q.get("min_value");
+  if (q.has("min_dsr") && q.get("min_dsr") !== "0") $("f-dsr").value = q.get("min_dsr");
   if (q.has("sort")) $("f-sort").value = q.get("sort");
   if (q.has("q")) $("f-q").value = q.get("q");
   if (q.get("best") === "1") $("f-best").checked = true;
@@ -111,6 +113,7 @@ function rowHtml(r, i) {
     <td class="l strat"><b>${esc(s.name)}</b><small>${esc(s.section || "")}${s.creator && s.creator !== s.section ? ` · ${esc(s.creator)}` : ""}</small></td>
     <td class="ratio">${num(r.ratio, 2)}</td>
     <td class="ratio">${num(r.return_dd, 2)}</td>
+    <td title="Probabilistic / deflated Sharpe">${r.psr_pct == null ? "–" : `${num(r.psr_pct, 0)}%`} / <b class="${r.dsr_pct >= 95 ? "up" : r.dsr_pct < 50 ? "down" : ""}">${r.dsr_pct == null ? "–" : `${num(r.dsr_pct, 0)}%`}</b></td>
     <td class="${cls(r.cagr_pct)}">${pct(r.cagr_pct)}</td>
     <td class="down">${num(r.max_dd_pct)}%</td>
     <td class="${cls(r.total_return_pct)}">${pct(r.total_return_pct, 0)}</td>
@@ -126,7 +129,7 @@ function rowHtml(r, i) {
 function renderTable(data) {
   const body = $("lb-body");
   if (!data.rows.length) {
-    body.innerHTML = `<tr><td colspan="14" class="empty">${data.computed.rows ? "No backtests pass these filters. Lower the minimum CAGR or history, or pick another universe." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="15" class="empty">${data.computed.rows ? "No backtests pass these filters. Lower the minimum CAGR or history, or pick another universe." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
   } else {
     body.innerHTML = data.rows.map(rowHtml).join("");
   }
@@ -138,7 +141,7 @@ function renderTable(data) {
   $("next-btn").disabled = end >= data.total;
   const cagr = $("f-cagr").value;
   $("lb-summary").innerHTML = data.computed.rows
-    ? `<span><b>${data.total.toLocaleString("en-IN")}</b> backtests on <b>${data.symbols.toLocaleString("en-IN")}</b> scripts pass${cagr !== "" ? ` CAGR &gt; ${esc(cagr)}%` : ""}, ≥ ${esc($("f-trades").value || 0)} trades, ≥ ${esc($("f-years").value || 0)} years tested${Number($("f-value").value) > 0 ? `, ≥ ₹${esc($("f-value").value)} lakh traded a day` : ""}.</span>`
+    ? `<span><b>${data.total.toLocaleString("en-IN")}</b> backtests on <b>${data.symbols.toLocaleString("en-IN")}</b> scripts pass${cagr !== "" ? ` CAGR &gt; ${esc(cagr)}%` : ""}, ≥ ${esc($("f-trades").value || 0)} trades, ≥ ${esc($("f-years").value || 0)} years tested${Number($("f-value").value) > 0 ? `, ≥ ₹${esc($("f-value").value)} lakh traded a day` : ""}${Number($("f-dsr").value) > 0 ? `, deflated Sharpe ≥ ${esc($("f-dsr").value)}%` : ""}.</span>`
     : "";
 }
 
@@ -156,7 +159,7 @@ function renderByStrategy(rows) {
 
 function strategyParams() {
   const q = params();
-  for (const key of ["min_cagr", "strategy", "q", "best", "limit", "offset", "sort"]) q.delete(key);
+  for (const key of ["min_cagr", "strategy", "q", "best", "limit", "offset", "sort", "min_dsr"]) q.delete(key);
   q.set("sort", $("f-ssort").value);
   return q;
 }
@@ -167,14 +170,14 @@ function renderView() {
   $("strat-wrap").classList.toggle("hidden", !strategies);
   $("script-wrap").classList.toggle("hidden", strategies);
   document.querySelector(".pager").querySelectorAll("#prev-btn, #next-btn, #page-label").forEach((n) => n.classList.toggle("hidden", strategies));
-  for (const id of ["l-cagr", "l-strategy", "l-sort", "l-q", "l-best"]) $(id).classList.toggle("hidden", strategies);
+  for (const id of ["l-cagr", "l-strategy", "l-sort", "l-q", "l-best", "l-dsr"]) $(id).classList.toggle("hidden", strategies);
   $("l-ssort").classList.toggle("hidden", !strategies);
 }
 
 function renderStrategies(rows) {
   const body = $("strat-body");
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="13" class="empty">${state.last && state.last.computed.rows ? "No strategy has 50+ scripts passing these filters. Lower Min trades, tested years, or daily value." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="14" class="empty">${state.last && state.last.computed.rows ? "No strategy has 50+ scripts passing these filters. Lower Min trades, tested years, or daily value." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
     $("lb-summary").innerHTML = "";
     return;
   }
@@ -192,6 +195,7 @@ function renderStrategies(rows) {
       <td class="${cls(r.median_cagr_pct)}">${pct(r.median_cagr_pct)}</td>
       <td>${num(r.pct_profitable, 0)}%</td>
       <td>${num(r.pct_beat_hold, 0)}%</td>
+      <td>${num(r.pct_dsr95, 1)}%</td>
       <td>${num(r.median_trades, 0)}</td>
       <td class="l sym"><b>${esc(r.best_symbol || "")}</b><small>return ÷ DD ${num(r.best_return_dd, 1)}</small></td>
     </tr>`;
@@ -219,7 +223,7 @@ async function load() {
     renderByStrategy(data.by_strategy);
     schedule(data.status.running);
   } catch (error) {
-    $("lb-body").innerHTML = `<tr><td colspan="14" class="empty">${esc(error.message)}</td></tr>`;
+    $("lb-body").innerHTML = `<tr><td colspan="15" class="empty">${esc(error.message)}</td></tr>`;
     $("st-msg").textContent = error.message;
     setRunnable(true);
     schedule(true);
@@ -306,7 +310,7 @@ async function init() {
     state.universe = button.dataset.u;
     reload();
   });
-  for (const id of ["f-cagr", "f-trades", "f-years", "f-value"]) {
+  for (const id of ["f-cagr", "f-trades", "f-years", "f-value", "f-dsr"]) {
     let timer;
     $(id).addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(reload, 400); });
   }

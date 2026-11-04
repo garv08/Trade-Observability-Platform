@@ -24,6 +24,8 @@
     <div class="top-actions">
       <span id="sync-pill" class="pill">DuckDB</span>
       <button id="studies-toggle" type="button">Controls</button>
+      <a id="markets-link" class="guide-link" href="/markets.html" target="_blank" rel="noopener" title="Breadth, volatility regime, sector rotation, FII/DII and stock scans">Markets</a>
+      <a id="portfolio-link" class="guide-link" href="/portfolio.html" target="_blank" rel="noopener" title="Rank a universe monthly and hold the top N">Portfolio</a>
       <a id="leaderboard-link" class="guide-link" href="/leaderboard.html" target="_blank" rel="noopener" title="Every strategy on every script, ranked by CAGR / max drawdown">Leaderboard</a>
       <a id="guide-link" class="guide-link" href="/guide.html" target="_blank" rel="noopener">Guide</a>
       <button id="sync-btn" type="button">Sync history</button>
@@ -54,10 +56,17 @@
           <div class="param-grid">
             <label>Capital<input id="capital" type="number" min="10000" step="10000" value="1000000" /></label>
             <label>Cost bps<input id="cost-bps" type="number" min="0" max="100" step="0.5" value="5" /></label>
+            <label title="How much of equity each entry uses">Sizing<select id="sizing">
+              <option value="full">Full</option>
+              <option value="vol_target">Vol target</option>
+              <option value="half_kelly">Half Kelly</option>
+            </select></label>
+            <label title="Annual volatility to aim for with Vol target sizing">Target vol %<input id="target-vol" type="number" min="2" max="60" step="1" value="15" /></label>
           </div>
           <div class="button-row">
             <button id="run-backtest" type="submit">Run backtest</button>
             <button id="scan-50" type="button">Backtest Nifty 50</button>
+            <button id="wf-btn" type="button" title="Re-pick the main setting each year from earlier data only">Walk-forward</button>
           </div>
         </form>
       </section>
@@ -111,6 +120,7 @@
         </div>
         <div class="tester-body hidden" id="tester-body">
           <div id="metrics" class="metrics"></div>
+          <div id="robust" class="robust hidden"></div>
           <div class="tester-results">
             <div id="equity-chart"></div>
             <div class="trades-wrap">

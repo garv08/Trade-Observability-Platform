@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Product | TOP — Trade Observability Platform |
-| Version | 0.4.1 |
+| Version | 0.5.0 |
 | Status | Working local release |
 | Scope | Nifty 50, daily bars, research and backtesting. No order routing |
 
@@ -18,7 +18,7 @@
 
 ### Non-goals
 
-- Live or intraday data, order placement, or portfolio accounting.
+- Live or intraday data, order placement, or live portfolio accounting (portfolio *backtests* are in scope).
 - Shorting in backtests. NSE cash-market shorts are intraday only, so strategies are long/flat.
 - Certified pattern detection. The harmonics are ratio approximations of Carney's published rules.
 - Multi-user hosting. There is no authentication; the server binds to `127.0.0.1` by default.
@@ -32,8 +32,8 @@ flowchart LR
   end
   subgraph "Python process (top-platform)"
     S["server.py<br/>ThreadingHTTPServer"]
-    IND["indicators.py<br/>148 studies"]
-    STR["strategies.py<br/>88 rules"]
+    IND["indicators.py<br/>152 studies"]
+    STR["strategies.py<br/>92 rules"]
     BT["backtest.py"]
     HAR["harmonics.py"]
     EX["explain.py"]
@@ -100,11 +100,17 @@ Each load carries a request token. A slow response for a previous stock is dropp
 | `levels.py` | Key levels plan and pattern breakout projector (method inspired by @TradZoo) | Causal; levels apply to the next session |
 | `indices.py` | NSE and BSE daily index files → `IDX:` symbols in `nse_index` / `bse_index` | Never split-adjusted; resumable by day |
 | `leaderboard.py` | Every strategy on every script in worker processes; `leaderboard` table, ranking query, `top-leaderboard` CLI | See §5 Leaderboard |
+| `delivery.py` | NSE security-wise delivery % (5 years, mapped to TOP symbols by ticker/ISIN) and the daily FII/DII snapshot | Resumable by day under `NSE-DELIV` |
+| `research.py` | Strategies and studies from the [X research digest](research/x-digest.md): TSMOM, Kalman trend, turn of month, Hurst router; Kalman level, Hurst, Delivery %, Market regime studies | Causal; studies needing extra data declare `needs` |
+| `robust.py` | Monte Carlo trade reshuffling and walk-forward re-tuning of one setting | Used by `/api/backtest` and `/api/walkforward` |
+| `markets.py` | Split-adjusted bars in SQL, breadth, Nifty volatility regime, sector rotation, eight stock scans | Scan figures cached until the store changes |
+| `portfolio.py` | Monthly top-N portfolio backtests (momentum 12-1, low vol, sector rotation, ETF momentum) | Rank at month-end close, trade at next open |
 | `market.py` | Equal-weight Nifty 50 proxy from the stored bars, cached by store state | Used by the CMMA and contrarian rules |
 | `fundamentals.py` | Screener.in fetch, `#top-ratios` and pros/cons parser, 6-hour cache | Standard-library HTML parser |
 | `verify.py` | Named checks over catalogs, synthetic pattern, parser, data coverage, every study and strategy, interpretation | In-process, so `/api/verify` never calls itself over HTTP |
 | `server.py` | Routing, input validation, JSON encoding, static files, CLI | `build_server()` is used by tests |
 | `web/leaderboard.html`, `web/leaderboard.js` | Leaderboard page: run control, filters, ranked table, per-strategy counts, CSV | Polls while a run is active |
+| `web/markets.html/.js`, `web/portfolio.html/.js`, `web/pages.css` | Markets and Portfolio pages | Same chart library, no framework |
 | `web/app.js` | Chart, searchable dropdowns, studies, harmonics drawing, tester, insight panel, interpretation pane | No framework |
 
 ## 4. User interface
@@ -143,6 +149,11 @@ bhav_days(exchange, day, rows)
 leaderboard(symbol, strategy, cagr_pct, max_dd_pct, ratio, total_return_pct, buy_hold_pct, trades, win_rate_pct,
             profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at, PRIMARY KEY(symbol, strategy))
 leaderboard_done(symbol PK, last_day, catalog_key, strategies, computed_at)
+delivery(symbol, ts, traded, delivered, pct, PRIMARY KEY(symbol, ts))
+fii_dii(day, category, buy, sell, net, PRIMARY KEY(day, category))
+market_breadth(ts PK, stocks, advances, declines, above50, base50, above200, base200, new_highs, new_lows, base252)
+leaderboard_done(symbol PK, last_day, catalog_key, strategies, computed_at, ids)   -- ids: strategies already run
+leaderboard_liquidity(symbol PK, median_value_lakh); leaderboard_trials(symbol PK, trials, sr_std, sr_star)
 meta(key PK, value)          -- last_sync, bhav_last_sync, index_last_sync
 ```
 
@@ -178,7 +189,9 @@ meta(key PK, value)          -- last_sync, bhav_last_sync, index_last_sync
 - **Data-quality gate.** In the worker, on the split-adjusted series: skip a symbol if it has bars on fewer than 50% of the weekdays in its span, or any close-to-close ratio outside 0.5–2.0. Such series (thin BSE listings, bad ticks, unmatched corporate actions) otherwise produce CAGRs in the thousands of percent. Skipped symbols are recorded with zero strategies so they are not retried until new bars arrive. Dividend Points and VIX indices are excluded by name.
 - **Ranking.** `ratio = cagr_pct / max(|max_dd_pct|, 5)` (MAR with a 5% drawdown floor). `years` is the time tested after the strategy's warm-up, not the listing's age; older rows are converted in place from `(1 + total) = (1 + cagr) ^ years`. `leaderboard_liquidity` holds each symbol's median daily traded value (₹ lakh, last 250 bars), refreshed after each run, for the traded-value filter (indices exempt). The query filters (`cagr > min`, trades, years, universe, strategy, search) before ranking, `QUALIFY row_number()` keeps the best row per symbol when asked, and a second aggregate counts how many scripts each strategy passes on.
 - **Strategy ranking.** `strategy_ranking()` aggregates per strategy over the same filtered rows, without the CAGR cut: median/mean/quartiles of `total_return_pct / max(|max_dd_pct|, 5)`, hit rates, and the best script, keeping strategies with ≥ 50 scripts. `write_results()` writes the three committed CSVs from fixed `RESULT_FILTERS`/`STRATEGY_FILTERS`. All orderings have name tie-breakers, so the same database gives byte-identical files.
-- **Cost.** A list-based `backtest.metrics()` (same rules as `run()`, checked by a test for every strategy) skips the equity, benchmark, and trade output. All 88 strategies take 2–4 s per symbol, so the full run (~4,750 symbols) takes 2–4 hours on two cores. DuckDB is capped at 768 MB and 2 threads (`TOP_DB_MEMORY`) so a long run leaves room for the browser.
+- **Incremental.** `leaderboard_done.ids` lists the strategies already run for each script. Adding strategies to the catalogue computes only the new ones (partial updates run first); new bars or a change of capital, cost or version recompute the script.
+- **Probabilistic and deflated Sharpe.** For each row, PSR = Φ((SR − 0)·√(n−1) / √(1 + SR²/2)) with SR the daily Sharpe and n the tested days; DSR uses SR\* instead of 0, the expected best Sharpe among the script's N strategy trials, SR\* = σ·((1−γ)·Φ⁻¹(1−1/N) + γ·Φ⁻¹(1−1/(N·e))) with σ the spread of those trials' Sharpes (Bailey and López de Prado). Normal returns are assumed, so both are optimistic for fat-tailed stocks.
+- **Cost.** A list-based `backtest.metrics()` (same rules as `run()`, checked by a test for every strategy) skips the equity, benchmark, and trade output. All 92 strategies take 2–4 s per symbol, so the full run (~4,750 symbols) takes 2–4 hours on two cores. DuckDB is capped at 768 MB and 2 threads (`TOP_DB_MEMORY`) so a long run leaves room for the browser.
 
 ### Sync
 
@@ -292,12 +305,16 @@ These are descriptive statistics about one stock's own past. They are not out-of
 | Operation | Time |
 | --- | --- |
 | `/api/bars` for one stock | ~70 ms |
-| All 148 studies on one stock | ~6 s total |
+| All 152 studies on one stock | ~6 s total |
 | Backtest Nifty 50 for a creator strategy | 4–13 s (RSI-PCA ~35 s) |
 | `/api/explain` with a few studies | ~0.6 s |
 | Backtest Nifty 50 (one harmonic strategy) | ~6 s |
 | Full `python -m top.verify` | ~15 s |
-| All 88 strategies on one symbol (leaderboard) | ~7 s; ~5 h for every script on 2 cores |
+| Breadth over ~2,300 BSE A/B stocks (first time after new bars) | ~11 s |
+| All eight scans (first time after new bars, then cached) | ~23 s, then < 0.1 s |
+| Portfolio backtest, BSE group A (704 names, first load, then cached) | ~8 s, then ~1 s |
+| Walk-forward (5 settings) | ~0.5–3 s |
+| All 92 strategies on one symbol (leaderboard) | ~7 s; ~5 h for every script on 2 cores |
 | First full sync (network bound) | 1–2 min |
 
 ## 9. Security
@@ -313,6 +330,8 @@ These are descriptive statistics about one stock's own past. They are not out-of
 | Layer | What runs | Where |
 | --- | --- | --- |
 | Unit | Catalog sizes; every study has a latest value; EMA seeding regression; every strategy backtests; next-open fill; synthetic Gartley; harmonic drawings ordered; parser; rating labels; readings for every family; swing plan for all 50 | `tests/test_engine.py` |
+| Research | New strategies are causal; sizing modes; Kelly; Monte Carlo; walk-forward; split-adjusted SQL equals `load_bars`; breadth, regime, sectors and every scan; portfolio month ends, holdings and no look-ahead; delivery and FII/DII parsers; ticker map | `tests/test_research.py` |
+| Leaderboard | Index parsing and sync; fast metrics equal `run()` for every strategy; ratio floor; PSR/DSR maths; ranking, filters, CSV; incremental strategy additions; data-quality gate | `tests/test_leaderboard.py` |
 | Integration | Real server on a free port: static files, path traversal, health, status, symbols, `M&M` bars, catalogs, studies with drawings, backtest, trend, scan, explain, verify | `tests/test_api.py` |
 | Self-check | Named hooks on live data | **Verify** button, `/api/verify`, `python -m top.verify` |
 | CI | Python 3.10–3.13 tests; wheel contents check; installed-wheel server smoke test | `.github/workflows/ci.yml` |
@@ -325,6 +344,6 @@ The tests are offline. They seed a temporary DuckDB with deterministic synthetic
 - Harmonic detection confirms pivots in hindsight (see §6.2), so harmonic backtests are optimistic.
 - No slippage model, taxes, or position-sizing variants in backtests.
 - Screener.in layout changes would break the parser; the parser test and Verify will flag it.
-- The leaderboard tests 88 strategies on thousands of scripts in-sample, so the top rows are inflated by selection bias. Walk-forward or out-of-sample ranking would be the next step.
+- The leaderboard tests 92 strategies on thousands of scripts in-sample, so the top rows are inflated by selection bias. Walk-forward or out-of-sample ranking would be the next step.
 - BSE index history starts in April 2025 because older BSE index files are not published.
 - Possible next steps: walk-forward testing, saved layouts, alerts, F&O data for short setups, and a desktop wrapper.

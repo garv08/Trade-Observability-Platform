@@ -40,6 +40,7 @@ jobs:
           wheel = glob.glob("dist/*.whl")[0]
           names = set(zipfile.ZipFile(wheel).namelist())
           need = ["top/web/index.html", "top/web/app.js", "top/web/styles.css", "top/web/guide.html", "top/web/leaderboard.html", "top/web/leaderboard.js",
+                  "top/web/markets.html", "top/web/markets.js", "top/web/portfolio.html", "top/web/portfolio.js", "top/web/pages.css",
                   "top/web/vendor/lightweight-charts.standalone.production.js"]
           missing = [n for n in need if n not in names]
           assert not missing, missing

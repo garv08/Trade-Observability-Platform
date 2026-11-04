@@ -34,6 +34,11 @@ class EngineTests(unittest.TestCase):
     def setUpClass(cls):
         use_temp_store()
         cls.frame = frame_for("RELIANCE")
+        # Context some studies read (delivery %, market regime); synthetic but realistic.
+        cls.frame.context = {
+            "delivery": {t: 30 + (i % 40) for i, t in enumerate(cls.frame.ts)},
+            "regime": [{"vol_pct": float(i % 100)} for i in range(len(cls.frame.ts))],
+        }
 
     def test_catalog_sizes(self):
         studies = indicator_catalog()

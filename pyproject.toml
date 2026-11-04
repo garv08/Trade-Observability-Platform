@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trade-observability-platform"
-version = "0.4.1"
-description = "TOP - Trade Observability Platform: a local Nifty 50 research desk with DuckDB history, 148 studies, Scott Carney harmonics, 88 backtestable strategies (incl. @neurotrader888 and @UnbiasedTradingGoshawk rules), and plain-language swing-trade readings."
+version = "0.5.0"
+description = "TOP - Trade Observability Platform: a local research desk for Indian markets (Nifty 50, all BSE stocks, ETFs, NSE/BSE indices) with DuckDB history, 152 studies, 92 backtestable strategies, a strategy leaderboard, portfolio backtests, market breadth and plain-language swing-trade readings."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10,<3.14"

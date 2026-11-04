@@ -1044,6 +1044,10 @@ def _build():
 
     register_studies(_add, P, O)
 
+    from top.research import register_studies as register_research
+
+    register_research(_add, P, O)
+
 
 _build()
 

@@ -2,6 +2,38 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.5.0] - 2026-11-04
+
+Ideas from about 42,000 public posts of 13 X accounts, re-implemented in TOP's own code. See [docs/research/x-digest.md](docs/research/x-digest.md).
+
+### Added
+- **Portfolio page** (`/portfolio.html`, `POST /api/portfolio`): monthly top-N backtests that rank a whole universe. Strategies: momentum 12-1, low volatility, sector rotation, and ETF momentum with a trend filter. Universes: Nifty 50, BSE group A, NSE sector indices, NSE ETFs. Ranks at the month-end close and trades at the next open with costs. Optional absolute-momentum or Nifty-200-day market filter. Shows the equity curve against Nifty 50, an underwater chart, holdings, rebalances, and an N sweep.
+- **Markets page** (`/markets.html`, `GET /api/markets/*`):
+  - Nifty volatility regime (calm, normal, stressed) shaded on a Nifty chart.
+  - Breadth over BSE group A/B stocks: % above 50/200-day averages, new highs − new lows, advances/declines.
+  - Sector rotation with relative-rotation quadrants.
+  - FII/DII cash flows.
+  - Eight scans: Bloodbath, multi-year breakout, 52-week breakout, breakout soon, leaders while Nifty falls, 1-year multibaggers, near 52-week low, delivery surge.
+- **Robustness:**
+  - Monte Carlo trade reshuffling in every backtest.
+  - **Walk-forward** button that re-picks the main setting each year from earlier data (`POST /api/walkforward`).
+  - Probabilistic and **deflated Sharpe** columns, filter and sort on the leaderboard, and a "% passing DSR 95" column in the strategy ranking.
+  - A Kelly fraction in backtest metrics.
+- **Sizing:** backtests can size entries to a **volatility target** or **half Kelly** (from earlier trades only).
+- **Quant research strategies:** TSMOM 12-month, Kalman trend, turn of the month, and a Hurst regime router (92 strategies in total).
+- **Studies:** Kalman level, Hurst exponent, Delivery %, and Market volatility regime (152 in total), each with a plain-English reading.
+- **Data:**
+  - Five years of NSE security-wise **delivery %**, mapped to TOP symbols by ticker or ISIN.
+  - A daily **FII/DII** snapshot.
+  - `top-sync --delivery`, also part of Sync history.
+- Verify checks for research strategies, delivery and FII/DII, breadth and regime.
+- `tests/test_research.py`: causality of new signals, sizing, Monte Carlo, walk-forward, split-adjusted SQL, breadth, scans, portfolio look-ahead, and parsers.
+- Docs: [research digest](docs/research/x-digest.md), [project history](docs/project-history.md), and user-guide, API and design sections for the new pages.
+
+### Changed
+- The leaderboard now tracks which strategies each script has run, so new strategies are added without recomputing old ones.
+- Split-adjusted bars are available in SQL (`markets.adjusted_sql`), 25× faster than a per-bar lookup and identical to `load_bars`.
+
 ## [0.4.1] - 2026-11-02
 
 ### Added

@@ -464,6 +464,7 @@ def main(argv=None) -> int:
     which.add_argument("--nifty", action="store_true", help="only the Nifty 50 (Yahoo)")
     which.add_argument("--bhav", action="store_true", help="only BSE stocks, ETFs and indices (exchange files)")
     which.add_argument("--indices", action="store_true", help="only NSE and BSE indices")
+    which.add_argument("--delivery", action="store_true", help="only NSE delivery %% and the FII/DII snapshot")
     parser.add_argument("--years", type=int, default=5, help="history for BSE stocks and ETFs (default 5)")
     args = parser.parse_args(argv)
     global DB_PATH, _schema_ready
@@ -471,7 +472,7 @@ def main(argv=None) -> int:
         DB_PATH = Path(args.db)
         _schema_ready = False
     failed = False
-    if not (args.bhav or args.indices):
+    if not (args.bhav or args.indices or args.delivery):
         print(f"Syncing the Nifty 50 from Yahoo into {DB_PATH}", flush=True)
         result = sync_all(lambda symbol, done, errors: print(f"  {done:>2}/{len(UNIVERSE)} {symbol}", flush=True))
         for error in result["errors"]:
@@ -480,7 +481,7 @@ def main(argv=None) -> int:
         with session() as con:
             info = coverage(con)
         print(f"Nifty 50: {info['symbols_with_bars']}/{len(UNIVERSE)} names, {info['bars']} bars.", flush=True)
-    if not (args.nifty or args.indices):
+    if not (args.nifty or args.indices or args.delivery):
         from top.bhav import sync_bhav
 
         print(f"Syncing BSE stocks and ETFs ({args.years} years of bhavcopies) into {DB_PATH}", flush=True)
@@ -490,7 +491,7 @@ def main(argv=None) -> int:
         except Exception as exc:  # noqa: BLE001
             print(f"BSE/ETF sync failed: {exc}", flush=True)
             failed = True
-    if not args.nifty:
+    if not (args.nifty or args.delivery):
         from top.indices import sync_indices
 
         print(f"Syncing NSE and BSE indices into {DB_PATH}", flush=True)
@@ -499,6 +500,16 @@ def main(argv=None) -> int:
             print(f"Indices: {out['nse_bars']} NSE and {out['bse_bars']} BSE new bars.", flush=True)
         except Exception as exc:  # noqa: BLE001
             print(f"Index sync failed: {exc}", flush=True)
+            failed = True
+    if not (args.nifty or args.indices):
+        from top.delivery import sync_delivery
+
+        print(f"Syncing NSE delivery % into {DB_PATH}", flush=True)
+        try:
+            out = sync_delivery(years=args.years, progress=lambda day, n, total, count: print(f"  {n:>4}/{total} {day} {count} names", flush=True))
+            print(f"Delivery: {out['rows']:,} new rows for {out['mapped']:,} mapped NSE tickers.", flush=True)
+        except Exception as exc:  # noqa: BLE001
+            print(f"Delivery sync failed: {exc}", flush=True)
             failed = True
     return 1 if failed else 0
 

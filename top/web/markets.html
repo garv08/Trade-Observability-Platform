@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Markets · TOP</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <link rel="stylesheet" href="/pages.css" />
+</head>
+<body class="page">
+  <header class="page-top">
+    <a class="page-logo" href="/" title="Back to the charting desk">TOP</a>
+    <div>
+      <h1>Markets</h1>
+      <div class="sub">Breadth, volatility regime, sector rotation, FII/DII flows and stock scans, from TOP's own data</div>
+    </div>
+    <div class="spacer"></div>
+    <a class="guide-link" href="/">Charting desk</a>
+    <a class="guide-link" href="/portfolio.html">Portfolio</a>
+    <a class="guide-link" href="/leaderboard.html">Leaderboard</a>
+    <a class="guide-link" href="/guide.html#markets" target="_blank" rel="noopener">Guide</a>
+  </header>
+
+  <main class="page-main">
+    <section class="cards" id="regime-cards"><div class="card muted">Loading…</div></section>
+
+    <section class="card">
+      <h2>Nifty 50 and its volatility regime</h2>
+      <p class="note">Shading shows Nifty's 20-day realised volatility ranked against its own past year: <span class="up">calm</span> (bottom third), normal, <span class="down">stressed</span> (top third). Calm, rising markets have historically been kinder to trend and breakout rules.</p>
+      <div id="regime-chart" class="chart"></div>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <h2>Breadth: % of stocks above their 50- and 200-day averages</h2>
+        <p class="note">BSE group A and B stocks, split adjusted. Below 30% is washed out; above 70% is broad strength.</p>
+        <div id="pct-chart" class="chart small"></div>
+      </div>
+      <div class="card">
+        <h2>New 52-week highs minus new lows</h2>
+        <p class="note">Daily count of stocks making a new 52-week high minus those making a new low.</p>
+        <div id="nhnl-chart" class="chart small"></div>
+      </div>
+    </section>
+
+    <section class="grid2">
+      <div class="card">
+        <h2>Sector rotation vs Nifty</h2>
+        <p class="note">NSE sector indices ranked by 3-month return relative to Nifty. Quadrants follow relative-rotation logic: <b>Leading</b> (ahead and gaining), <b>Weakening</b> (ahead but fading), <b>Improving</b> (behind but gaining), <b>Lagging</b>.</p>
+        <div class="table-wrap"><table class="data"><thead><tr><th class="l">Sector</th><th>1M rel</th><th>3M rel</th><th>6M rel</th><th>3M</th><th class="l">Quadrant</th></tr></thead><tbody id="sector-body"></tbody></table></div>
+      </div>
+      <div class="card">
+        <h2>FII / DII cash flows (₹ crore)</h2>
+        <p class="note">NSE's provisional daily figures. NSE only publishes the latest day, so this history builds up from each sync.</p>
+        <div class="table-wrap"><table class="data"><thead><tr><th class="l">Date</th><th>FII net</th><th>DII net</th><th>FII buy</th><th>FII sell</th></tr></thead><tbody id="fii-body"></tbody></table></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Stock scans</h2>
+      <div class="scan-bar">
+        <div class="chips" id="scan-chips"></div>
+        <label>Min daily value (₹ lakh) <input id="scan-value" type="number" min="0" step="5" value="10" /></label>
+      </div>
+      <p class="note" id="scan-rule"></p>
+      <div class="table-wrap"><table class="data"><thead><tr><th class="l">Stock</th><th>Close</th><th>Day</th><th>From 52w high</th><th>From 52w low</th><th>1-year</th><th>Vol 20d/1y</th><th>Value ₹ lakh</th><th>Delivery %</th></tr></thead><tbody id="scan-body"></tbody></table></div>
+      <p class="note">Click a stock to open it on the charting desk. Scans read the latest bar of each BSE stock with at least 200 days of history. Research only, not investment advice.</p>
+    </section>
+  </main>
+
+  <script src="/vendor/lightweight-charts.standalone.production.js"></script>
+  <script src="/markets.js"></script>
+</body>
+</html>

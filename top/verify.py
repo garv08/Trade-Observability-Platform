@@ -44,6 +44,8 @@ def run():
     check("trend reversal section", any(item["section"] == "Trend reversal" for item in strategies), "present")
     creator_counts = {handle: sum(1 for item in strategies if item.get("creator") == handle) for handle in ("@neurotrader888", "@UnbiasedTradingGoshawk")}
     check("YouTube creator strategies", all(count >= 4 for count in creator_counts.values()), ", ".join(f"{k} {v}" for k, v in creator_counts.items()))
+    research = [item for item in strategies if item["section"] == "Quant research"]
+    check("X research strategies", len(research) >= 4, f"{len(research)} ({', '.join(item['name'] for item in research)})")
 
     times, opens, highs, lows, closes = _gartley_frame()
     found = {name for event in detect(highs, lows, times, swing_pct=3, tolerance=0.05) for name in event["ids"]}
@@ -83,6 +85,18 @@ def run():
             (f"NSE {extended.get('nse_index', 0)} · BSE {extended.get('bse_index', 0)}" if extended.get("nse_index") or extended.get("bse_index")
              else "not synced yet (Sync history or top-sync --indices)"),
         )
+        from top import delivery as delivery_mod, markets
+
+        delivery_mod.ensure_tables(con)
+        deliv = con.execute("SELECT COUNT(DISTINCT symbol), MAX(ts) FROM delivery").fetchone()
+        fii = con.execute("SELECT COUNT(DISTINCT day) FROM fii_dii").fetchone()[0]
+        check("delivery % and FII/DII", True,
+              f"delivery for {deliv[0]:,} names to {deliv[1]} · FII/DII {fii} days" if deliv[0] else "not synced yet (Sync history or top-sync --delivery)")
+        breadth_rows = markets.breadth(con)
+        regime_now = markets.regime(con)["latest"]
+        check("market breadth and regime", True,
+              (f"{len(breadth_rows):,} days · {breadth_rows[-1]['pct_above200']}% above 200-day" if breadth_rows else "breadth needs BSE stocks")
+              + (f" · Nifty {regime_now['state']}" if regime_now else " · regime needs Nifty 50 index"))
         from top import leaderboard
 
         board = leaderboard.query(con, min_cagr=None, min_trades=0, limit=1)["computed"]

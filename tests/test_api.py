@@ -49,7 +49,9 @@ class ApiTests(unittest.TestCase):
 
     def test_static_files(self):
         for path, kind in (("/", "text/html"), ("/guide.html", "text/html"), ("/app.js", "javascript"), ("/styles.css", "text/css"),
-                           ("/leaderboard.html", "text/html"), ("/leaderboard.js", "javascript"), ("/vendor/lightweight-charts.standalone.production.js", "javascript")):
+                           ("/leaderboard.html", "text/html"), ("/leaderboard.js", "javascript"),
+                           ("/markets.html", "text/html"), ("/markets.js", "javascript"), ("/portfolio.html", "text/html"),
+                           ("/portfolio.js", "javascript"), ("/pages.css", "text/css"), ("/vendor/lightweight-charts.standalone.production.js", "javascript")):
             with self.subTest(path=path):
                 status, body, ctype = self.get(path)
                 self.assertEqual(status, 200)
@@ -153,6 +155,32 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertIn("text/csv", ctype)
         self.assertTrue(body.decode().startswith("rank,symbol,name,universe"))
+
+    def test_research_routes(self):
+        status, payload = self.post("/api/backtest", {"symbol": "TCS", "strategy": "tsmom_12m", "sizing": "vol_target", "target_vol": 10})
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["sizing"], "vol_target")
+        self.assertIn("kelly_pct", payload["metrics"])
+        self.assertIn("monte_carlo", payload)
+        status, payload = self.post("/api/walkforward", {"symbol": "TCS", "strategy": "sma_cross"})
+        self.assertEqual(status, 200)
+        self.assertTrue(payload["ok"])
+        status, payload = self.post("/api/studies", {"symbol": "TCS", "studies": [{"id": "delivery_pct", "params": {}}, {"id": "market_regime", "params": {}}]})
+        self.assertEqual(status, 200)
+        self.assertEqual(len(payload["studies"]), 2)
+        status, payload = self.get_json("/api/portfolio/strategies")
+        self.assertEqual({s["id"] for s in payload["strategies"]}, {"momentum_12_1", "low_vol", "sector_rotation", "etf_momentum"})
+        status, payload = self.post("/api/portfolio", {"strategy": "momentum_12_1", "universe": "nifty50", "top_n": 5})
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["metrics"]["avg_holdings"], 5.0)
+        status, payload = self.get_json("/api/markets/overview")
+        self.assertEqual(status, 200)
+        self.assertEqual(set(payload["counts"]), {s["name"] for s in payload["scans"]})
+        status, payload = self.get_json("/api/markets/breadth")
+        self.assertEqual(status, 200)
+        status, payload = self.get_json("/api/markets/scan?name=bloodbath&min_value=0")
+        self.assertEqual(status, 200)
+        self.assertEqual(payload["scan"], "bloodbath")
 
     def test_verify_route(self):
         status, payload = self.get_json("/api/verify")

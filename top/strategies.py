@@ -287,6 +287,10 @@ def _register():
 
     register_strategies(_add)
 
+    from top.research import register_strategies as register_research
+
+    register_research(_add)
+
 
 _register()
 

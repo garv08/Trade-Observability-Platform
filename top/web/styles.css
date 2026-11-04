@@ -249,3 +249,7 @@ th { color: var(--muted); font-weight: 600; position: sticky; top: 0; background
 .universe-chips { padding: 0; flex-wrap: wrap; }
 .universe-chips button em { font-style: normal; color: var(--muted); font-size: 11px; margin-left: 2px; }
 .universe-chips button.on em { color: #c8d3ff; }
+.robust { margin: 8px 0 4px; padding: 8px 10px; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; font-size: 12px; line-height: 1.5; }
+.robust p { margin: 0; }
+.robust b.down { color: var(--down); }
+.insight .metrics { margin: 8px 0; }

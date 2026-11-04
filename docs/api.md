@@ -51,7 +51,7 @@ Works for any listed symbol, for example `symbol=BSE%3AABB` or `symbol=NSE%3ANIF
 The study catalog. `pane` is `price` (overlay) or `osc` (own pane).
 
 ```json
-{"sections": ["Harmonics", "Moving averages", "..."], "count": 148,
+{"sections": ["Harmonics", "Moving averages", "..."], "count": 152,
  "indicators": [{"id": "sma", "name": "SMA", "section": "Moving averages", "pane": "price",
                  "params": [{"key": "length", "label": "Length", "type": "number", "default": 20, "min": 2, "max": 400, "step": 1}],
                  "outputs": ["sma"]}]}
@@ -60,7 +60,7 @@ The study catalog. `pane` is `price` (overlay) or `osc` (own pane).
 ### `GET /api/strategies`
 
 ```json
-{"count": 88, "strategies": [{"id": "sma_cross", "name": "SMA cross", "section": "Trend",
+{"count": 92, "strategies": [{"id": "sma_cross", "name": "SMA cross", "section": "Trend",
   "blurb": "Long when the fast SMA is above the slow SMA.", "params": [{"key": "fast", "default": 20, "...": "..."}]}]}
 ```
 
@@ -111,7 +111,7 @@ Ranked backtests from the stored leaderboard. Query parameters (all optional):
 
 ### `GET /api/leaderboard.csv`
 
-The same filters as `/api/leaderboard` (no paging), returned as a CSV attachment with every matching row in rank order: `rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, return_dd, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`. With the server stopped, `top-leaderboard --export file.csv [--min-cagr 15] [--min-trades 3] [--min-years 2] [--min-value 10] [--best]` writes the same file.
+The same filters as `/api/leaderboard` (no paging), returned as a CSV attachment with every matching row in rank order: `rank, symbol, name, universe, exchange, median_value_lakh, strategy, strategy_name, section, ratio, return_dd, psr_pct, dsr_pct, cagr_pct, max_dd_pct, total_return_pct, buy_hold_pct, trades, win_rate_pct, profit_factor, sharpe, exposure_pct, in_position, years, first_day, last_day, computed_at`. With the server stopped, `top-leaderboard --export file.csv [--min-cagr 15] [--min-trades 3] [--min-years 2] [--min-value 10] [--best]` writes the same file.
 
 ### `GET /api/leaderboard/strategies` and `/api/leaderboard/strategies.csv`
 
@@ -130,6 +130,18 @@ Strategies ranked across scripts. Per (script, strategy), `return_dd = total_ret
 ### `GET /api/leaderboard/status`
 
 Just the job state: `running`, `done`, `total`, `skipped`, `rate_per_min`, `eta_seconds`, `message`, `workers`.
+
+### `GET /api/markets/overview?min_value=10`
+
+Nifty volatility regime (`regime.latest` and the last two years of `regime.series`: `close`, `vol`, `vol_pct`, `state`, `above200`, `dd_pct`), `sectors` (1/3/6-month absolute and relative returns and `quadrant`), `scans` (names and rules), `counts` per scan, and `fii_dii` snapshots.
+
+### `GET /api/markets/breadth`
+
+Daily breadth over BSE group A and B stocks: `stocks`, `advances`, `declines`, `pct_above50`, `pct_above200`, `new_highs`, `new_lows`, `nh_nl`, `ad_line`.
+
+### `GET /api/markets/scan?name=bloodbath&min_value=10`
+
+One scan's matching stocks with `close`, `change_pct`, `from_high_pct`, `from_low_pct`, `ret_252_pct`, `vol_ratio`, `value_lakh` and `delivery_pct`. Names: `bloodbath`, `multi_year_breakout`, `weekly_breakout`, `breakout_soon`, `leaders`, `multibagger`, `near_low`, `delivery_surge`.
 
 ## POST routes
 
@@ -150,6 +162,22 @@ Send `Content-Type: application/json`.
 ```
 
 `action` is `start` (default; resumes and skips scripts that are already current unless `force` is true) or `stop`. Optional `workers` sets the process count. Returns the job state immediately.
+
+### `POST /api/walkforward`
+
+```json
+{"symbol": "INFY", "strategy": "sma_cross", "params": {"fast": 20}, "capital": 1000000, "cost_bps": 5}
+```
+
+Re-picks the strategy's first numeric setting each calendar year (after two training years) from five values around the current one, using only earlier data, and stitches the out-of-sample years. Returns `ok`, `param` (`key`, `label`, `current`, `grid`), `years` (per test year: chosen `value`, `oos_return_pct`, `fixed_return_pct`), `oos` and `fixed` (`cagr_pct`, `max_dd_pct`, `total_return_pct`), `changes`, `verdict` (`stable` / `unstable`) and `equity`. Strategies without a numeric setting return `ok: false`.
+
+### `POST /api/portfolio`
+
+```json
+{"strategy": "momentum_12_1", "universe": "bse_a", "top_n": 20, "min_value": 10, "gate": "none", "cost_bps": 5, "capital": 1000000, "sweep": false}
+```
+
+`strategy` is `momentum_12_1`, `low_vol`, `sector_rotation` or `etf_momentum`; `universe` is `nifty50`, `bse_a`, `sectors` or `etf`; `gate` is `none`, `positive` or `market`. Returns `metrics` (`cagr_pct`, `max_drawdown_pct`, `cagr_dd`, `return_dd`, `sharpe`, `avg_turnover_pct`, `avg_holdings`, `rebalances`, and `benchmark` with the same for Nifty 50), `equity`, `benchmark`, `underwater`, `holdings`, `rebalances` (last 24) and, with `sweep: true`, `sweep` rows for N = 1…50. `GET /api/portfolio/strategies` lists strategies, universes and filters.
 
 ### `POST /api/studies`
 
@@ -175,8 +203,11 @@ Response. Series are aligned to `time`; `null` means no value yet.
 ### `POST /api/backtest`
 
 ```json
-{"symbol": "TCS", "strategy": "sma_cross", "params": {"fast": 20, "slow": 50}, "capital": 1000000, "cost_bps": 5}
+{"symbol": "TCS", "strategy": "sma_cross", "params": {"fast": 20, "slow": 50}, "capital": 1000000, "cost_bps": 5,
+ "sizing": "full", "target_vol": 15}
 ```
+
+`sizing` is `full` (default), `vol_target` (target_vol ÷ 20-day realised volatility, capped at 100%) or `half_kelly` (half the Kelly fraction from earlier signal trades).
 
 ```json
 {"symbol": "TCS", "strategy": "sma_cross", "start": "2022-01-12", "end": "2026-10-30",
@@ -185,8 +216,10 @@ Response. Series are aligned to `time`; `null` means no value yet.
              "pnl": -90149.29, "return_pct": -9.01, "bars": 18, "open": false}],
  "metrics": {"total_return_pct": 12.3, "cagr_pct": 2.5, "max_drawdown_pct": -18.1, "sharpe": 0.31, "sortino": 0.44,
              "win_rate_pct": 41.2, "profit_factor": 1.18, "trades": 17, "closed_trades": 16, "avg_trade_pct": 0.9,
-             "exposure_pct": 58.3, "buy_hold_pct": 20.4, "ending_equity": 1123000.0},
- "methodology": "Signal at the close. Fill at the next session open. ..."}
+             "exposure_pct": 58.3, "buy_hold_pct": 20.4, "kelly_pct": 6.1, "avg_position_pct": 100.0, "ending_equity": 1123000.0},
+ "monte_carlo": {"runs": 1000, "trades": 16, "max_dd_pct": {"p5": -31.2, "p50": -19.8, "p95": -12.0}, "actual_trade_dd_pct": -18.4,
+                 "worse_dd_share_pct": 41.3, "total_return_pct": 12.3, "note": "..."},
+ "sizing": "full", "methodology": "Signal at the close. Fill at the next session open. ..."}
 ```
 
 ### `POST /api/trend`

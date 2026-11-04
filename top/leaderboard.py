@@ -15,6 +15,7 @@ Ranking metric: CAGR / |max drawdown| (both in %), sometimes called the MAR rati
 from __future__ import annotations
 
 import hashlib
+import math
 import multiprocessing
 import os
 import threading
@@ -41,6 +42,7 @@ UNIVERSE_GROUPS = {
 SORTS = {
     "ratio": "ratio DESC NULLS LAST",
     "return_dd": "return_dd DESC NULLS LAST",
+    "dsr": "dsr_z DESC NULLS LAST",
     "cagr": "cagr_pct DESC NULLS LAST",
     "max_dd": "max_dd_pct DESC NULLS LAST",
     "sharpe": "sharpe DESC NULLS LAST",
@@ -118,6 +120,17 @@ def ensure_tables(con):
         "CREATE TABLE IF NOT EXISTS leaderboard_done (symbol VARCHAR PRIMARY KEY, last_day DATE, catalog_key VARCHAR, strategies INTEGER, computed_at TIMESTAMP)"
     )
     con.execute("CREATE TABLE IF NOT EXISTS leaderboard_liquidity (symbol VARCHAR PRIMARY KEY, median_value_lakh DOUBLE)")
+    if "ids" not in {c[1] for c in con.execute("PRAGMA table_info('leaderboard_done')").fetchall()}:
+        # Before per-strategy tracking, a row meant "every strategy at the time was run". Record what was stored.
+        con.execute("ALTER TABLE leaderboard_done ADD COLUMN ids VARCHAR")
+        con.execute(
+            """
+            UPDATE leaderboard_done SET catalog_key = ?, ids = COALESCE(
+                (SELECT string_agg(strategy, ',' ORDER BY strategy) FROM leaderboard l WHERE l.symbol = leaderboard_done.symbol), '')
+            """,
+            [catalog_key()],
+        )
+    con.execute("CREATE TABLE IF NOT EXISTS leaderboard_trials (symbol VARCHAR PRIMARY KEY, trials INTEGER, sr_std DOUBLE, sr_star DOUBLE)")
     con.execute("CREATE TABLE IF NOT EXISTS meta (key VARCHAR PRIMARY KEY, value VARCHAR)")
     floor = con.execute("SELECT value FROM meta WHERE key = 'leaderboard_dd_floor'").fetchone()
     if floor is None or floor[0] != str(DD_FLOOR):
@@ -137,8 +150,11 @@ def ensure_tables(con):
             """
         )
         con.execute("INSERT INTO meta VALUES ('leaderboard_years', 'tested') ON CONFLICT (key) DO UPDATE SET value = excluded.value")
-    if con.execute("SELECT COUNT(*) FROM leaderboard_liquidity").fetchone()[0] == 0 and con.execute("SELECT COUNT(*) FROM leaderboard").fetchone()[0]:
+    has_rows = con.execute("SELECT COUNT(*) FROM leaderboard").fetchone()[0] > 0
+    if has_rows and con.execute("SELECT COUNT(*) FROM leaderboard_liquidity").fetchone()[0] == 0:
         refresh_liquidity(con)
+    if has_rows and con.execute("SELECT COUNT(*) FROM leaderboard_trials").fetchone()[0] == 0:
+        refresh_trials(con)
     _tables_ready["path"] = str(store.DB_PATH)
 
 
@@ -156,11 +172,71 @@ def refresh_liquidity(con):
     )
 
 
-def catalog_key():
+# ---------------------------------------------------------------- probabilistic and deflated Sharpe
+
+EULER_GAMMA = 0.5772156649015329
+
+
+def norm_cdf(z):
+    return 0.5 * (1 + math.erf(z / math.sqrt(2)))
+
+
+def norm_ppf(p):
+    """Inverse standard normal CDF (Acklam's rational approximation, |error| < 1.2e-9)."""
+    if not 0 < p < 1:
+        raise ValueError("p must be in (0, 1)")
+    a = (-3.969683028665376e01, 2.209460984245205e02, -2.759285104469687e02, 1.383577518672690e02, -3.066479806614716e01, 2.506628277459239e00)
+    b = (-5.447609879822406e01, 1.615858368580409e02, -1.556989798598866e02, 6.680131188771972e01, -1.328068155288572e01)
+    c = (-7.784894002430293e-03, -3.223964580411365e-01, -2.400758277161838e00, -2.549732539343734e00, 4.374664141464968e00, 2.938163982698783e00)
+    d = (7.784695709041462e-03, 3.224671290700398e-01, 2.445134137142996e00, 3.754408661907416e00)
+    lo, hi = 0.02425, 1 - 0.02425
+    if p < lo:
+        q = math.sqrt(-2 * math.log(p))
+        return (((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    if p > hi:
+        q = math.sqrt(-2 * math.log(1 - p))
+        return -(((((c[0] * q + c[1]) * q + c[2]) * q + c[3]) * q + c[4]) * q + c[5]) / ((((d[0] * q + d[1]) * q + d[2]) * q + d[3]) * q + 1)
+    q = p - 0.5
+    r = q * q
+    return (((((a[0] * r + a[1]) * r + a[2]) * r + a[3]) * r + a[4]) * r + a[5]) * q / (((((b[0] * r + b[1]) * r + b[2]) * r + b[3]) * r + b[4]) * r + 1)
+
+
+def expected_max_sharpe(sr_std, trials):
+    """Expected best Sharpe among `trials` unskilled strategies whose Sharpes have spread sr_std (Bailey & López de Prado)."""
+    if trials < 2 or not sr_std:
+        return 0.0
+    return sr_std * ((1 - EULER_GAMMA) * norm_ppf(1 - 1 / trials) + EULER_GAMMA * norm_ppf(1 - 1 / (trials * math.e)))
+
+
+def refresh_trials(con):
+    """Per script: number of strategies tried, spread of their daily Sharpes, and the luck threshold SR*."""
+    from top.bhav import _copy_into_temp
+
+    rows = con.execute(
+        "SELECT symbol, COUNT(*), stddev_samp(sharpe / sqrt(252)) FROM leaderboard WHERE sharpe IS NOT NULL GROUP BY symbol"
+    ).fetchall()
+    out = [(symbol, int(n), float(std or 0.0), expected_max_sharpe(float(std or 0.0), int(n))) for symbol, n, std in rows]
+    con.execute("DELETE FROM leaderboard_trials")
+    if out:
+        _copy_into_temp(con, "trials_in", "symbol VARCHAR, trials INTEGER, sr_std DOUBLE, sr_star DOUBLE", out)
+        con.execute("INSERT INTO leaderboard_trials SELECT * FROM trials_in")
+
+
+# z-scores for PSR and DSR, assuming normal daily returns: z = (SR - SR0) * sqrt(n - 1) / sqrt(1 + SR^2 / 2),
+# with SR the daily Sharpe and n the tested days. PSR uses SR0 = 0, DSR uses SR0 = SR* for the script.
+PSR_Z_SQL = "(l.sharpe / sqrt(252)) * sqrt(greatest(l.years * 252 - 1, 1)) / sqrt(1 + power(l.sharpe / sqrt(252), 2) / 2)"
+DSR_Z_SQL = "(l.sharpe / sqrt(252) - COALESCE(t.sr_star, 0)) * sqrt(greatest(l.years * 252 - 1, 1)) / sqrt(1 + power(l.sharpe / sqrt(252), 2) / 2)"
+
+
+def catalog_ids():
     from top.strategies import catalog
 
-    ids = ",".join(sorted(item["id"] for item in catalog()))
-    return hashlib.sha1(f"{VERSION}|{CAPITAL}|{COST_BPS}|{ids}".encode()).hexdigest()[:16]
+    return sorted(item["id"] for item in catalog())
+
+
+def catalog_key():
+    """Settings that, if changed, invalidate every stored row. New strategies don't: they are added per script."""
+    return hashlib.sha1(f"{VERSION}|{CAPITAL}|{COST_BPS}".encode()).hexdigest()[:16]
 
 
 # ---------------------------------------------------------------- worker side
@@ -219,13 +295,16 @@ def evaluate(payload):
     from top.indicators import Frame
     from top.strategies import STRATEGIES, signal
 
-    symbol, ts, o, h, l, c, v = payload
+    symbol, ts, o, h, l, c, v, *rest = payload
+    only = set(rest[0]) if rest and rest[0] else None
     problem = data_problem(ts, c)
     if problem:
-        return symbol, ts[-1], [], 0, problem
+        return symbol, ts[-1], [], 0, problem, rest[0] if rest else None
     frame = Frame(ts, o, h, l, c, v)
     rows, errors = [], 0
     for item in STRATEGIES:
+        if only is not None and item["id"] not in only:
+            continue
         try:
             position = signal(item["id"], frame, {})
             m = metrics(frame.o, frame.c, position, capital=CAPITAL, cost_bps=COST_BPS)
@@ -241,7 +320,7 @@ def evaluate(payload):
                      _num(m.get("buy_hold_pct")), int(m.get("trades") or 0), _num(m.get("win_rate_pct")),
                      _num(m.get("profit_factor")), _num(m.get("sharpe")), _num(m.get("exposure_pct")),
                      in_position, round(tested, 2), ts[start] if start < len(ts) else ts[0], ts[-1]))
-    return symbol, ts[-1], rows, errors, None
+    return symbol, ts[-1], rows, errors, None, rest[0] if rest else None
 
 
 # ---------------------------------------------------------------- parent side
@@ -261,36 +340,69 @@ def members(con, force=False):
         [*EXCLUDE_LIKE, MIN_BARS],
     ).fetchall()
     key = catalog_key()
-    done = {} if force else {s: (d, k) for s, d, k in con.execute("SELECT symbol, last_day, catalog_key FROM leaderboard_done").fetchall()}
+    wanted = set(catalog_ids())
+    done = {} if force else {s: (d, k, set(filter(None, (i or "").split(","))))
+                             for s, d, k, i in con.execute("SELECT symbol, last_day, catalog_key, ids FROM leaderboard_done").fetchall()}
     todo, current = [], 0
     for symbol, universe, _, last, turnover in rows:
-        if done.get(symbol) == (last, key):
-            current += 1
-            continue
-        todo.append((PRIORITY.get(universe, 9), -(turnover or 0), symbol))
-    todo.sort()
-    return [symbol for _, _, symbol in todo], current, len(rows)
+        previous = done.get(symbol)
+        only = None
+        if previous and previous[0] == last and previous[1] == key:
+            missing = wanted - previous[2]
+            if not missing:
+                current += 1
+                continue
+            only = tuple(sorted(missing))
+        todo.append((PRIORITY.get(universe, 9), -(turnover or 0), symbol, only))
+    # Partial updates (only newly added strategies) are cheap, so they go first.
+    todo.sort(key=lambda x: (x[3] is None, x[0], x[1], x[2]))
+    return [(symbol, only) for _, _, symbol, only in todo], current, len(rows)
 
 
-def _load(con, symbol):
+def _load(con, symbol, only=None):
     bars = store.load_bars(con, symbol)
     return (symbol, [b["time"] for b in bars], [b["open"] for b in bars], [b["high"] for b in bars],
-            [b["low"] for b in bars], [b["close"] for b in bars], [b["volume"] for b in bars])
+            [b["low"] for b in bars], [b["close"] for b in bars], [b["volume"] for b in bars], only)
 
 
 def save(con, results, key):
     from top.bhav import _copy_into_temp
 
     stamp = datetime.now().isoformat(timespec="seconds")
-    flat = [(*row, stamp) for _, _, rows, *_ in results for row in rows]
-    symbols = [(symbol, last, key, len(rows), stamp) for symbol, last, rows, *_ in results]
     ensure_tables(con)
-    _copy_into_temp(con, "lb_done_in", "symbol VARCHAR, last_day DATE, catalog_key VARCHAR, strategies INTEGER, computed_at TIMESTAMP", symbols)
-    con.execute("DELETE FROM leaderboard WHERE symbol IN (SELECT symbol FROM lb_done_in)")
+    every = catalog_ids()
+    flat = [(*row, stamp) for _, _, rows, *_ in results for row in rows]
+    full = [r for r in results if not (len(r) > 5 and r[5])]
+    partial = [r for r in results if len(r) > 5 and r[5]]
+    previous = {}
+    if partial:
+        placeholders = ", ".join("?" for _ in partial)
+        previous = dict(con.execute(f"SELECT symbol, ids FROM leaderboard_done WHERE symbol IN ({placeholders})", [r[0] for r in partial]).fetchall())
+    done_rows = []
+    for symbol, last, rows, *rest in full:
+        done_rows.append((symbol, last, key, len(rows), stamp, ",".join(every)))
+    for symbol, last, rows, _errors, _problem, only in partial:
+        ids = sorted(set(filter(None, (previous.get(symbol) or "").split(","))) | set(only))
+        done_rows.append((symbol, last, key, len(rows), stamp, ",".join(ids)))
+    _copy_into_temp(con, "lb_done_in", "symbol VARCHAR, last_day DATE, catalog_key VARCHAR, strategies INTEGER, computed_at TIMESTAMP, ids VARCHAR", done_rows)
+    if full:
+        _copy_into_temp(con, "lb_full_in", "symbol VARCHAR", [(r[0],) for r in full])
+        con.execute("DELETE FROM leaderboard WHERE symbol IN (SELECT symbol FROM lb_full_in)")
+    if partial:
+        _copy_into_temp(con, "lb_part_in", "symbol VARCHAR, strategy VARCHAR", [(r[0], sid) for r in partial for sid in r[5]])
+        con.execute("DELETE FROM leaderboard USING lb_part_in p WHERE leaderboard.symbol = p.symbol AND leaderboard.strategy = p.strategy")
     if flat:
         _copy_into_temp(con, "lb_in", COLUMNS, flat)
         con.execute("INSERT INTO leaderboard SELECT * FROM lb_in")
+    # Partial rows keep the stored strategy count up to date.
     con.execute("INSERT OR REPLACE INTO leaderboard_done SELECT * FROM lb_done_in")
+    if partial:
+        con.execute(
+            """
+            UPDATE leaderboard_done SET strategies = (SELECT COUNT(*) FROM leaderboard l WHERE l.symbol = leaderboard_done.symbol)
+            WHERE symbol IN (SELECT symbol FROM lb_part_in)
+            """
+        )
 
 
 def run_all(workers=None, force=False, limit=None, progress=None):
@@ -333,7 +445,7 @@ def run_all(workers=None, force=False, limit=None, progress=None):
                         break
                     batch = todo[start:start + BATCH]
                     with store.session() as con:
-                        payloads = [_load(con, symbol) for symbol in batch]
+                        payloads = [_load(con, symbol, only) for symbol, only in batch]
                     results = pool.map(payloads)
                     with store.session() as con:
                         save(con, results, key)
@@ -342,11 +454,11 @@ def run_all(workers=None, force=False, limit=None, progress=None):
                     excluded += sum(1 for r in results if len(r) > 4 and r[4])
                     elapsed = time.time() - began
                     rate = done / elapsed if elapsed else 0
-                    _set(done=done, errors=errors, excluded=excluded, symbol=batch[-1], rate_per_min=round(rate * 60, 1),
+                    _set(done=done, errors=errors, excluded=excluded, symbol=batch[-1][0], rate_per_min=round(rate * 60, 1),
                          eta_seconds=int((total - done) / rate) if rate else None,
                          message=f"{done:,} of {total:,} symbols")
                     if progress:
-                        progress(done, total, batch[-1])
+                        progress(done, total, batch[-1][0])
                 if _stop.is_set() or limit or attempt == 2:
                     break
                 with store.session() as con:
@@ -359,6 +471,7 @@ def run_all(workers=None, force=False, limit=None, progress=None):
             pool.close()
         with store.session() as con:
             refresh_liquidity(con)
+            refresh_trials(con)
         stopped = _stop.is_set()
         _set(running=False, finished=datetime.now().isoformat(timespec="seconds"), eta_seconds=None,
              message=("stopped" if stopped else "complete") + f": {done:,} symbols computed")
@@ -393,7 +506,7 @@ def stop():
 # ---------------------------------------------------------------- reading
 
 def _filtered(min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_years=0.0, search="", best=False, sort="ratio",
-              min_value=None):
+              min_value=None, min_dsr=None):
     """SQL for the filtered leaderboard: (base query, args, order, filters without universe, their args)."""
     where = ["l.trades >= ?", "l.years >= ?", "l.ratio IS NOT NULL"]
     args = [int(min_trades), float(min_years)]
@@ -403,6 +516,9 @@ def _filtered(min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_ye
     if strategy:
         where.append("l.strategy = ?")
         args.append(strategy)
+    if min_dsr:
+        where.append(f"{DSR_Z_SQL} >= ?")
+        args.append(norm_ppf(min(max(float(min_dsr), 0.1), 99.9) / 100))
     if min_value:
         # Indices are not traded themselves, so the liquidity floor applies to stocks and ETFs only.
         where.append("(s.kind = 'index' OR COALESCE(q.median_value_lakh, 0) >= ?)")
@@ -418,8 +534,10 @@ def _filtered(min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_ye
     order = SORTS.get(sort, SORTS["ratio"])
     base = f"""
         SELECT l.*, round(l.total_return_pct / greatest(abs(l.max_dd_pct), {DD_FLOOR}), 4) AS return_dd,
+               {PSR_Z_SQL} AS psr_z, {DSR_Z_SQL} AS dsr_z,
                s.name, COALESCE(s.universe, 'nifty50') AS universe, s.exchange, q.median_value_lakh
         FROM leaderboard l JOIN symbols s ON s.symbol = l.symbol LEFT JOIN leaderboard_liquidity q ON q.symbol = l.symbol
+             LEFT JOIN leaderboard_trials t ON t.symbol = l.symbol
         WHERE {' AND '.join(where)}
     """
     if best:
@@ -428,7 +546,7 @@ def _filtered(min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_ye
     return base, args, order, chip_where, chip_args
 
 
-CSV_COLUMNS = ("symbol", "name", "universe", "exchange", "median_value_lakh", "strategy", "strategy_name", "section", "ratio", "return_dd", "cagr_pct", "max_dd_pct",
+CSV_COLUMNS = ("symbol", "name", "universe", "exchange", "median_value_lakh", "strategy", "strategy_name", "section", "ratio", "return_dd", "psr_pct", "dsr_pct", "cagr_pct", "max_dd_pct",
                "total_return_pct", "buy_hold_pct", "trades", "win_rate_pct", "profit_factor", "sharpe", "exposure_pct",
                "in_position", "years", "first_day", "last_day", "computed_at")
 
@@ -452,7 +570,7 @@ def export_csv(con, handle, **filters):
         if not chunk:
             break
         for raw in chunk:
-            row = dict(zip(cols, raw))
+            row = _probabilities(dict(zip(cols, raw)))
             meta = names.get(row["strategy"], {})
             row["strategy_name"] = meta.get("name", row["strategy"])
             row["section"] = meta.get("section", "")
@@ -461,16 +579,24 @@ def export_csv(con, handle, **filters):
     return rank
 
 
+def _probabilities(row):
+    for key in ("psr", "dsr"):
+        z = row.pop(f"{key}_z", None)
+        row[f"{key}_pct"] = None if z is None else round(100 * norm_cdf(z), 1)
+    return row
+
+
 def query(con, min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_years=0.0, search="",
-          best=False, sort="ratio", limit=100, offset=0, min_value=None):
+          best=False, sort="ratio", limit=100, offset=0, min_value=None, min_dsr=None):
     """Ranked rows plus totals. Filters apply before ranking; best=True keeps each symbol's top row."""
     ensure_tables(con)
-    base, args, order, chip_where, chip_args = _filtered(min_cagr, universe, strategy, min_trades, min_years, search, best, sort, min_value)
+    base, args, order, chip_where, chip_args = _filtered(min_cagr, universe, strategy, min_trades, min_years, search, best, sort, min_value, min_dsr)
     total = con.execute(f"SELECT COUNT(*), COUNT(DISTINCT symbol) FROM ({base})", args).fetchone()
     cursor = con.execute(f"SELECT * FROM ({base}) ORDER BY {order}, symbol, strategy LIMIT ? OFFSET ?", [*args, int(limit), int(offset)])
     names = [d[0] for d in cursor.description]
     rows = [dict(zip(names, r)) for r in cursor.fetchall()]
     for row in rows:
+        _probabilities(row)
         for k in ("first_day", "last_day", "computed_at"):
             if row.get(k) is not None:
                 row[k] = str(row[k])
@@ -486,6 +612,7 @@ def query(con, min_cagr=15.0, universe="all", strategy=None, min_trades=1, min_y
         f"""
         SELECT COALESCE(s.universe, 'nifty50'), COUNT(DISTINCT l.symbol)
         FROM leaderboard l JOIN symbols s ON s.symbol = l.symbol LEFT JOIN leaderboard_liquidity q ON q.symbol = l.symbol
+             LEFT JOIN leaderboard_trials t ON t.symbol = l.symbol
         WHERE {' AND '.join(chip_where)} GROUP BY 1
         """,
         chip_args,
@@ -513,11 +640,12 @@ STRATEGY_SORTS = {
     "median_cagr_dd": "median_cagr_dd DESC NULLS LAST",
     "pct_profitable": "pct_profitable DESC NULLS LAST",
     "pct_beat_hold": "pct_beat_hold DESC NULLS LAST",
+    "pct_dsr95": "pct_dsr95 DESC NULLS LAST",
     "scripts": "scripts DESC",
 }
 STRATEGY_COLUMNS = ("rank", "strategy", "strategy_name", "section", "creator", "scripts", "median_return_dd", "mean_return_dd",
                     "p25_return_dd", "p75_return_dd", "median_return_pct", "median_max_dd_pct", "median_cagr_pct", "median_cagr_dd",
-                    "pct_profitable", "pct_beat_hold", "median_trades", "median_years", "best_symbol", "best_return_dd")
+                    "pct_profitable", "pct_beat_hold", "median_trades", "median_years", "pct_dsr95", "best_symbol", "best_return_dd")
 
 
 def strategy_ranking(con, universe="all", min_trades=3, min_years=2.0, min_value=10.0, min_scripts=50, sort="median_return_dd"):
@@ -546,6 +674,7 @@ def strategy_ranking(con, universe="all", min_trades=3, min_years=2.0, min_value
                100.0 * avg(CASE WHEN total_return_pct > 0 THEN 1 ELSE 0 END) AS pct_profitable,
                100.0 * avg(CASE WHEN total_return_pct > buy_hold_pct THEN 1 ELSE 0 END) AS pct_beat_hold,
                median(trades) AS median_trades, median(years) AS median_years,
+               100.0 * avg(CASE WHEN dsr_z >= 1.6448536 THEN 1 ELSE 0 END) AS pct_dsr95,
                first(symbol ORDER BY return_dd DESC, symbol) AS best_symbol, max(return_dd) AS best_return_dd
         FROM r GROUP BY strategy HAVING COUNT(*) >= ?
         ORDER BY {order}, strategy
@@ -610,6 +739,7 @@ def main(argv=None) -> int:
     parser.add_argument("--min-trades", type=int, default=0, help="with --export: minimum trades")
     parser.add_argument("--best", action="store_true", help="with --export: only each script's best strategy")
     parser.add_argument("--min-years", type=float, default=0.0, help="with --export: minimum years tested")
+    parser.add_argument("--min-dsr", type=float, default=None, help="with --export: minimum deflated Sharpe probability in %%")
     parser.add_argument("--min-value", type=float, default=None, help="with --export: minimum median daily traded value in ₹ lakh (indices exempt)")
     parser.add_argument("--strategies", metavar="CSV", help="write the strategy ranking (median total return / max DD across scripts) to this CSV")
     parser.add_argument("--results", metavar="DIR", help="compute (resuming), then write every committed results file into DIR")
@@ -621,7 +751,7 @@ def main(argv=None) -> int:
         store._schema_ready = False
     if args.export:
         with store.session() as con, open(args.export, "w", newline="", encoding="utf-8") as handle:
-            n = export_csv(con, handle, min_cagr=args.min_cagr, min_trades=args.min_trades, best=args.best, min_value=args.min_value, min_years=args.min_years)
+            n = export_csv(con, handle, min_cagr=args.min_cagr, min_trades=args.min_trades, best=args.best, min_value=args.min_value, min_years=args.min_years, min_dsr=args.min_dsr)
         print(f"wrote {n:,} rows to {args.export}", flush=True)
         return 0
     if args.strategies:
