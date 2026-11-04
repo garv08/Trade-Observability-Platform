@@ -1,8 +1,8 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const CHIPS = [["all", "All"], ["nifty50", "Nifty 50"], ["index", "Indices"], ["etf", "ETFs"], ["bse", "BSE"]];
-const UNIVERSE_LABEL = { nifty50: "Nifty 50", nse_index: "NSE index", bse_index: "BSE index", nse_etf: "NSE ETF", bse_etf: "BSE ETF", bse: "BSE" };
+const CHIPS = [["all", "All"], ["nifty50", "Nifty 50"], ["index", "Indices"], ["etf", "ETFs"], ["nse", "NSE"], ["bse", "BSE"]];
+const UNIVERSE_LABEL = { nifty50: "Nifty 50", nse_index: "NSE index", bse_index: "BSE index", nse_etf: "NSE ETF", bse_etf: "BSE ETF", nse: "NSE", bse: "BSE" };
 const PAGE = 100;
 const state = { view: "scripts", universe: "all", offset: 0, strategies: {}, last: null, timer: null, loading: false };
 
@@ -105,7 +105,7 @@ function renderStatus(st, computed) {
 function rowHtml(r, i) {
   const s = state.strategies[r.strategy] || { name: r.strategy, section: "" };
   const universe = r.universe || "nifty50";
-  const chip = { nse_index: "index", bse_index: "index", nse_etf: "etf", bse_etf: "etf", bse: "bse" }[universe] || "nifty50";
+  const chip = { nse_index: "index", bse_index: "index", nse_etf: "etf", bse_etf: "etf", nse: "nse", bse: "bse" }[universe] || "nifty50";
   const href = `/?symbol=${encodeURIComponent(r.symbol)}&strategy=${encodeURIComponent(r.strategy)}&universe=${chip}&run=backtest`;
   return `<tr data-href="${esc(href)}" title="Open ${esc(r.symbol)} with ${esc(s.name)} on the chart">
     <td>${state.offset + i + 1}</td>

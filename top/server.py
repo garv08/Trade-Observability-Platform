@@ -145,7 +145,7 @@ class Handler(BaseHTTPRequestHandler):
                     raise ValueError("Fundamentals are not available for ETFs. Screener.in covers companies only.")
                 if info.get("kind") == "index":
                     raise ValueError("Fundamentals are not available for indices. Screener.in covers companies only.")
-                screener_id = info.get("code") if info.get("exchange") == "BSE" else symbol
+                screener_id = info.get("code") if info.get("exchange") == "BSE" or info.get("universe") == "nse" else symbol
                 payload = load_fundamentals(symbol, screener_id)
             elif parsed.path == "/api/verify":
                 payload = run_verify()
@@ -385,8 +385,9 @@ UNIVERSE_GROUPS = {
     "nifty50": ("nifty50",),
     "index": ("nse_index", "bse_index"),
     "etf": ("nse_etf", "bse_etf"),
+    "nse": ("nifty50", "nse"),
     "bse": ("bse",),
-    "all": ("nifty50", "nse_index", "bse_index", "nse_etf", "bse_etf", "bse"),
+    "all": ("nifty50", "nse_index", "bse_index", "nse_etf", "bse_etf", "nse", "bse"),
 }
 
 

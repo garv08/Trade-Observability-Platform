@@ -256,8 +256,9 @@ const UNIVERSE_CHIPS = [
   ["nifty50", "Nifty 50", ["nifty50"]],
   ["index", "Indices", ["nse_index", "bse_index"]],
   ["etf", "ETFs", ["nse_etf", "bse_etf"]],
+  ["nse", "NSE", ["nifty50", "nse"]],
   ["bse", "BSE", ["bse"]],
-  ["all", "All", ["nifty50", "nse_index", "bse_index", "nse_etf", "bse_etf", "bse"]],
+  ["all", "All", ["nifty50", "nse_index", "bse_index", "nse_etf", "bse_etf", "nse", "bse"]],
 ];
 
 function universeMembers(key = state.universe) {
@@ -269,6 +270,7 @@ function stockGroup(row) {
   if (row.universe === "nse_etf") return `NSE ETFs · ${(row.sector || "ETF").toLowerCase()}`;
   if (row.universe === "bse_etf") return "BSE ETFs";
   if (row.universe === "bse") return `BSE · group ${row.group || "?"}`;
+  if (row.universe === "nse") return `NSE · series ${row.group || "EQ"}`;
   if (row.universe === "nse_index") return "NSE indices";
   if (row.universe === "bse_index") return "BSE indices";
   return `Nifty 50 · ${SECTOR_SHORT[row.sector] || row.sector}`;
@@ -283,7 +285,7 @@ function renderUniverse() {
   $("stock-count").textContent = `${members.length.toLocaleString("en-IN")} names`;
   const stockInput = document.querySelector("#stock-combo input");
   if (stockInput) stockInput.placeholder = stockPlaceholder();
-  const label = { nifty50: "Backtest Nifty 50", index: "Backtest indices", etf: "Backtest ETFs", bse: "Backtest BSE", all: "Backtest all" }[state.universe];
+  const label = { nifty50: "Backtest Nifty 50", index: "Backtest indices", etf: "Backtest ETFs", nse: "Backtest NSE", bse: "Backtest BSE", all: "Backtest all" }[state.universe];
   const button = $("scan-50");
   if (!button.disabled) button.textContent = label;
   button.title = state.universe === "nifty50" ? "Run the strategy on all 50 stocks" : "Run the strategy on the 200 most traded names in this universe";
@@ -293,7 +295,7 @@ const stockCache = { symbols: null, all: [], byUniverse: {} };
 
 function allStockItems() {
   if (stockCache.symbols === state.symbols) return stockCache.all;
-  const order = { nifty50: 0, nse_index: 1, bse_index: 2, nse_etf: 3, bse_etf: 4, bse: 5 };
+  const order = { nifty50: 0, nse_index: 1, bse_index: 2, nse_etf: 3, bse_etf: 4, nse: 5, bse: 6 };
   stockCache.symbols = state.symbols;
   stockCache.byUniverse = {};
   stockCache.all = state.symbols.map((row) => {
@@ -328,7 +330,7 @@ function stockItems(key = state.universe) {
 function stockScore(item, query) {
   const chip = UNIVERSE_CHIPS.find((entry) => entry[0] === state.universe) || UNIVERSE_CHIPS[0];
   const away = chip[2].includes(item.universe) ? 0 : 10;
-  const q = query.replace(/^(idx:bse:|idx:|bse:)/, "").replace(/\s+/g, " ");
+  const q = query.replace(/^(idx:bse:|idx:|bse:|nse:)/, "").replace(/\s+/g, " ");
   if (item.bare === q.replace(/ /g, "") || item.code === q) return away;
   if (item.bare.startsWith(q.replace(/ /g, ""))) return away + 1;
   if (item.name.startsWith(q)) return away + 2;
@@ -338,7 +340,7 @@ function stockScore(item, query) {
 
 function stockPlaceholder() {
   const count = universeMembers().length.toLocaleString("en-IN");
-  const what = { nifty50: "Nifty 50 stocks", index: `${count} indices`, etf: `${count} ETFs`, bse: `${count} BSE stocks`, all: `${count} stocks and ETFs` }[state.universe] || "names";
+  const what = { nifty50: "Nifty 50 stocks", index: `${count} indices`, etf: `${count} ETFs`, nse: `${count} NSE stocks`, bse: `${count} BSE stocks`, all: `${count} stocks and ETFs` }[state.universe] || "names";
   return `Search ${what} · name, symbol or BSE code`;
 }
 
@@ -357,7 +359,7 @@ function buildControls() {
     },
     onPick: (value) => {
       const row = state.symbols.find((item) => item.symbol === value);
-      const home = { nifty50: "nifty50", nse_index: "index", bse_index: "index", nse_etf: "etf", bse_etf: "etf", bse: "bse" }[row?.universe || "nifty50"];
+      const home = { nifty50: "nifty50", nse_index: "index", bse_index: "index", nse_etf: "etf", bse_etf: "etf", nse: "nse", bse: "bse" }[row?.universe || "nifty50"];
       const chip = UNIVERSE_CHIPS.find((item) => item[0] === state.universe);
       if (home && chip && !chip[2].includes(row?.universe || "nifty50")) {
         state.universe = home;
@@ -1050,7 +1052,7 @@ async function runScan() {
       }),
     });
     const name = selectedStrategy() ? selectedStrategy().name : payload.strategy;
-    const where = { nifty50: "all 50", etf: "ETFs", bse: "BSE stocks", all: "all universes" }[state.universe];
+    const where = { nifty50: "all 50", index: "indices", etf: "ETFs", nse: "NSE stocks", bse: "BSE stocks", all: "all universes" }[state.universe];
     showInsight(`${name} on ${where} (${payload.rows.length})`, `${payload.note ? `<p class="muted">${esc(payload.note)}</p>` : ""}${moneyRows(payload.rows)}`);
   } catch (error) {
     showInsight("Backtest universe", `<p>${esc(error.message)}</p>`);

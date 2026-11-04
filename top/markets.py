@@ -230,6 +230,9 @@ SCANS = {
 
 
 _scan_cache = {"key": None, "rows": None, "latest": None}
+# BSE stocks, plus NSE stocks with no BSE listing, so a company listed on both appears once.
+SCAN_UNIVERSE = ("(s.universe = 'bse' AND s.kind = 'stock') OR (s.universe = 'nse' AND s.isin IS NOT NULL AND NOT EXISTS "
+                 "(SELECT 1 FROM symbols x WHERE x.universe = 'bse' AND substr(x.isin, 1, 7) = substr(s.isin, 1, 7)))")
 
 
 def _scan_key(con):
@@ -250,7 +253,7 @@ def scan_frame(con):
     since = con.execute("SELECT MAX(ts) - INTERVAL 800 DAY FROM bars").fetchone()[0]
     latest = con.execute("SELECT MAX(ts) FROM bars b JOIN symbols s ON s.symbol = b.symbol WHERE s.universe = 'bse'").fetchone()[0]
     sql = f"""
-        WITH f AS ({adjusted_sql("s.universe = 'bse' AND s.kind = 'stock'", since=since)}),
+        WITH f AS ({adjusted_sql(SCAN_UNIVERSE, since=since)}),
         w AS (
             SELECT f.symbol, f.ts, f.close, f.high, f.low, f.volume, f.value,
                    row_number() OVER (PARTITION BY f.symbol ORDER BY f.ts DESC) AS rn,
@@ -315,7 +318,7 @@ def _matches(name, r):
 
 
 def scan(con, name, min_value=10.0, limit=200):
-    """Run one named scan on BSE stocks at each stock's latest bar. Returns rows plus context."""
+    """Run one named scan on every stock (BSE, plus NSE-only names) at its latest bar. Returns rows plus context."""
     if name not in SCANS:
         raise ValueError("unknown scan")
     frame, latest = scan_frame(con)

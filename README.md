@@ -2,7 +2,7 @@
 
 # 📈 TOP — Trade Observability Platform
 
-**A local, TradingView-style research desk for Indian markets: the Nifty 50, ~4,700 BSE stocks, ~390 ETFs, and ~250 NSE/BSE indices.**<br/>
+**A local, TradingView-style research desk for Indian markets: every NSE main-board stock (~2,600 plus the Nifty 50), ~4,700 BSE stocks, ~390 ETFs, and ~250 NSE/BSE indices.**<br/>
 Chart any of them, stack 152 indicators, spot Scott Carney harmonics and Darvas boxes,<br/>
 backtest 92 strategies on one stock or a whole universe, rank every strategy on every script in a leaderboard (CSV in <a href="results/">results/</a>),<br/>run monthly top-N portfolio backtests, watch market breadth and regimes, and read a plain-English swing-trade plan, all on your own machine.
 
@@ -104,7 +104,7 @@ A method inspired by **@TradZoo**: nearby support and resistance shown as a long
 <td width="50%" valign="top">
 
 ### 7 · All BSE stocks and NSE/BSE ETFs
-Universe chips switch between the Nifty 50, about 390 ETFs and about 4,700 BSE stocks. Five years of daily data come from bhavcopies and are adjusted for splits and bonuses.
+Universe chips switch between the Nifty 50, about 2,600 more NSE stocks, about 390 ETFs and about 4,700 BSE stocks. Five years of daily data come from bhavcopies and are adjusted for splits and bonuses.
 
 </td>
 </tr>
@@ -161,7 +161,7 @@ Momentum 12-1, low volatility, sector rotation and ETF momentum, rebalanced mont
 | | Feature | Details |
 | --- | --- | --- |
 | 🗂️ | **Nifty 50** | About five years of adjusted daily bars from Yahoo in a local DuckDB file. Includes `M&M`, `ETERNAL` (formerly Zomato), and `TMPV` |
-| 🏛️ | **All BSE stocks and ETFs** | ~4,700 BSE equities, ~355 NSE ETFs, and ~35 BSE-only ETFs from the exchanges' daily bhavcopies, five years deep. Split and bonus adjusted from NSE corporate actions plus a price-gap rule. **Universe** chips switch between Nifty 50, ETFs, BSE, and All |
+| 🏛️ | **All NSE and BSE stocks, and ETFs** | Every NSE main-board stock (EQ/BE/BZ series, ~2,600 plus the Nifty 50; SME/Emerge excluded), ~4,700 BSE equities, ~355 NSE ETFs, and ~35 BSE-only ETFs from the exchanges' daily bhavcopies, five years deep. NSE stocks keep their history through renames (matched by ISIN). Split and bonus adjusted from NSE corporate actions plus a price-gap rule. **Universe** chips switch between Nifty 50, Indices, ETFs, NSE, BSE, and All |
 | 📊 | **TradingView-style chart** | TradingView Lightweight Charts with candles, volume, overlays, oscillator panes, and 6M/1Y/2Y/5Y/All ranges |
 | 🧮 | **152 indicators** in 10 sections | Harmonics · @neurotrader888 · @UnbiasedTradingGoshawk · Moving averages · Bands and channels · Trend · Momentum · Volatility · Volume · Price statistics. [Full catalog →](docs/indicators.md) |
 | ⏱️ | **Flexible durations** | Period presets (5 … 200), free entry, and **+ Another** to add SMA 20/50/200 side by side. Adjustable EMA-ribbon lengths |
@@ -239,6 +239,7 @@ The same user guide is built into the app: click **Guide** in the top bar.
 | Database file | `top-sync --db` | `TOP_DB` | `./data/nse.duckdb` (relative to where you start TOP) |
 | Download on first start | `--no-sync` turns it off | `TOP_AUTO_SYNC=0` turns it off | on |
 | DuckDB memory cap | | `TOP_DB_MEMORY` | `768MB` (keeps small laptops responsive during long leaderboard runs) |
+| Leaderboard worker processes | `top-leaderboard --workers` | `TOP_WORKERS` | up to 2 (set 1 on laptops with little free memory) |
 
 ```bash
 TOP_DB=~/top-data/nse.duckdb top-platform --port 8050

@@ -84,6 +84,21 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 - Internet outages interrupted downloads.
 - The server was killed for running out of memory. The root cause was `/tmp`: on this laptop it is a 1.7 GB RAM-backed filesystem, and the test helper had left 272 temporary databases there (1.2 GB) since the project began. The test helper now deletes its temporary folders when a run ends. Every job resumes after a crash; long runs use one worker, and screenshots are taken only when nothing else is running.
 
+## 6. Every NSE stock (v0.6.0)
+
+**Asked for:** make sure all NSE stocks are present.
+
+**Found:** NSE lists about 3,038 stocks. 2,465 were already in TOP through their BSE listing, and the Nifty 50 as NSE symbols. 573 were missing entirely: 130 main-board and 443 SME/Emerge.
+
+**Chosen:** add every NSE main-board stock as its own `NSE:` symbol, including those already on BSE, but not SME. Scans count each company once.
+
+**Built:**
+- About 2,600 `NSE:` stocks with five years of history, matched by ticker or ISIN, with split and bonus adjustments.
+- NSE delivery %.
+- An NSE chip on the desk and leaderboard.
+
+**Also fixed:** the RAM-backed `/tmp` problem described in section 5.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.

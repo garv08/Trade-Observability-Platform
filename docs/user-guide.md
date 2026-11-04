@@ -42,10 +42,11 @@ Nothing is drawn over the chart; panels stack below it. In windows narrower than
 | **Nifty 50** | The 50 index stocks | Yahoo, adjusted for splits and dividends |
 | **Indices** | ~170 NSE indices (Nifty 50, Nifty Bank, sectoral, thematic, strategy, India VIX) and ~80 BSE indices (Sensex, BSE 100, BSE 500, sectoral) | NSE and BSE daily index files. NSE goes back five years; BSE only publishes from April 2025 |
 | **ETFs** | ~355 NSE ETFs and ~35 BSE-only ETFs | Exchange bhavcopies, split adjusted |
+| **NSE** | Every NSE main-board stock (EQ, BE and BZ series): the Nifty 50 plus ~2,600 more as `NSE:` symbols. SME/Emerge stocks are not included | NSE bhavcopies, split and bonus adjusted; names are matched by ISIN, so history survives renames |
 | **BSE** | ~4,700 BSE equities, grouped by BSE group (A, B, T, X, …) | BSE bhavcopies, split and bonus adjusted |
 | **All** | Everything | |
 
-The Indices, ETF, BSE, and All chips appear once you've run **Sync history** (or `top-sync --bhav`). Symbols for these universes carry a prefix, for example `BSE:ABB`, `NSE:NIFTYBEES`, `IDX:NIFTYBANK` (NSE index), or `IDX:BSE:SENSEX` (BSE index). Index volume is the constituents' traded volume for NSE and zero for BSE, so volume studies say little on BSE indices.
+The Indices, ETF, NSE, BSE, and All chips appear once you've run **Sync history** (or `top-sync --bhav`). A company listed on both exchanges appears under both, for example `NSE:IRCTC` and `BSE:IRCTC`. Symbols for these universes carry a prefix, for example `BSE:ABB`, `NSE:IRCTC`, `NSE:NIFTYBEES`, `IDX:NIFTYBANK` (NSE index), or `IDX:BSE:SENSEX` (BSE index). Index volume is the constituents' traded volume for NSE and zero for BSE, so volume studies say little on BSE indices.
 
 1. Click the **Stock** box, or press <kbd>/</kbd> anywhere.
 2. Type a symbol, a company name, or a sector, for example `infy`, `mahindra`, `pharma`, `energy`, or `financ bank`. Every word must match.

@@ -99,7 +99,7 @@ async function loadScan() {
     if (out.context && out.context.nifty_dd_pct != null) rule += ` Nifty is ${pct(out.context.nifty_dd_pct)} from its 52-week high${out.context.nifty_dd_pct > -5 ? " (less than 5% off, so 'leaders' means less right now)" : ""}.`;
     if (out.context && out.context.delivery_to) rule += ` Delivery data up to ${esc(out.context.delivery_to)}.`;
     $("scan-rule").innerHTML = rule;
-    body.innerHTML = out.rows.map((r) => `<tr data-href="/?symbol=${encodeURIComponent(r.symbol)}&universe=bse">
+    body.innerHTML = out.rows.map((r) => `<tr data-href="/?symbol=${encodeURIComponent(r.symbol)}&universe=${r.symbol.startsWith("NSE:") ? "nse" : "bse"}">
       <td class="l"><b>${esc(r.symbol)}</b><span class="tag">${esc(r.group || "")}</span><small>${esc(r.name)}</small></td>
       <td>${num(r.close, 2)}</td><td class="${cls(r.change_pct)}">${pct(r.change_pct)}</td>
       <td class="${cls(r.from_high_pct)}">${pct(r.from_high_pct)}</td><td>${pct(r.from_low_pct)}</td>

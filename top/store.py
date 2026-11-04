@@ -43,6 +43,7 @@ UNIVERSES = {
     "nse_etf": "NSE ETFs",
     "bse_etf": "BSE ETFs",
     "bse": "BSE stocks",
+    "nse": "NSE stocks",
     "nse_index": "NSE indices",
     "bse_index": "BSE indices",
 }
@@ -362,7 +363,7 @@ def list_symbols(con: duckdb.DuckDBPyConnection) -> list[dict]:
         LEFT JOIN recent a ON a.symbol = s.symbol AND a.rn = 1
         LEFT JOIN recent b ON b.symbol = s.symbol AND b.rn = 2
         LEFT JOIN adjustments adj ON adj.symbol = s.symbol AND adj.ex_date = a.ts
-        ORDER BY CASE s.universe WHEN 'nifty50' THEN 0 WHEN 'nse_index' THEN 1 WHEN 'bse_index' THEN 2 WHEN 'nse_etf' THEN 3 WHEN 'bse_etf' THEN 4 ELSE 5 END,
+        ORDER BY CASE s.universe WHEN 'nifty50' THEN 0 WHEN 'nse_index' THEN 1 WHEN 'bse_index' THEN 2 WHEN 'nse_etf' THEN 3 WHEN 'bse_etf' THEN 4 WHEN 'nse' THEN 5 ELSE 6 END,
                  s.rank NULLS LAST, s.symbol
         """,
         [INTERVAL],

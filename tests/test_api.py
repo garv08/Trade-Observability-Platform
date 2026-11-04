@@ -137,7 +137,7 @@ class ApiTests(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(payload["rows"], [])
         self.assertIn("running", payload["status"])
-        self.assertEqual(set(payload["universes"]), {"all", "nifty50", "index", "etf", "bse"})
+        self.assertEqual(set(payload["universes"]), {"all", "nifty50", "index", "etf", "nse", "bse"})
         status, payload = self.get_json("/api/leaderboard?min_cagr=none&universe=bse&sort=cagr&best=1&q=bse")
         self.assertEqual(status, 200)
         status, payload = self.get_json("/api/leaderboard/status")

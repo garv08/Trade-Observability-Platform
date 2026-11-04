@@ -2,6 +2,22 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.0] - 2026-11-04
+
+### Added
+- **Every NSE main-board stock**: about 2,600 stocks in the EQ, BE and BZ series beyond the Nifty 50, as `NSE:<TICKER>` (universe `nse`), with five years of history.
+  - **Data:** backfilled from the NSE bhavcopies the sync already downloads, and resumable (days are recorded as `NSE-EQ`).
+  - **Renames:** names are matched by ticker, then ISIN, so history survives renames.
+  - **Adjustments:** NSE corporate actions and the gap rule apply as for BSE.
+  - **Not included:** SME/Emerge stocks.
+- **NSE** universe chip on the desk and the leaderboard. *Backtest NSE* covers the Nifty 50 plus every other NSE stock.
+- Delivery % for NSE stocks. A company listed on both exchanges gets NSE delivery % on both symbols. Delivery is re-read once to fill the new names.
+- Scans include NSE stocks that have no BSE listing (for example CDSL, BSE Ltd), so every company appears exactly once.
+- `TOP_WORKERS` sets the number of leaderboard worker processes.
+
+### Fixed
+- Tests left a temporary database in `/tmp` for every test class and never removed them. On Linux systems where `/tmp` is RAM-backed this slowly used up memory (1.2 GB here) and led to crashes. Test runs now delete their temporary folders.
+
 ## [0.5.0] - 2026-11-04
 
 Ideas from about 42,000 public posts of 13 X accounts, re-implemented in TOP's own code. See [docs/research/x-digest.md](docs/research/x-digest.md).

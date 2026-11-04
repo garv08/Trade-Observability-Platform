@@ -31,12 +31,13 @@ CAPITAL = 1_000_000.0
 COST_BPS = 5.0
 # Index series that are not prices of anything you can hold: excluded from the leaderboard.
 EXCLUDE_LIKE = ("%dividend points%", "%vix%")
-PRIORITY = {"nifty50": 0, "nse_index": 1, "bse_index": 2, "nse_etf": 3, "bse_etf": 4, "bse": 5}
+PRIORITY = {"nifty50": 0, "nse_index": 1, "bse_index": 2, "nse_etf": 3, "bse_etf": 4, "nse": 5, "bse": 6}
 UNIVERSE_GROUPS = {
     "all": None,
     "nifty50": ("nifty50",),
     "index": ("nse_index", "bse_index"),
     "etf": ("nse_etf", "bse_etf"),
+    "nse": ("nifty50", "nse"),
     "bse": ("bse",),
 }
 SORTS = {
@@ -408,7 +409,7 @@ def save(con, results, key):
 def run_all(workers=None, force=False, limit=None, progress=None):
     """Compute the leaderboard. Blocking; use start() for the background version."""
     global _runner
-    workers = max(1, workers or min(2, os.cpu_count() or 1))
+    workers = max(1, int(workers or os.environ.get("TOP_WORKERS") or min(2, os.cpu_count() or 1)))
     _runner = threading.current_thread()
     _stop.clear()
     _set(running=True, done=0, total=0, skipped=0, errors=0, excluded=0, symbol=None, started=datetime.now().isoformat(timespec="seconds"),

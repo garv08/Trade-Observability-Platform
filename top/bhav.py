@@ -41,6 +41,11 @@ NSE_CA = "https://www.nseindia.com/api/corporates-corporateActions?index=equitie
 NEW_FORMAT_FROM = date(2024, 7, 8)
 PAUSE = 0.25
 
+# NSE main-board equity series (rolling, trade-for-trade, and trade-for-trade surveillance).
+# SM/ST (SME/Emerge) are left out on purpose.
+NSE_STOCK_SERIES = ("EQ", "BE", "BZ")
+NSE_EQ_SOURCE = "NSE-EQ"
+
 SPLIT_RATIOS = [1.5, 2.0, 2.5, 3.0, 4.0, 5.0, 6.0, 8.0, 10.0, 20.0, 25.0, 50.0, 100.0]
 
 
@@ -208,10 +213,29 @@ def classify_bse(row):
     return None
 
 
-def build_listings(bse_rows, nse_rows, nse_etfs):
-    """Symbols for the extended universe from the latest day's files."""
+def is_nse_stock(row):
+    isin = row.get("isin") or ""
+    return isin.startswith("INE") and row.get("series") in NSE_STOCK_SERIES and bool(row.get("ticker"))
+
+
+def build_listings(bse_rows, nse_rows, nse_etfs, skip_nse=()):
+    """Symbols for the extended universe from the latest days' files.
+
+    NSE main-board stocks become NSE:<TICKER> (universe 'nse'), except tickers in skip_nse
+    (the Nifty 50, which are stored under their plain ticker from Yahoo).
+    """
     listings = []
     nse_etf_isins = set()
+    nse_seen = set()
+    for row in nse_rows:
+        ticker = row.get("ticker")
+        if ticker in nse_etfs or ticker in skip_nse or ticker in nse_seen or not is_nse_stock(row):
+            continue
+        nse_seen.add(ticker)
+        name = row.get("name") or ticker
+        listings.append({"symbol": f"NSE:{_clean_ticker(ticker)}", "name": name.title() if name.isupper() else name,
+                         "sector": f"NSE series {row['series']}", "exchange": "NSE", "kind": "stock", "universe": "nse",
+                         "code": ticker, "isin": row["isin"], "grp": row["series"]})
     for row in nse_rows:
         if row["ticker"] in nse_etfs and row.get("series") == "EQ":
             info = nse_etfs[row["ticker"]]
@@ -294,25 +318,42 @@ def insert_rows(con, day, rows):
     return len(rows)
 
 
+def nse_stock_rows(nse_rows, maps):
+    """(symbol, o, h, l, c, v) for NSE main-board stocks, matched by ticker, else by ISIN (survives renames)."""
+    _, _, by_ticker, by_isin = maps
+    out, seen = [], set()
+    for r in nse_rows or []:
+        if r.get("series") not in NSE_STOCK_SERIES:
+            continue
+        symbol = by_ticker.get(r["ticker"]) or by_isin.get(r.get("isin") or "")
+        if symbol and symbol not in seen:
+            seen.add(symbol)
+            out.append((symbol, r["open"], r["high"], r["low"], r["close"], r["volume"]))
+    return out
+
+
 def ingest_day(con, day, bse_rows, nse_rows, maps):
-    bse_by_code, nse_by_ticker = maps
+    bse_by_code, nse_etf_by_ticker = maps[0], maps[1]
     out = []
     for r in bse_rows or []:
         symbol = bse_by_code.get(r["code"])
         if symbol:
             out.append((symbol, r["open"], r["high"], r["low"], r["close"], r["volume"]))
     for r in nse_rows or []:
-        symbol = nse_by_ticker.get(r["ticker"])
+        symbol = nse_etf_by_ticker.get(r["ticker"])
         if symbol and r.get("series") == "EQ":
             out.append((symbol, r["open"], r["high"], r["low"], r["close"], r["volume"]))
+    out.extend(nse_stock_rows(nse_rows, maps))
     return insert_rows(con, day, out)
 
 
 def _maps(con):
-    rows = con.execute("SELECT symbol, universe, code FROM symbols WHERE universe IN ('bse', 'bse_etf', 'nse_etf')").fetchall()
-    bse = {code: symbol for symbol, universe, code in rows if universe in ("bse", "bse_etf") and code}
-    nse = {code: symbol for symbol, universe, code in rows if universe == "nse_etf" and code}
-    return bse, nse
+    rows = con.execute("SELECT symbol, universe, code, isin FROM symbols WHERE universe IN ('bse', 'bse_etf', 'nse_etf', 'nse')").fetchall()
+    bse = {code: symbol for symbol, universe, code, _ in rows if universe in ("bse", "bse_etf") and code}
+    nse_etf = {code: symbol for symbol, universe, code, _ in rows if universe == "nse_etf" and code}
+    nse_ticker = {code: symbol for symbol, universe, code, _ in rows if universe == "nse" and code}
+    nse_isin = {isin: symbol for symbol, universe, _, isin in rows if universe == "nse" and isin}
+    return bse, nse_etf, nse_ticker, nse_isin
 
 
 def _weekdays(start, end):
@@ -395,17 +436,17 @@ def gap_factor(prev_close, open_, close):
 def rebuild_adjustments(con):
     """Recreate the adjustments table from corporate actions plus the gap rule."""
     con.execute("DELETE FROM adjustments")
-    symbols = con.execute("SELECT symbol, universe, code, isin FROM symbols WHERE universe IN ('bse', 'bse_etf', 'nse_etf')").fetchall()
+    symbols = con.execute("SELECT symbol, universe, code, isin FROM symbols WHERE universe IN ('bse', 'bse_etf', 'nse_etf', 'nse')").fetchall()
     by_issuer, by_code = {}, {}
     for symbol, universe, code, isin in symbols:
-        if universe == "bse" and isin and isin.startswith("INE"):
+        if universe in ("bse", "nse") and isin and isin.startswith("INE"):
             by_issuer.setdefault(isin[:7], []).append(symbol)
-        if universe == "nse_etf" and code:
+        if universe in ("nse_etf", "nse") and code:
             by_code[code] = symbol
     combined = {}
     for ca_symbol, isin, ex_date, factor, subject in con.execute("SELECT symbol, isin, ex_date, factor, subject FROM corporate_actions").fetchall():
         targets = list(by_issuer.get((isin or "")[:7], [])) if (isin or "").startswith("INE") else []
-        if ca_symbol in by_code:
+        if ca_symbol in by_code and by_code[ca_symbol] not in targets:
             targets.append(by_code[ca_symbol])
         for symbol in targets:
             key = (symbol, ex_date)
@@ -420,7 +461,7 @@ def rebuild_adjustments(con):
         SELECT symbol, ts, prev_close, open, close FROM (
             SELECT b.symbol, b.ts, b.open, b.close, lag(b.close) OVER (PARTITION BY b.symbol ORDER BY b.ts) AS prev_close
             FROM bars b JOIN symbols s ON s.symbol = b.symbol
-            WHERE b.interval = ? AND s.universe IN ('bse', 'bse_etf', 'nse_etf')
+            WHERE b.interval = ? AND s.universe IN ('bse', 'bse_etf', 'nse_etf', 'nse')
         )
         WHERE prev_close IS NOT NULL AND open > 0 AND (prev_close / open >= 1.35 OR prev_close / open <= 0.74)
         """,
@@ -455,8 +496,44 @@ def _latest_files(today):
     raise RuntimeError("no recent bhavcopy found")
 
 
+def backfill_nse_stocks(start, latest_day, maps, today, progress=None):
+    """Fill NSE main-board stock history for days the BSE+NSE sync already did before NSE stocks existed.
+
+    Resumable: finished days are recorded in bhav_days as NSE-EQ. Returns bars stored.
+    """
+    with store.session() as con:
+        done = {d for (d,) in con.execute("SELECT day FROM bhav_days WHERE exchange = ?", [NSE_EQ_SOURCE]).fetchall()}
+    pending = [d for d in _weekdays(start, latest_day) if d not in done]
+    if not pending:
+        return 0
+    store.set_bhav_status(done=0, total=len(pending), message=f"NSE stocks: {len(pending)} days to fetch")
+    stored = 0
+    for n, day in enumerate(pending, start=1):
+        try:
+            rows = fetch_nse(day)
+        except Missing:
+            if (today - day).days > 4:
+                with store.session() as con:
+                    con.execute("INSERT OR IGNORE INTO bhav_days VALUES (?, ?, 0)", [NSE_EQ_SOURCE, day.isoformat()])
+            continue
+        except RuntimeError as exc:
+            store.set_bhav_status(message=f"NSE stocks {day}: {exc}")
+            continue
+        finally:
+            time.sleep(PAUSE)
+        out = nse_stock_rows(rows, maps)
+        with store.session() as con:
+            count = insert_rows(con, day, out)
+            con.execute("INSERT OR IGNORE INTO bhav_days VALUES (?, ?, ?)", [NSE_EQ_SOURCE, day.isoformat(), len(rows)])
+        stored += count
+        store.set_bhav_status(done=n, last_day=day.isoformat(), message=f"NSE stocks {day}: {count:,} bars")
+        if progress:
+            progress(day, n, len(pending), count)
+    return stored
+
+
 def sync_bhav(years=5, today=None, progress=None):
-    """Fill or refresh BSE stocks and ETFs. Safe to re-run; finished days are skipped."""
+    """Fill or refresh BSE stocks, NSE main-board stocks, and ETFs. Safe to re-run; finished days are skipped."""
     today = today or date.today()
     store.set_bhav_status(syncing=True, done=0, total=0, message="finding the latest bhavcopy")
     try:
@@ -465,6 +542,8 @@ def sync_bhav(years=5, today=None, progress=None):
         # Union of the last five trading days, so thinly traded names that skipped a day are kept.
         listing_rows = list(bse_rows)
         codes = {r["code"] for r in listing_rows}
+        nse_listing = list(nse_rows)
+        tickers = {r["ticker"] for r in nse_listing}
         day, extra = latest_day, 0
         while extra < 4:
             day -= timedelta(days=1)
@@ -480,8 +559,17 @@ def sync_bhav(years=5, today=None, progress=None):
                 extra += 1
             except Missing:
                 pass
+            try:
+                for r in fetch_nse(day):
+                    if r["ticker"] not in tickers:
+                        nse_listing.append(r)
+                        tickers.add(r["ticker"])
+            except (Missing, RuntimeError):
+                pass
             time.sleep(PAUSE)
-        listings = build_listings(listing_rows, nse_rows, etfs)
+        from top.universe import UNIVERSE
+
+        listings = build_listings(listing_rows, nse_listing, etfs, skip_nse={row["symbol"] for row in UNIVERSE})
         with store.session() as con:
             store.ensure_schema(con)
             save_listings(con, listings)
@@ -514,11 +602,14 @@ def sync_bhav(years=5, today=None, progress=None):
             with store.session() as con:
                 count = ingest_day(con, day, b_rows, n_rows, maps) if (b_rows or n_rows) else 0
                 con.execute("INSERT OR IGNORE INTO bhav_days VALUES ('BSE+NSE', ?, ?)", [day.isoformat(), count])
+                if n_rows:
+                    con.execute("INSERT OR IGNORE INTO bhav_days VALUES (?, ?, ?)", [NSE_EQ_SOURCE, day.isoformat(), len(n_rows)])
             new_rows += count
             store.set_bhav_status(done=n, last_day=day.isoformat(), message=f"{day}: {count} bars")
             if progress:
                 progress(day, n, len(pending), count)
             time.sleep(PAUSE)
+        new_rows += backfill_nse_stocks(start, latest_day, maps, today, progress)
         store.set_bhav_status(message="corporate actions")
         ca_start = start if first_bar is None else latest_day - timedelta(days=120)
         actions = fetch_corporate_actions(ca_start, latest_day + timedelta(days=7))

@@ -31,6 +31,10 @@ NSE_NEW = (
     "TtlNbOfTxsExctd,SsnId,NewBrdLotQty,Rmks,Rsvd1,Rsvd2,Rsvd3,Rsvd4\n"
     "2026-10-30,2026-10-30,CM,NSE,STK,1,INF204KB14I2,NIFTYBEES,EQ,,,,,NIP IND ETF NIFTY BEES,262,263,261,262.89,262.9,261.88,,262.89,,,100000,26289000,500,F1,1,,,,,\n"
     "2026-10-30,2026-10-30,CM,NSE,STK,2,INE002A01018,RELIANCE,EQ,,,,,RELIANCE INDUSTRIES,1150,1170,1145,1164.9,1165,1167.4,,1164.9,,,1,1,1,F1,1,,,,,\n"
+    "2026-10-30,2026-10-30,CM,NSE,STK,3,INE736A01011,CDSL,EQ,,,,,CENTRAL DEPO SER (I) LTD,1500,1520,1490,1510,1510,1500,,1510,,,900,1359000,90,F1,1,,,,,\n"
+    "2026-10-30,2026-10-30,CM,NSE,STK,4,INE111A01011,TFTSTOCK,BE,,,,,TRADE FOR TRADE LTD,50,51,49,50.5,50.5,50,,50.5,,,100,5050,9,F1,1,,,,,\n"
+    "2026-10-30,2026-10-30,CM,NSE,STK,5,INE222A01011,SMEONE,SM,,,,,SME ONE LIMITED,80,82,79,81,81,80,,81,,,4000,324000,4,F1,1,,,,,\n"
+    "2026-10-30,2026-10-30,CM,NSE,STK,6,INE333A08011,SOMENCD,N1,,,,,SOME NCD,1000,1000,1000,1000,1000,1000,,1000,,,5,5000,1,F1,1,,,,,\n"
 )
 NSE_OLD = (
     "SYMBOL,SERIES,OPEN,HIGH,LOW,CLOSE,LAST,PREVCLOSE,TOTTRDQTY,TOTTRDVAL,TIMESTAMP,TOTALTRADES,ISIN,\n"
@@ -75,9 +79,15 @@ class ParserTests(unittest.TestCase):
 
     def test_listings(self):
         etfs = {"NIFTYBEES": {"name": "Nifty 50", "isin": "INF204KB14I2", "underlying": "EQUITY"}}
-        listings = bhav.build_listings(bhav.parse_bse_new(BSE_NEW), bhav.parse_nse_new(bhav._zip_text(_zip(NSE_NEW))), etfs)
+        listings = bhav.build_listings(bhav.parse_bse_new(BSE_NEW), bhav.parse_nse_new(bhav._zip_text(_zip(NSE_NEW))), etfs,
+                                       skip_nse={"RELIANCE"})
         by_symbol = {x["symbol"]: x for x in listings}
-        self.assertEqual(set(by_symbol), {"BSE:ABB", "BSE:SENSEX1", "NSE:NIFTYBEES"})
+        # Main-board NSE stocks (EQ/BE) are listed; SME (SM), debt, ETFs-as-stocks and the Nifty 50 ticker are not.
+        self.assertEqual(set(by_symbol), {"BSE:ABB", "BSE:SENSEX1", "NSE:NIFTYBEES", "NSE:CDSL", "NSE:TFTSTOCK"})
+        self.assertEqual(by_symbol["NSE:CDSL"]["universe"], "nse")
+        self.assertEqual(by_symbol["NSE:CDSL"]["code"], "CDSL")
+        self.assertEqual(by_symbol["NSE:CDSL"]["name"], "Central Depo Ser (I) Ltd")
+        self.assertEqual(by_symbol["NSE:TFTSTOCK"]["grp"], "BE")
         self.assertEqual(by_symbol["BSE:ABB"]["universe"], "bse")
         self.assertEqual(by_symbol["BSE:SENSEX1"]["universe"], "bse_etf")
         self.assertEqual(by_symbol["NSE:NIFTYBEES"]["universe"], "nse_etf")
@@ -102,6 +112,44 @@ class ParserTests(unittest.TestCase):
         self.assertAlmostEqual(bhav.gap_factor(10, 98, 101), 0.1)
         self.assertIsNone(bhav.gap_factor(1000, 900, 880))
         self.assertIsNone(bhav.gap_factor(1000, 520, 760))  # opened low but recovered: not a clean split
+
+
+class NseStockTests(unittest.TestCase):
+    def setUp(self):
+        use_temp_store()
+        self.saved = (bhav.fetch_nse, bhav.PAUSE)
+        bhav.PAUSE = 0
+
+    def tearDown(self):
+        bhav.fetch_nse, bhav.PAUSE = self.saved
+
+    def test_backfill_maps_by_ticker_then_isin(self):
+        days = [date.fromisoformat(d) for d in business_days(date(2025, 3, 3), 10)]
+        rename_day = days[5]
+
+        def fake(day):
+            if day == days[2]:
+                raise bhav.Missing("holiday")
+            # NEWNAME was called OLDNAME before rename_day; same ISIN.
+            ticker = "NEWNAME" if day >= rename_day else "OLDNAME"
+            return [
+                {"ticker": ticker, "series": "EQ", "isin": "INE555A01011", "open": 10, "high": 11, "low": 9, "close": 10.5, "volume": 100},
+                {"ticker": "SMEONE", "series": "SM", "isin": "INE222A01011", "open": 5, "high": 5, "low": 5, "close": 5, "volume": 1},
+            ]
+
+        bhav.fetch_nse = fake
+        with store.session() as con:
+            bhav.save_listings(con, [{"symbol": "NSE:NEWNAME", "name": "New Name Ltd", "sector": "NSE series EQ", "exchange": "NSE", "kind": "stock",
+                                      "universe": "nse", "code": "NEWNAME", "isin": "INE555A01011", "grp": "EQ"}])
+            maps = bhav._maps(con)
+        stored = bhav.backfill_nse_stocks(days[0], days[-1], maps, today=date(2025, 6, 1))
+        self.assertEqual(stored, 9)
+        with store.session() as con:
+            bars = store.load_bars(con, "NSE:NEWNAME")
+            recorded = con.execute("SELECT COUNT(*) FROM bhav_days WHERE exchange = ?", [bhav.NSE_EQ_SOURCE]).fetchone()[0]
+        self.assertEqual(len(bars), 9)  # history before the rename is kept through the ISIN
+        self.assertEqual(recorded, 10)  # the holiday is recorded too, so it is not retried
+        self.assertEqual(bhav.backfill_nse_stocks(days[0], days[-1], maps, today=date(2025, 6, 1)), 0)
 
 
 class AdjustedStoreTests(unittest.TestCase):

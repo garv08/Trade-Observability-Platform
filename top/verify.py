@@ -77,7 +77,7 @@ def run():
             "BSE stocks and ETFs",
             listed == 0 or sum(extended.values()) > 0,
             ("not synced yet (Sync history or top-sync --bhav)" if listed == 0 else
-             f"BSE {extended.get('bse', 0):,} · NSE ETFs {extended.get('nse_etf', 0)} · BSE ETFs {extended.get('bse_etf', 0)} · {adjusted} split/bonus adjustments"),
+             f"BSE {extended.get('bse', 0):,} · NSE {extended.get('nse', 0):,} · NSE ETFs {extended.get('nse_etf', 0)} · BSE ETFs {extended.get('bse_etf', 0)} · {adjusted} split/bonus adjustments"),
         )
         check(
             "NSE and BSE indices",

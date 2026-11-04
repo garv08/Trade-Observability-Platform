@@ -269,11 +269,12 @@ class DeliveryTests(unittest.TestCase):
             store.ensure_schema(con)
             con.execute("INSERT INTO symbols (symbol, name, kind, universe, code, isin, exchange) VALUES ('BSE:ABC', 'Abc', 'stock', 'bse', '500001', 'INE001A01011', 'BSE')")
             con.execute("INSERT INTO symbols (symbol, name, kind, universe, code, exchange) VALUES ('NSE:NIFTYBEES', 'Bees', 'etf', 'nse_etf', 'NIFTYBEES', 'NSE')")
+            con.execute("INSERT INTO symbols (symbol, name, kind, universe, code, isin, exchange) VALUES ('NSE:ABC', 'Abc', 'stock', 'nse', 'ABC', 'INE001A01011', 'NSE')")
             mapping = delivery.ticker_map(con, [{"ticker": "ABC", "isin": "INE001A01011", "series": "EQ"},
                                                 {"ticker": "ZZZ", "isin": "INE999Z01011", "series": "EQ"}])
-        self.assertEqual(mapping["ABC"], "BSE:ABC")
-        self.assertEqual(mapping["NIFTYBEES"], "NSE:NIFTYBEES")
-        self.assertEqual(mapping["INFY"], "INFY")
+        self.assertEqual(sorted(mapping["ABC"]), ["BSE:ABC", "NSE:ABC"])
+        self.assertEqual(mapping["NIFTYBEES"], ["NSE:NIFTYBEES"])
+        self.assertEqual(mapping["INFY"], ["INFY"])
         self.assertNotIn("ZZZ", mapping)
 
 

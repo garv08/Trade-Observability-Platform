@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Product | TOP — Trade Observability Platform |
-| Version | 0.5.0 |
+| Version | 0.6.0 |
 | Status | Working local release |
 | Scope | Nifty 50, daily bars, research and backtesting. No order routing |
 
@@ -173,7 +173,8 @@ meta(key PK, value)          -- last_sync, bhav_last_sync, index_last_sync
   - `nse_ca`: NSE corporate actions, matched to BSE stocks by ISIN issuer code (first 7 characters) and to NSE ETFs by symbol. Multiple actions on the same ex-date multiply (for example a 2:1 split plus bonus 4:1 gives 10).
   - `gap`: for names without a matching action, an overnight gap of 35% or more that matches a standard ratio (1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 20, 25, 50, 100, or their inverses) on both the open and the close. Most BSE-only stocks have 2–20% price bands, so such gaps are almost always corporate actions.
   - Dividends are not adjusted, unlike the Yahoo-sourced Nifty 50.
-- **Universes.** `symbols.universe` is `nifty50`, `nse_index`, `bse_index`, `nse_etf`, `bse_etf`, or `bse`. The market proxy (`market.py`) uses only the Nifty 50.
+- **NSE stocks.** Every NSE row in series EQ, BE or BZ with an `INE` ISIN becomes `NSE:<TICKER>` (universe `nse`), except Nifty 50 tickers, which stay on Yahoo data. Daily rows are matched to symbols by ticker, then ISIN, so renames keep their history (a split changes the ISIN but not the ticker, and a rename the reverse). The five-year backfill is tracked in `bhav_days` as `NSE-EQ`. Adjustments match NSE corporate actions by ISIN issuer or symbol, as for BSE.
+- **Universes.** `symbols.universe` is `nifty50`, `nse`, `nse_index`, `bse_index`, `nse_etf`, `bse_etf`, or `bse`. The market proxy (`market.py`) uses only the Nifty 50.
 
 ### Indices
 
