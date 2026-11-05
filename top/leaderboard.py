@@ -168,6 +168,8 @@ def refresh_liquidity(con):
         SELECT symbol, median(close * volume) / 1e5 FROM (
             SELECT symbol, close, volume, row_number() OVER (PARTITION BY symbol ORDER BY ts DESC) AS rn
             FROM bars WHERE interval = '1d'
+              -- Only the last ~14 months can hold a symbol's latest 250 bars; reading all history spilled to disk.
+              AND ts >= (SELECT MAX(ts) FROM bars) - INTERVAL 420 DAY
         ) WHERE rn <= 250 GROUP BY symbol
         """
     )
@@ -432,6 +434,7 @@ def run_all(workers=None, force=False, limit=None, progress=None):
                        if eligible == 0 else f"complete: all {current:,} scripts are already current")
             with store.session() as con:
                 refresh_liquidity(con)
+                refresh_trials(con)  # a run interrupted before its last step leaves these stale
             _set(running=False, finished=datetime.now().isoformat(timespec="seconds"), message=message, db=str(store.DB_PATH))
             return status()
         began, done, errors, excluded, total = time.time(), 0, 0, 0, len(todo)

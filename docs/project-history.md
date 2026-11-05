@@ -99,6 +99,8 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 
 **Also fixed:** the RAM-backed `/tmp` problem described in section 5.
 
+**Another crash (v0.6.1):** the laptop rebooted after the 6,900-script leaderboard run. The work was safe: every script had been computed and saved. The final liquidity step had been reading all 7.3 million bars and spilled to disk; it now reads only the last ~14 months. Re-running also showed that an interrupted run left the deflated-Sharpe baselines stale, so they are now refreshed on every run. With NSE stocks included, *Turn of the month* became the top strategy by median return ÷ max drawdown.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.

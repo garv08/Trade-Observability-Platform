@@ -179,7 +179,7 @@ Under the cards, **Monte Carlo** reshuffles the closed trades 1,000 times and re
 
 ## Strategy leaderboard
 
-Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 92 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 450,000 backtests.
+Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 92 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 610,000 backtests.
 
 1. Press **Run backtests**. The work runs in the background on all CPU cores at low priority, and the page shows progress, speed, and time left. The Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value, so useful rows appear early. It takes a few hours on a slow two-core PC.
 2. **Stop** at any time. **Run / resume** carries on where it stopped and, after a daily sync, recomputes only scripts with new bars. **Recompute all** starts over.

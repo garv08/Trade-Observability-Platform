@@ -2,6 +2,15 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.6.1] - 2026-11-05
+
+### Fixed
+- The end-of-run liquidity step computed a 250-day median over all 7.3 million bars and spilled to disk; on a small laptop this ran out of memory after the leaderboard had finished. It now reads only the last ~14 months.
+- A leaderboard run interrupted before its final step left the deflated-Sharpe baselines stale, so new scripts showed an inflated DSR. Any run, even one with nothing left to compute, now refreshes them.
+
+### Changed
+- `results/` regenerated with every NSE stock: 611,146 backtests on 6,643 scripts. **Turn of the month** now ranks first by median return ÷ max drawdown (profitable on 85% of 3,311 scripts), and mean-reversion rules moved into the top ten.
+
 ## [0.6.0] - 2026-11-04
 
 ### Added
