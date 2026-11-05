@@ -18,6 +18,7 @@ Snapshots of the [strategy leaderboard](../docs/user-guide.md#strategy-leaderboa
 | [`leaderboard-cagr15.csv`](leaderboard-cagr15.csv) | 46,686 | Every backtest with **CAGR > 15%**, ≥ 3 trades, ≥ 2 tested years, and ≥ ₹10 lakh median daily traded value (indices exempt), ranked by CAGR ÷ \|max drawdown\| |
 | [`leaderboard-best-per-script.csv`](leaderboard-best-per-script.csv) | 2,672 | The same filter, keeping only each script's best strategy (ties go to the strategy id that sorts first) |
 | [`strategy-ranking-return-dd.csv`](strategy-ranking-return-dd.csv) | 82 | **Strategies ranked** by median total return ÷ \|max drawdown\| across scripts (see below) |
+| [`top20-portfolio.csv`](top20-portfolio.csv) | 20 | ₹1 lakh in each of the #1 strategy's top 20 stocks: summary, the stocks, and the daily value of the ₹20 lakh (see below) |
 | `top-leaderboard-all.csv.gz` ([v0.6.1 release asset](https://github.com/garv08/Trade-Observability-Platform/releases/tag/v0.6.1)) | 611,146 | Everything, unfiltered |
 
 By universe, the best-per-script file has 1,325 NSE stocks, 1,211 BSE stocks, 73 NSE ETFs, 33 NSE indices, 30 Nifty 50 stocks. BSE indices only have history from about April 2025, so none reach 2 tested years.
@@ -46,6 +47,24 @@ Bottom three: Parabolic SAR (-0.13), Inside-bar break (-0.14), Pivot R1 break (-
 **Deflated Sharpe.** With 92 strategies tried on each script, a high Sharpe is often luck. Of the 46,686 rows in `leaderboard-cagr15.csv`, only 185 (on 107 scripts) have a deflated Sharpe of at least 95%, the chance their Sharpe beats the best expected from 92 lucky tries (`dsr_pct` column; normal returns assumed, so even this is optimistic). The `pct_dsr95` column in the strategy ranking shows how rarely any single strategy clears it.
 
 Other columns: `mean_return_dd`, `p25_return_dd`/`p75_return_dd` (middle half), `median_cagr_pct`, `median_cagr_dd` (median CAGR ÷ DD), `pct_profitable`, `pct_beat_hold`, `median_trades`, `median_years`, and `best_symbol`/`best_return_dd` (the single best script). In the app: **Leaderboard → By strategy**, which you can re-sort by any of these.
+
+## ₹1 lakh in each of the top 20 stocks of the #1 strategy
+
+`top20-portfolio.csv` takes the #1 strategy of the ranking above, **Turn of the month**, and its 20 best stocks by CAGR ÷ |max drawdown| (stocks only, one listing per company, the same filters as above). It puts ₹1 lakh into each, ₹20 lakh in total, runs the strategy on each stock with its own money, and adds up the money every day.
+
+| | Top-20 portfolio | Nifty 50, same ₹20 lakh |
+| --- | ---: | ---: |
+| Period | 8 Dec 2021 – 4 Nov 2026 (4.9 years) | same |
+| **Final value** | **₹2,13,15,264** | ₹27,43,096 |
+| Total return | +966% | +37% |
+| CAGR | 62.0% | 6.7% |
+| Max drawdown | −11.3% | −16.5% |
+| **CAGR ÷ \|max DD\|** | **5.48** | 0.40 |
+
+The biggest contributor was BSE:SHUKRAPHAR (₹1 lakh → ₹38.3 lakh). The smallest was BSE:TATASTEEL (₹1 lakh → ₹3.6 lakh), and every one of the 20 made money.
+
+> [!CAUTION]
+> These 20 stocks were chosen *because* they did best with this strategy over this same period. Nobody could have picked them in advance, so the result is an in-sample best case and not a forecast. On the Leaderboard page, the **Top-N portfolio** section reruns this for any strategy, any N and any amount.
 
 ## Columns
 

@@ -2,6 +2,12 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.7.0] - 2026-11-05
+
+### Added
+- **Top-N portfolio of one strategy** on the Leaderboard page (`GET /api/leaderboard/portfolio`, `.csv`, `top-leaderboard --portfolio`): put ₹1 lakh into each of the #1 strategy's top 20 stocks (or any strategy, N and amount) and follow the combined money over time. Shows final value, CAGR, max drawdown and CAGR ÷ |max DD| against Nifty 50, a growth chart and each stock's result. Stocks only, one listing per company.
+- `results/top20-portfolio.csv`, written by `top-leaderboard --results`: Turn of the month, top 20 stocks, ₹20 lakh → ₹2.13 crore from Dec 2021 to Nov 2026 (CAGR 62.0%, max DD −11.3%, CAGR ÷ |DD| 5.48; Nifty 50 with the same money: ₹27.4 lakh, 6.7%, −16.5%, 0.40). The stocks are picked with hindsight, so this is an in-sample best case.
+
 ## [0.6.1] - 2026-11-05
 
 ### Fixed

@@ -151,6 +151,14 @@ class Handler(BaseHTTPRequestHandler):
                 payload = run_verify()
             elif parsed.path == "/api/leaderboard":
                 payload = _leaderboard(query)
+            elif parsed.path in ("/api/leaderboard/portfolio", "/api/leaderboard/portfolio.csv"):
+                out = _strategy_portfolio(query)
+                if parsed.path.endswith(".csv"):
+                    buffer = io.StringIO()
+                    leaderboard.export_portfolio_csv(buffer, out)
+                    self._send_text(buffer.getvalue().encode("utf-8"), "text/csv; charset=utf-8", f"top{out['n']}-{out['strategy']}.csv")
+                    return
+                payload = out
             elif parsed.path in ("/api/leaderboard/strategies", "/api/leaderboard/strategies.csv"):
                 rows = _strategy_ranking(query)
                 if parsed.path.endswith(".csv"):
@@ -181,6 +189,8 @@ class Handler(BaseHTTPRequestHandler):
                 self._send(404, {"error": "not found"})
                 return
             self._send(200, payload)
+        except ValueError as exc:
+            self._send(400, {"error": str(exc)})
         except Exception as exc:  # noqa: BLE001
             self._send(500, {"error": str(exc)})
 
@@ -499,6 +509,25 @@ def _portfolio(body):
             min_value_lakh=None if body.get("min_value") in (None, "") else float(body.get("min_value")),
             gate=body.get("gate") or "none",
             sweep=bool(body.get("sweep")),
+        )
+
+
+def _strategy_portfolio(query):
+    def one(name, default=None):
+        values = query.get(name)
+        return values[0] if values and values[0] != "" else default
+
+    with session() as con:
+        ensure_schema(con)
+        return leaderboard.strategy_portfolio(
+            con,
+            strategy=one("strategy"),
+            n=max(1, min(int(one("n", "20")), 100)),
+            per_stock=float(one("per_stock", "100000")),
+            sort=one("sort", "ratio"),
+            min_trades=int(one("min_trades", "3")),
+            min_years=float(one("min_years", "2")),
+            min_value=float(one("min_value", "10")),
         )
 
 

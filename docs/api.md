@@ -127,6 +127,22 @@ Strategies ranked across scripts. Per (script, strategy), `return_dd = total_ret
 
 `top-leaderboard --strategies file.csv` writes the same CSV, and `top-leaderboard --results DIR` rebuilds every committed results file.
 
+### `GET /api/leaderboard/portfolio` and `/api/leaderboard/portfolio.csv`
+
+Puts `per_stock` rupees (default 100000) into each of the top `n` stocks (default 20) of one strategy and adds up the money over time. Parameters: `strategy` (default: #1 of the strategy ranking), `n`, `per_stock`, `sort` (how the stocks are picked: `ratio`, `return_dd`, `cagr`, `dsr`, …), `min_trades` (3), `min_years` (2), `min_value` (10). Stocks only (Nifty 50, NSE, BSE), one listing per company. Each stock trades its own money (next-open fills, costs); money waits in cash until a stock's test starts.
+
+```json
+{"strategy": "turn_of_month", "strategy_name": "Turn of the month", "n": 20, "per_stock": 100000.0, "invested": 2000000.0,
+ "start": "2021-12-08", "end": "2026-11-04",
+ "metrics": {"start_value": 2000000.0, "final_value": 21315264.16, "total_return_pct": 965.76, "cagr_pct": 61.98,
+             "max_dd_pct": -11.32, "years": 4.91, "cagr_dd": 5.476},
+ "benchmark": {"final_value": 2743095.92, "cagr_pct": 6.65, "max_dd_pct": -16.47, "cagr_dd": 0.404},
+ "stocks": [{"symbol": "BSE:SHUKRAPHAR", "start": "2021-12-15", "trades": 59, "final_value": 3829094.63, "total_return_pct": 3729.09}],
+ "equity": [{"time": "2021-12-08", "value": 2000000.0}], "benchmark_equity": ["..."], "underwater": ["..."], "note": "..."}
+```
+
+`top-leaderboard --portfolio file.csv [--strategy ID] [--top 20] [--per-stock 100000]` writes the CSV from the command line.
+
 ### `GET /api/leaderboard/status`
 
 Just the job state: `running`, `done`, `total`, `skipped`, `rate_per_min`, `eta_seconds`, `message`, `workers`.

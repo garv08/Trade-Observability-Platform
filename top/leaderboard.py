@@ -709,6 +709,154 @@ def export_strategy_csv(handle, rows):
     return len(rows)
 
 
+# ---------------------------------------------------------------- top-N portfolio of one strategy
+
+PORTFOLIO_STOCKS = ("nifty50", "nse", "bse")
+
+
+def _curve_stats(values, days):
+    """Total return, CAGR, max drawdown and CAGR ÷ |max DD| (5% floor) for a daily value series."""
+    if len(values) < 2 or values[0] <= 0:
+        return {}
+    years = max(days / 365.25, 1 / 365.25)
+    total = values[-1] / values[0] - 1
+    cagr = (values[-1] / values[0]) ** (1 / years) - 1 if values[-1] > 0 else -1.0
+    peak, dd = -math.inf, 0.0
+    for v in values:
+        peak = max(peak, v)
+        dd = min(dd, v / peak - 1)
+    return {"start_value": round(values[0], 2), "final_value": round(values[-1], 2), "total_return_pct": round(total * 100, 2),
+            "cagr_pct": round(cagr * 100, 2), "max_dd_pct": round(dd * 100, 2), "years": round(years, 2),
+            "cagr_dd": round(cagr * 100 / max(abs(dd) * 100, DD_FLOOR), 3)}
+
+
+def strategy_portfolio(con, strategy=None, n=20, per_stock=100_000.0, cost_bps=COST_BPS, sort="ratio",
+                       min_trades=3, min_years=2.0, min_value=10.0):
+    """Put `per_stock` into each of the top `n` stocks for one strategy and add up the money over time.
+
+    strategy: a strategy id, or None for the #1 strategy of the By strategy ranking.
+    The stocks are that strategy's best leaderboard rows (stocks only, by `sort`, default CAGR ÷ |max DD|),
+    with the usual filters and one row per company (a company listed on NSE and BSE counts once).
+    Each stock runs the strategy on its own ₹per_stock (signal at the close, fill at the next open, costs);
+    money is never moved between stocks. Before a stock's test starts its money waits in cash.
+    Because the stocks are chosen with hindsight from the same period, this is an in-sample best case.
+    """
+    from top.backtest import run
+    from top.indicators import Frame
+    from top.strategies import catalog, signal
+
+    ensure_tables(con)
+    names = {item["id"]: item for item in catalog()}
+    if not strategy:
+        ranking = strategy_ranking(con, **STRATEGY_FILTERS)
+        if not ranking:
+            # Small stores (or strict filters): rank on whatever has been computed.
+            ranking = strategy_ranking(con, min_trades=0, min_years=0, min_value=0, min_scripts=1)
+        if not ranking:
+            raise ValueError("The leaderboard has no results yet. Run backtests first.")
+        strategy = ranking[0]["strategy"]
+    if strategy not in names:
+        raise ValueError("unknown strategy")
+    base, args, order, _, _ = _filtered(min_cagr=None, strategy=strategy, min_trades=min_trades, min_years=min_years,
+                                        min_value=min_value, sort=sort)
+    groups = ", ".join("?" for _ in PORTFOLIO_STOCKS)
+    rows = con.execute(
+        f"""
+        SELECT r.symbol, r.name, r.universe, r.cagr_pct, r.max_dd_pct, r.ratio, r.total_return_pct,
+               COALESCE(s.isin, b.isin) AS isin
+        FROM ({base}) r JOIN symbols s ON s.symbol = r.symbol
+        LEFT JOIN symbols b ON b.symbol = 'BSE:' || r.symbol AND r.universe = 'nifty50'
+        WHERE r.universe IN ({groups})
+        ORDER BY {order}, r.symbol
+        """,
+        [*args, *PORTFOLIO_STOCKS],
+    ).fetchall()
+    picked, companies = [], set()
+    for symbol, name, universe, cagr, dd, ratio, total, isin in rows:
+        company = (isin or "")[:7] or symbol
+        if company in companies:
+            continue
+        companies.add(company)
+        picked.append({"symbol": symbol, "name": name, "universe": universe, "leaderboard_cagr_pct": cagr,
+                       "leaderboard_max_dd_pct": dd, "leaderboard_ratio": ratio})
+        if len(picked) >= int(n):
+            break
+    if not picked:
+        raise ValueError("No stocks pass the filters for this strategy.")
+    curves = []
+    for item in picked:
+        bars = store.load_bars(con, item["symbol"])
+        frame = Frame([b["time"] for b in bars], [b["open"] for b in bars], [b["high"] for b in bars],
+                      [b["low"] for b in bars], [b["close"] for b in bars], [b["volume"] for b in bars])
+        result = run(frame.ts, frame.o, frame.h, frame.l, frame.c, signal(strategy, frame, {}), capital=per_stock, cost_bps=cost_bps)
+        curve = {p["time"]: p["value"] for p in result["equity"]}
+        curves.append(curve)
+        m = result["metrics"]
+        item.update(final_value=round(result["equity"][-1]["value"], 2), start=result["start"], trades=m["trades"],
+                    total_return_pct=m["total_return_pct"])
+    dates = sorted(set().union(*curves))
+    last = [None] * len(curves)
+    equity = []
+    for day in dates:
+        total = 0.0
+        for k, curve in enumerate(curves):
+            if day in curve:
+                last[k] = curve[day]
+            total += per_stock if last[k] is None else last[k]
+        equity.append({"time": day, "value": round(total, 2)})
+    from datetime import date as _date
+
+    span = (_date.fromisoformat(dates[-1]) - _date.fromisoformat(dates[0])).days
+    stats = _curve_stats([p["value"] for p in equity], span)
+    nifty = dict((str(t), c) for t, c in con.execute(
+        "SELECT ts, close FROM bars WHERE symbol = 'IDX:NIFTY50' AND interval = '1d' AND ts >= CAST(? AS DATE) ORDER BY ts", [dates[0]]).fetchall())
+    bench, first, level = [], None, None
+    for day in dates:
+        level = nifty.get(day, level)
+        if level is not None:
+            first = first or level
+            bench.append({"time": day, "value": round(per_stock * len(picked) * level / first, 2)})
+    bench_stats = _curve_stats([p["value"] for p in bench], span) if bench else {}
+    peak, underwater = -math.inf, []
+    for p in equity:
+        peak = max(peak, p["value"])
+        underwater.append({"time": p["time"], "value": round(100 * (p["value"] / peak - 1), 2)})
+    picked.sort(key=lambda x: -x["final_value"])
+    return {
+        "strategy": strategy, "strategy_name": names[strategy]["name"], "n": len(picked), "per_stock": per_stock,
+        "invested": per_stock * len(picked), "sort": sort, "metrics": stats, "benchmark": bench_stats,
+        "stocks": picked, "equity": equity, "benchmark_equity": bench, "underwater": underwater,
+        "start": dates[0], "end": dates[-1],
+        "note": ("Stocks were chosen using their results over this same period, so this is an in-sample best case: "
+                 "a real investor could not have known them in advance."),
+    }
+
+
+def export_portfolio_csv(handle, out):
+    import csv
+
+    writer = csv.writer(handle)
+    m, b = out["metrics"], out["benchmark"]
+    writer.writerow(["strategy", out["strategy"], out["strategy_name"]])
+    writer.writerow(["stocks", out["n"], "per stock", out["per_stock"], "invested", out["invested"]])
+    writer.writerow(["period", out["start"], out["end"], "years", m.get("years")])
+    writer.writerow(["final value", m.get("final_value"), "total return %", m.get("total_return_pct")])
+    writer.writerow(["CAGR %", m.get("cagr_pct"), "max drawdown %", m.get("max_dd_pct"), "CAGR / |max DD|", m.get("cagr_dd")])
+    writer.writerow(["Nifty 50, same money", b.get("final_value"), "CAGR %", b.get("cagr_pct"), "max drawdown %", b.get("max_dd_pct"),
+                     "CAGR / |max DD|", b.get("cagr_dd")])
+    writer.writerow([])
+    writer.writerow(["symbol", "name", "start", "trades", "final_value", "total_return_pct", "leaderboard_cagr_pct", "leaderboard_max_dd_pct", "leaderboard_ratio"])
+    for s in out["stocks"]:
+        writer.writerow([s["symbol"], s["name"], s["start"], s["trades"], s["final_value"], s["total_return_pct"],
+                         s["leaderboard_cagr_pct"], s["leaderboard_max_dd_pct"], s["leaderboard_ratio"]])
+    writer.writerow([])
+    writer.writerow(["date", "portfolio_value", "nifty50_value"])
+    bench = {p["time"]: p["value"] for p in out["benchmark_equity"]}
+    for p in out["equity"]:
+        writer.writerow([p["time"], p["value"], bench.get(p["time"], "")])
+    return out["n"]
+
+
 # Committed snapshot files and the exact settings that produce them (`top-leaderboard --results results/`).
 RESULT_FILTERS = {"min_cagr": 15.0, "min_trades": 3, "min_years": 2.0, "min_value": 10.0}
 STRATEGY_FILTERS = {"min_trades": 3, "min_years": 2.0, "min_value": 10.0, "min_scripts": 50}
@@ -727,6 +875,8 @@ def write_results(con, folder):
         written["leaderboard-best-per-script.csv"] = export_csv(con, handle, best=True, **RESULT_FILTERS)
     with open(folder / "strategy-ranking-return-dd.csv", "w", newline="", encoding="utf-8") as handle:
         written["strategy-ranking-return-dd.csv"] = export_strategy_csv(handle, strategy_ranking(con, **STRATEGY_FILTERS))
+    with open(folder / "top20-portfolio.csv", "w", newline="", encoding="utf-8") as handle:
+        written["top20-portfolio.csv"] = export_portfolio_csv(handle, strategy_portfolio(con))
     return written
 
 
@@ -746,6 +896,10 @@ def main(argv=None) -> int:
     parser.add_argument("--min-dsr", type=float, default=None, help="with --export: minimum deflated Sharpe probability in %%")
     parser.add_argument("--min-value", type=float, default=None, help="with --export: minimum median daily traded value in ₹ lakh (indices exempt)")
     parser.add_argument("--strategies", metavar="CSV", help="write the strategy ranking (median total return / max DD across scripts) to this CSV")
+    parser.add_argument("--portfolio", metavar="CSV", help="write the top-N portfolio of one strategy (default: the #1 strategy, top 20, ₹1 lakh each)")
+    parser.add_argument("--strategy", default=None, help="with --portfolio: strategy id (default: #1 of the strategy ranking)")
+    parser.add_argument("--top", type=int, default=20, help="with --portfolio: number of stocks")
+    parser.add_argument("--per-stock", type=float, default=100_000.0, help="with --portfolio: rupees per stock")
     parser.add_argument("--results", metavar="DIR", help="compute (resuming), then write every committed results file into DIR")
     args = parser.parse_args(argv)
     if args.db:
@@ -757,6 +911,14 @@ def main(argv=None) -> int:
         with store.session() as con, open(args.export, "w", newline="", encoding="utf-8") as handle:
             n = export_csv(con, handle, min_cagr=args.min_cagr, min_trades=args.min_trades, best=args.best, min_value=args.min_value, min_years=args.min_years, min_dsr=args.min_dsr)
         print(f"wrote {n:,} rows to {args.export}", flush=True)
+        return 0
+    if args.portfolio:
+        with store.session() as con, open(args.portfolio, "w", newline="", encoding="utf-8") as handle:
+            out = strategy_portfolio(con, strategy=args.strategy, n=args.top, per_stock=args.per_stock)
+            export_portfolio_csv(handle, out)
+        m = out["metrics"]
+        print(f"{out['strategy_name']}: ₹{out['invested']:,.0f} in {out['n']} stocks → ₹{m['final_value']:,.0f} "
+              f"({out['start']} to {out['end']}); CAGR {m['cagr_pct']}%, max DD {m['max_dd_pct']}%, CAGR ÷ |DD| {m['cagr_dd']}", flush=True)
         return 0
     if args.strategies:
         with store.session() as con, open(args.strategies, "w", newline="", encoding="utf-8") as handle:

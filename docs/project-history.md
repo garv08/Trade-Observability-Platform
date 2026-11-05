@@ -101,6 +101,16 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 
 **Another crash (v0.6.1):** the laptop rebooted after the 6,900-script leaderboard run. The work was safe: every script had been computed and saved. The final liquidity step had been reading all 7.3 million bars and spilled to disk; it now reads only the last ~14 months. Re-running also showed that an interrupted run left the deflated-Sharpe baselines stale, so they are now refreshed on every run. With NSE stocks included, *Turn of the month* became the top strategy by median return ÷ max drawdown.
 
+## 7. A top-20 portfolio of the best strategy (v0.7.0)
+
+**Asked for:** in the leaderboard, take the first strategy and put ₹1 lakh in each of its top 20 stocks (₹20 lakh in total), compute the growth of the money over time, the overall CAGR ÷ max drawdown, and the final number.
+
+**Built:** a *Top-N portfolio* section on the Leaderboard page, an API, a CLI option and `results/top20-portfolio.csv`.
+
+**Result:** Turn of the month, top 20 stocks, ₹20 lakh → ₹2.13 crore over 4.9 years (CAGR 62%, max drawdown −11.3%, CAGR ÷ |DD| 5.48). Nifty 50 with the same money reached ₹27.4 lakh.
+
+**Caveat:** the stocks are picked with hindsight from the same period, so this is a best case.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.

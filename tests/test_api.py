@@ -147,6 +147,9 @@ class ApiTests(unittest.TestCase):
         status, payload = self.get_json("/api/leaderboard/strategies?min_trades=0&min_years=0&min_value=0&min_scripts=1")
         self.assertEqual(status, 200)
         self.assertEqual(payload["strategies"], [])
+        status, payload = self.get_json("/api/leaderboard/portfolio")
+        self.assertEqual(status, 400)  # an empty leaderboard gives a clear message, not a server error
+        self.assertIn("Run backtests first", payload["error"])
         status, body, ctype = self.get("/api/leaderboard/strategies.csv")
         self.assertEqual(status, 200)
         self.assertIn("text/csv", ctype)

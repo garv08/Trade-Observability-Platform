@@ -126,9 +126,11 @@ All 92 strategies backtested on every stock, ETF, and index (**611,146 backtests
 <td colspan="2" valign="top">
 
 ### 9 · Which strategy works best across stocks?
-**By strategy** ranks the strategies themselves by **median total return ÷ max drawdown across all qualifying scripts**, with no CAGR cut so losers count. It also shows the middle half, % profitable, % beating buy-and-hold, and the best script. **Turn of the month** leads (new from the research digest, profitable on 85% of 3,311 scripts), then the Donchian 55 and 20 breakouts, Carney harmonics and Connors-style mean reversion. A deflated-Sharpe column shows how few results survive a luck test. [Full table →](results/strategy-ranking-return-dd.csv) · reproduce with `top-leaderboard --results results`.
+**By strategy** ranks the strategies themselves by **median total return ÷ max drawdown across all qualifying scripts**, with no CAGR cut so losers count. It also shows the middle half, % profitable, % beating buy-and-hold, and the best script. **Turn of the month** leads (new from the research digest, profitable on 85% of 3,311 scripts), then the Donchian 55 and 20 breakouts, Carney harmonics and Connors-style mean reversion. A deflated-Sharpe column shows how few results survive a luck test. [Full table →](results/strategy-ranking-return-dd.csv) · reproduce with `top-leaderboard --results results`. **Top-N portfolio**: ₹1 lakh in each of the #1 strategy's top 20 stocks grew ₹20 lakh to **₹2.13 crore** in 4.9 years (CAGR 62%, max drawdown −11%, CAGR ÷ DD 5.5; Nifty 50: ₹27 lakh). The stocks were picked with hindsight, so read it as a best case ([details](results/README.md)).
 
 <img src="docs/images/strategy-ranking.png" alt="Strategies ranked by median total return divided by max drawdown across thousands of scripts"/>
+
+<img src="docs/images/top20-portfolio.png" alt="Top-20 portfolio of the #1 strategy: ₹20 lakh grows to ₹2.13 crore, with CAGR, max drawdown and each stock's result"/>
 
 </td>
 </tr>

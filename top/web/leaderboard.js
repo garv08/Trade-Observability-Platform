@@ -272,6 +272,62 @@ function downloadCsv() {
   link.click();
 }
 
+const inr = (v) => (v == null ? "–" : `₹${Math.round(v).toLocaleString("en-IN")}`);
+let pfChart = null;
+
+function portfolioQuery() {
+  const q = new URLSearchParams({
+    n: $("pf-n").value || "20", per_stock: $("pf-per").value || "100000", sort: $("pf-sort").value,
+    min_trades: $("f-trades").value || "0", min_years: $("f-years").value || "0", min_value: $("f-value").value || "0",
+  });
+  if ($("pf-strategy").value) q.set("strategy", $("pf-strategy").value);
+  return q;
+}
+
+async function runPortfolio() {
+  const button = $("pf-run");
+  button.disabled = true;
+  button.textContent = "Computing…";
+  try {
+    const out = await api(`/api/leaderboard/portfolio?${portfolioQuery()}`);
+    const m = out.metrics, b = out.benchmark || {};
+    const card = (label, value, sub, c = "") => `<div><span>${label}</span><b class="${c}">${value}</b><span>${sub}</span></div>`;
+    $("pf-out").innerHTML = `<p><b>${esc(out.strategy_name)}</b>: ${inr(out.per_stock)} in each of ${out.n} stocks = <b>${inr(out.invested)}</b>, from ${esc(out.start)} to ${esc(out.end)} (${num(m.years, 1)} years).</p>
+      <div class="pf-cards">
+        ${card("Final value", inr(m.final_value), `Nifty 50: ${inr(b.final_value)}`, cls(m.total_return_pct))}
+        ${card("Total return", pct(m.total_return_pct, 0), `Nifty 50: ${pct(b.total_return_pct, 0)}`, cls(m.total_return_pct))}
+        ${card("CAGR", pct(m.cagr_pct), `Nifty 50: ${pct(b.cagr_pct)}`, cls(m.cagr_pct))}
+        ${card("Max drawdown", pct(m.max_dd_pct), `Nifty 50: ${pct(b.max_dd_pct)}`, "down")}
+        ${card("CAGR ÷ |Max DD|", num(m.cagr_dd, 2), `Nifty 50: ${num(b.cagr_dd, 2)}`, "ratio")}
+      </div>
+      <p class="note">${esc(out.note)} Each stock trades on its own money; money is not moved between stocks. The chart shows the ₹ value of the portfolio (blue) and of Nifty 50 with the same money (grey).</p>`;
+    $("pf-stocks").innerHTML = `<div class="table-wrap"><table class="lb-table"><thead><tr><th class="l">Stock</th><th>Test start</th><th>Trades</th><th>Final value</th><th>Return</th><th>Leaderboard CAGR ÷ DD</th></tr></thead><tbody>
+      ${out.stocks.map((s) => `<tr data-href="/?symbol=${encodeURIComponent(s.symbol)}&strategy=${encodeURIComponent(out.strategy)}&universe=${s.universe === "bse" ? "bse" : "nse"}&run=backtest">
+        <td class="l sym"><b>${esc(s.symbol)}</b><small>${esc(s.name || "")}</small></td><td>${esc(s.start)}</td><td>${s.trades}</td>
+        <td>${inr(s.final_value)}</td><td class="${cls(s.total_return_pct)}">${pct(s.total_return_pct, 0)}</td><td>${num(s.leaderboard_ratio, 2)}</td></tr>`).join("")}
+      </tbody></table></div>`;
+    $("pf-chart").classList.remove("hidden");
+    if (!pfChart) {
+      pfChart = LightweightCharts.createChart($("pf-chart"), {
+        autoSize: true, layout: { background: { color: "#131722" }, textColor: "#8b90a0" },
+        grid: { vertLines: { color: "#1c2030" }, horzLines: { color: "#1c2030" } },
+        rightPriceScale: { borderColor: "#2a2e39" }, timeScale: { borderColor: "#2a2e39" },
+      });
+      pfChart.equity = pfChart.addAreaSeries({ lineColor: "#2962ff", topColor: "rgba(41,98,255,0.28)", bottomColor: "rgba(41,98,255,0.02)", priceLineVisible: false, title: "Portfolio" });
+      pfChart.bench = pfChart.addLineSeries({ color: "#8b90a0", lineWidth: 1, priceLineVisible: false, title: "Nifty 50" });
+    }
+    pfChart.equity.setData(out.equity);
+    pfChart.bench.setData(out.benchmark_equity || []);
+    pfChart.timeScale().fitContent();
+  } catch (error) {
+    $("pf-out").innerHTML = `<p class="note down">${esc(error.message)}</p>`;
+    $("pf-stocks").innerHTML = "";
+  } finally {
+    button.disabled = false;
+    button.textContent = "Compute";
+  }
+}
+
 async function init() {
   restoreUrl();
   renderChips();
@@ -286,6 +342,8 @@ async function init() {
     select.innerHTML = '<option value="">All strategies</option>' + Object.entries(sections).map(([section, items]) =>
       `<optgroup label="${esc(section)}">${items.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</optgroup>`).join("");
     select.value = state.pendingStrategy || "";
+    $("pf-strategy").innerHTML = '<option value="">#1 by median return ÷ |Max DD|</option>' + Object.entries(sections).map(([section, items]) =>
+      `<optgroup label="${esc(section)}">${items.map((s) => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")}</optgroup>`).join("");
   } catch (error) {
     $("st-msg").textContent = error.message;
   }
@@ -336,6 +394,13 @@ async function init() {
     if (confirm("Recompute every strategy on every script? This takes several hours.")) control({ action: "start", force: true });
   });
   $("csv-btn").addEventListener("click", downloadCsv);
+  $("pf-run").addEventListener("click", runPortfolio);
+  if (new URLSearchParams(location.search).get("portfolio") === "1") runPortfolio();
+  $("pf-csv").addEventListener("click", (event) => { event.preventDefault(); location.href = `/api/leaderboard/portfolio.csv?${portfolioQuery()}`; });
+  $("pf-stocks").addEventListener("click", (event) => {
+    const row = event.target.closest("tr[data-href]");
+    if (row) window.open(row.dataset.href, "_blank", "noopener");
+  });
   load();
 }
 

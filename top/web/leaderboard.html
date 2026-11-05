@@ -67,6 +67,15 @@
     .views button { border: 0; border-radius: 0; background: var(--panel-2); color: var(--text); padding: 6px 14px; cursor: pointer; font: inherit; }
     .views button.on { background: var(--blue); color: #fff; }
     .hidden { display: none !important; }
+    .pf-card { margin-top: 14px; }
+    .pf-form { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+    .pf-form .btn { text-align: center; text-decoration: none; }
+    .pf-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; margin: 12px 0 8px; }
+    .pf-cards div { background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px; }
+    .pf-cards span { display: block; color: var(--muted); font-size: 11px; }
+    .pf-cards b { font-size: 17px; font-variant-numeric: tabular-nums; }
+    .pf-chart { height: 260px; margin-top: 8px; }
+    .pf-out table { margin-top: 8px; }
     .filters label.off { opacity: .45; }
     @media (max-width: 1100px) { main.lb { grid-template-columns: 1fr; } }
   </style>
@@ -132,6 +141,21 @@
             <option value="scripts">Scripts tested</option>
           </select></label>
         </div>
+      </div>
+
+      <div class="card pf-card">
+        <h2>Top-N portfolio of one strategy</h2>
+        <div class="filters pf-form">
+          <label>Strategy<select id="pf-strategy"><option value="">#1 by median return ÷ |Max DD|</option></select></label>
+          <label>Stocks (top N)<input id="pf-n" type="number" min="1" max="100" step="1" value="20" /></label>
+          <label>₹ per stock<input id="pf-per" type="number" min="1000" step="10000" value="100000" /></label>
+          <label>Pick stocks by<select id="pf-sort"><option value="ratio">CAGR ÷ |Max DD|</option><option value="return_dd">Return ÷ |Max DD|</option><option value="cagr">CAGR</option><option value="dsr">Deflated Sharpe</option></select></label>
+          <button id="pf-run" class="btn primary" type="button">Compute</button>
+          <a id="pf-csv" class="btn" href="#">Download CSV</a>
+        </div>
+        <div id="pf-out" class="pf-out"><p class="note">Puts the same money into each of the strategy's top N stocks (stocks only, one listing per company, using the filters above), runs the strategy on each, and adds up the money over time.</p></div>
+        <div id="pf-chart" class="pf-chart hidden"></div>
+        <div id="pf-stocks"></div>
       </div>
 
       <div class="summary" id="lb-summary"></div>
@@ -207,6 +231,7 @@
     </aside>
   </main>
 
+  <script src="/vendor/lightweight-charts.standalone.production.js"></script>
   <script src="/leaderboard.js"></script>
 </body>
 </html>

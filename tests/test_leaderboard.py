@@ -228,6 +228,26 @@ class LeaderboardTests(unittest.TestCase):
         self.assertTrue(set(gone) <= set(stored[0].split(",")))
         self.assertNotIn(symbol, [s for s, _ in todo])
 
+    def test_strategy_portfolio(self):
+        import io
+
+        with store.session() as con:
+            leaderboard.refresh_liquidity(con)
+            out = leaderboard.strategy_portfolio(con, strategy="sma_cross", n=2, per_stock=100_000, min_trades=0, min_years=0, min_value=0)
+            best = leaderboard.strategy_portfolio(con, n=1, per_stock=50_000, min_trades=0, min_years=0, min_value=0)
+            buffer = io.StringIO()
+            leaderboard.export_portfolio_csv(buffer, out)
+        self.assertEqual(out["n"], 2)
+        self.assertEqual(out["invested"], 200_000)
+        self.assertEqual(out["equity"][0]["value"], 200_000.0)
+        # The portfolio's final value is the sum of each stock's own final value.
+        self.assertAlmostEqual(out["metrics"]["final_value"], sum(s["final_value"] for s in out["stocks"]), delta=1)
+        m = out["metrics"]
+        self.assertAlmostEqual(m["cagr_dd"], m["cagr_pct"] / max(abs(m["max_dd_pct"]), leaderboard.DD_FLOOR), places=2)
+        self.assertLessEqual(max(p["value"] for p in out["underwater"]), 0)
+        self.assertTrue(best["strategy"])
+        self.assertIn("final value", buffer.getvalue())
+
     def test_years_are_tested_years(self):
         with store.session() as con:
             bars = con.execute("SELECT COUNT(*) FROM bars WHERE symbol = (SELECT MIN(symbol) FROM leaderboard)").fetchone()[0]
@@ -255,7 +275,7 @@ class LeaderboardTests(unittest.TestCase):
             self.assertEqual(leaderboard.strategy_ranking(con, min_scripts=10_000), [])
             folder = temp_dir("top-results-")
             written = leaderboard.write_results(con, folder)
-        self.assertEqual(set(written), {"leaderboard-cagr15.csv", "leaderboard-best-per-script.csv", "strategy-ranking-return-dd.csv"})
+        self.assertEqual(set(written), {"leaderboard-cagr15.csv", "leaderboard-best-per-script.csv", "strategy-ranking-return-dd.csv", "top20-portfolio.csv"})
         header = (folder / "strategy-ranking-return-dd.csv").read_text().splitlines()[0]
         self.assertTrue(header.startswith("rank,strategy,strategy_name,section,creator,scripts,median_return_dd"))
 
