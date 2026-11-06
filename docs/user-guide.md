@@ -33,6 +33,17 @@ Nothing is drawn over the chart; panels stack below it. In windows narrower than
 
 ---
 
+## First start on a new machine
+
+The market database is not in git, so a fresh clone starts with the Nifty 50 only. A blue **Only the Nifty 50 is loaded** box at the top of the left panel offers two buttons:
+
+- **Download ready-made data**: installs the newest data snapshot from the GitHub releases (about 225 MB, a few minutes). You get every stock, ETF and index, delivery %, and the computed leaderboard. The top bar shows `Data snapshot 120/225 MB` while it runs.
+- **Sync from exchanges**: the same as **Sync history**, building everything from NSE and BSE files (1–2 hours).
+
+The box disappears once the store has more than 1,000 scripts. See the [installation guide](installation.md#get-all-the-data-on-a-new-machine) for the command-line version.
+
+---
+
 ## Pick a stock
 
 **Universe chips** above the Stock box choose what the dropdown and **Backtest universe** cover:

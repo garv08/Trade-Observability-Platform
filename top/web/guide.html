@@ -368,8 +368,9 @@ http://127.0.0.1:8000/?symbol=TCS&amp;strategy=ut_ahl_trend&amp;run=backtest</co
       <h2 id="data">Data and sync</h2>
       <ul>
         <li>Sources: Yahoo Finance daily chart data for the Nifty 50 (adjusted for splits and dividends), the exchanges' daily bhavcopies for BSE stocks and ETFs (adjusted for splits and bonus issues using NSE corporate actions plus a price-gap rule), and the NSE and BSE daily index files for indices (NSE five years; BSE from April 2025).</li>
-        <li>Store: DuckDB file at <code>data/nse.duckdb</code>.</li>
-        <li><b>Sync history</b> re-downloads all 50 names in the background. The pill shows progress, and the chart reloads when it finishes.</li>
+        <li>Store: DuckDB file at <code>data/nse.duckdb</code>. It is <b>not in git</b> (about 480 MB), so a new clone starts with the Nifty 50 only.</li>
+        <li><b>Download ready-made data</b> (shown on the desk while only the Nifty 50 is loaded), or <code>top-sync --snapshot</code> with the server stopped, installs the newest data snapshot from the GitHub releases in a few minutes: every stock, ETF and index, delivery %, and the computed leaderboard. Then use Sync history to add the days since.</li>
+        <li><b>Sync history</b> refreshes the Nifty 50 and downloads new exchange files (NSE and BSE stocks, ETFs, indices, delivery %) in the background; the first time takes 1–2 hours. The pill shows progress, and the chart reloads when it finishes.</li>
         <li>The universe follows the current Nifty 50, including <code>M&amp;M</code>, <code>ETERNAL</code> (formerly Zomato), and <code>TMPV</code> (Tata Motors passenger vehicles).</li>
       </ul>
 

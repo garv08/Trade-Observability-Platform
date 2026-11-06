@@ -61,6 +61,14 @@ def _set_status(**kwargs) -> None:
         _status.update(kwargs)
 
 
+def reset_caches() -> None:
+    """Forget everything cached about the store file (after it was replaced by a snapshot)."""
+    global _schema_ready
+    _schema_ready = False
+    with _lock:
+        _symbols_cache.update(key=None, rows=[], known=set())
+
+
 def set_bhav_status(**kwargs) -> None:
     with _lock:
         _status["bhav"].update(kwargs)
@@ -458,7 +466,8 @@ def main(argv=None) -> int:
 
     parser = argparse.ArgumentParser(
         prog="top-sync",
-        description="Fill or refresh the TOP DuckDB store: the Nifty 50 from Yahoo (adjusted), and BSE stocks plus NSE/BSE ETFs from exchange bhavcopies.",
+        description="Fill or refresh the TOP DuckDB store: the Nifty 50 from Yahoo (adjusted), and NSE/BSE stocks, ETFs, indices and delivery % from exchange files. "
+                    "On a new machine, --snapshot installs a ready-made copy of the whole store in minutes.",
     )
     parser.add_argument("--db", help="DuckDB file (default: TOP_DB or ./data/nse.duckdb)")
     which = parser.add_mutually_exclusive_group()
@@ -466,12 +475,55 @@ def main(argv=None) -> int:
     which.add_argument("--bhav", action="store_true", help="only BSE stocks, ETFs and indices (exchange files)")
     which.add_argument("--indices", action="store_true", help="only NSE and BSE indices")
     which.add_argument("--delivery", action="store_true", help="only NSE delivery %% and the FII/DII snapshot")
+    which.add_argument("--snapshot", nargs="?", const="latest", metavar="FILE_OR_URL",
+                       help="install a ready-made store: the newest one from the GitHub releases, or a file/URL you give (stop top-platform first)")
+    which.add_argument("--make-snapshot", metavar="DIR", help="write top-data.duckdb.gz and top-data.json into DIR for a release (stop top-platform first)")
     parser.add_argument("--years", type=int, default=5, help="history for BSE stocks and ETFs (default 5)")
     args = parser.parse_args(argv)
     global DB_PATH, _schema_ready
     if args.db:
         DB_PATH = Path(args.db)
         _schema_ready = False
+    if args.snapshot or args.make_snapshot:
+        from top import snapshot
+
+        if snapshot.store_in_use(DB_PATH):
+            print(f"{DB_PATH} is open in another program (usually top-platform). Stop it, or use the desk's "
+                  "'Download ready-made data' button instead.", flush=True)
+            return 1
+        if args.make_snapshot:
+            manifest = snapshot.make(args.make_snapshot, DB_PATH)
+            print(f"wrote {manifest['asset']} ({manifest['bytes'] / 1e6:,.0f} MB) for {manifest['symbols_with_bars']:,} scripts, "
+                  f"data to {manifest['data_to']}, into {args.make_snapshot}", flush=True)
+            return 0
+        last = [-1]
+
+        def show():
+            st = snapshot.status()
+            if int(st["done_mb"]) // 25 != last[0] or not st["running"]:
+                last[0] = int(st["done_mb"]) // 25
+                print(f"  {st['message']}", flush=True)
+
+        import threading
+
+        stop = threading.Event()
+
+        def ticker():
+            while not stop.wait(2):
+                show()
+
+        threading.Thread(target=ticker, daemon=True).start()
+        try:
+            info = snapshot.install(None if args.snapshot == "latest" else args.snapshot, DB_PATH)
+        except Exception as exc:  # noqa: BLE001
+            stop.set()
+            print(f"Snapshot failed: {exc}", flush=True)
+            return 1
+        stop.set()
+        print(f"Installed: {info['symbols_with_bars']:,} scripts, {info['bars']:,} bars, data to {info['data_to']}, "
+              f"{info['leaderboard_rows']:,} leaderboard rows. The old store is kept as {DB_PATH.name}.bak. "
+              "Run top-sync (or Sync history) to add the days since then.", flush=True)
+        return 0
     failed = False
     if not (args.bhav or args.indices or args.delivery):
         print(f"Syncing the Nifty 50 from Yahoo into {DB_PATH}", flush=True)

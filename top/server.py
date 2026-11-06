@@ -115,9 +115,11 @@ class Handler(BaseHTTPRequestHandler):
             if parsed.path == "/api/health":
                 payload = {"ok": True, "universe": len(UNIVERSE), "symbols": len(known_symbols())}
             elif parsed.path == "/api/status":
+                from top import snapshot
+
                 with session() as con:
                     ensure_schema(con)
-                    payload = {"sync": status(), "coverage": coverage(con)}
+                    payload = {"sync": {**status(), "snapshot": snapshot.status()}, "coverage": coverage(con)}
             elif parsed.path == "/api/symbols":
                 with session() as con:
                     ensure_schema(con)
@@ -620,10 +622,32 @@ def _refresh_leaderboard():
         pass
 
 
+def _run_snapshot():
+    from top import snapshot
+
+    try:
+        snapshot.install(lock=store_db_lock())
+    except Exception:  # noqa: BLE001 - status carries the message
+        pass
+
+
+def store_db_lock():
+    from top import store
+
+    return store._db_lock
+
+
 def _start_sync(what="all"):
     """Start background syncs: 'nifty' (Yahoo, adjusted), 'bhav' (BSE stocks + ETFs + indices), 'indices', or 'all'."""
     global _sync_thread, _bhav_thread
     current = status()
+    if what == "snapshot":
+        from top import snapshot
+
+        if current["syncing"] or current["bhav"]["syncing"] or leaderboard.status()["running"] or snapshot.status()["running"]:
+            raise ValueError("Wait for the running sync or leaderboard run to finish (or stop it) before installing the snapshot.")
+        threading.Thread(target=_run_snapshot, daemon=True).start()
+        return status()
     if what in ("nifty", "all") and not current["syncing"]:
         _sync_thread = threading.Thread(target=sync_all, daemon=True)
         _sync_thread.start()
@@ -652,7 +676,9 @@ def build_server(host=HOST, port=PORT, auto_sync=True):
         ensure_schema(con)
         stale = needs_sync(con)
     if stale and auto_sync:
-        _start_sync()
+        # First start: the Nifty 50 only (1–2 minutes). Everything else is a choice on the desk:
+        # the ready-made data snapshot (minutes) or Sync history (hours).
+        _start_sync("nifty")
     return ThreadingHTTPServer((host, port), Handler)
 
 

@@ -36,9 +36,11 @@ top-platform
 
 Open **http://127.0.0.1:8000**. On the first run TOP downloads about five years of daily history for the Nifty 50 (1–2 minutes). The top bar shows `Nifty sync 12/50`, then `DuckDB 50/50`.
 
-To add **all BSE stocks, NSE/BSE ETFs, NSE/BSE indices, and NSE delivery %**, click **Sync history** in the app, or run `top-sync --bhav`. This downloads five years of exchange bhavcopies, index files and delivery files, about 3,900 files and 1–2 hours the first time, then seconds per day after that.
-
-Then open **Leaderboard** in the top bar and press **Run backtests** to rank all 92 strategies on every script by CAGR ÷ max drawdown (a few hours in the background on a slow PC; resumable).
+> [!IMPORTANT]
+> **The market database is not in git.** `data/nse.duckdb` (about 480 MB) is generated data and too big for a repository (GitHub refuses files over 100 MB), so `git clone` and `git pull` bring the code and the `results/` CSVs only. To get **every NSE and BSE stock, ETFs, indices, delivery % and the computed leaderboard** on a new machine, pick one:
+>
+> - **Ready-made data (minutes):** click **Download ready-made data** on the desk, or stop the server and run `top-sync --snapshot`. This installs the newest data snapshot attached to the [GitHub releases](https://github.com/garv08/Trade-Observability-Platform/releases) (about 225 MB download), checks its SHA-256, and keeps your old store as `nse.duckdb.bak`. Then click **Sync history** to add the days since the snapshot.
+> - **Build it yourself (hours):** click **Sync history** (or run `top-sync --bhav`): five years of exchange files, about 3,900 downloads and 1–2 hours, then seconds a day. Then open **Leaderboard** and press **Run backtests** (a few hours; resumable).
 
 > [!TIP]
 > On Ubuntu/Debian you may first need `sudo apt install -y git python3-venv python3-pip`. Windows and macOS steps, `pipx`, upgrading, and troubleshooting are in the **[installation guide](docs/installation.md)**.

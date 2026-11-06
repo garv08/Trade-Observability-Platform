@@ -34,6 +34,14 @@
 
   <div class="workspace">
     <aside class="rail controls" id="controls">
+      <section class="block data-banner hidden" id="data-banner">
+        <div class="block-head"><b>Only the Nifty 50 is loaded</b></div>
+        <p class="blurb" id="data-banner-text">Get every NSE and BSE stock, ETFs, indices, delivery % and a computed leaderboard: download the ready-made data (a few minutes), or build it from the exchanges with Sync history (1–2 hours, then Run backtests on the Leaderboard page).</p>
+        <div class="button-row">
+          <button id="snapshot-btn" type="button" class="primary">Download ready-made data</button>
+          <button id="banner-sync-btn" type="button">Sync from exchanges</button>
+        </div>
+      </section>
       <section class="block">
         <div class="block-head"><b>Stock</b><span class="muted" id="stock-count">50 names</span></div>
         <div id="universe-chips" class="chips universe-chips"></div>
@@ -96,7 +104,7 @@
       <div class="chart-stack">
         <div id="price-chart"></div>
         <div id="osc-stack"></div>
-        <div id="chart-empty" class="empty hidden">No bars stored for this name yet.</div>
+        <div id="chart-empty" class="chart-empty hidden">No bars stored for this name yet.</div>
       </div>
       <section id="explain" class="explain">
         <header>

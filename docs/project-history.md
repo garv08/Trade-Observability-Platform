@@ -111,6 +111,24 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 
 **Caveat:** the stocks are picked with hindsight from the same period, so this is a best case.
 
+## 8. Data on another machine and a fresh-clone review (v0.8.0)
+
+**Reported from a second PC after `git pull`:**
+- The 8,000+ scripts were missing.
+- On the leaderboard, a layer covered every button.
+
+**Why the data was missing:** the database has never been in git. It is 480 MB of generated data, and GitHub refuses files over 100 MB.
+
+**Fix:** a compressed snapshot (225 MB) is attached to a GitHub release. `top-sync --snapshot`, or a **Download ready-made data** button, installs it in minutes, and Sync history then tops it up.
+
+**Why the buttons were covered:** a global `.empty` CSS rule for the chart's "No bars" overlay also matched the empty-table placeholders on the other pages. With no results, as on every fresh clone, it covered the whole page. On the dev machine the tables were never empty, so it never showed. An automated check now confirms every control on every page is clickable with an empty database. With the old rule, 26 of 28 leaderboard controls were covered.
+
+**Code review:** a full review of fresh-clone, empty-database and Windows behaviour found four more bugs. All are fixed:
+- First start downloaded everything.
+- Charts opened during the first sync stayed empty.
+- The portfolio CSV download landed on an error page.
+- The default portfolio strategy could have no stocks.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.

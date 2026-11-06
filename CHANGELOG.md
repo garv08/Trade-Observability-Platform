@@ -2,6 +2,23 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.8.0] - 2026-11-06
+
+### Added
+- **Ready-made data snapshot.** The database is not in git (about 480 MB; GitHub refuses files over 100 MB), so a fresh clone had only the Nifty 50.
+  - `top-sync --snapshot` and a **Download ready-made data** button on the desk install the newest snapshot attached to a GitHub release (`top-data.duckdb.gz`, about 225 MB).
+  - The snapshot contains every NSE and BSE stock, ETFs, indices, delivery % and the computed leaderboard.
+  - It is checked by SHA-256 and test-opened before replacing the store. The old store is kept as `.bak`.
+  - `top-sync --make-snapshot DIR` creates one, and `--snapshot FILE|URL` installs your own copy.
+- An *Only the Nifty 50 is loaded* box on the desk explains the two ways to get the rest of the data.
+
+### Fixed
+- **Leaderboard, Markets and Portfolio pages unusable on a fresh install.** A global `.empty` CSS rule meant for the chart's "No bars" overlay turned every empty table placeholder into a full-page layer. That covered 26 of the 28 controls on the leaderboard whenever there were no results, as on every fresh clone. The overlay is now `.chart-empty`, and table placeholders can't become overlays.
+- First start downloaded everything (hours of BSE/NSE files) instead of just the Nifty 50, contrary to the docs. It now fetches only the Nifty 50.
+- Charts opened during the first sync stayed empty until a page reload. Empty answers are no longer cached, and the symbol list refreshes as soon as the Nifty sync ends.
+- The top-N portfolio's **Download CSV** replaced the page with a raw error when there were no results. It now shows the message in place.
+- On a partly computed leaderboard, the default top-N portfolio strategy could have no qualifying stocks. The fallback now ranks with the same filters it then uses to pick stocks.
+
 ## [0.7.0] - 2026-11-05
 
 ### Added

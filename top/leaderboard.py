@@ -750,10 +750,12 @@ def strategy_portfolio(con, strategy=None, n=20, per_stock=100_000.0, cost_bps=C
     if not strategy:
         ranking = strategy_ranking(con, **STRATEGY_FILTERS)
         if not ranking:
-            # Small stores (or strict filters): rank on whatever has been computed.
-            ranking = strategy_ranking(con, min_trades=0, min_years=0, min_value=0, min_scripts=1)
+            # Small or partly computed stores: same per-script filters as the stock selection, fewer scripts needed.
+            ranking = strategy_ranking(con, min_trades=min_trades, min_years=min_years, min_value=min_value, min_scripts=1)
         if not ranking:
-            raise ValueError("The leaderboard has no results yet. Run backtests first.")
+            if not con.execute("SELECT COUNT(*) FROM leaderboard").fetchone()[0]:
+                raise ValueError("The leaderboard has no results yet. Run backtests first.")
+            raise ValueError("No strategy has stocks that pass these filters. Lower Min trades, tested years or daily value.")
         strategy = ranking[0]["strategy"]
     if strategy not in names:
         raise ValueError("unknown strategy")

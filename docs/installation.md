@@ -117,7 +117,7 @@ pipx install "git+https://github.com/garv08/Trade-Observability-Platform.git"
 top-platform
 ```
 
-To pin a release, add `@v0.7.0` to the URL.
+To pin a release, add `@v0.8.0` to the URL.
 
 ---
 
@@ -132,8 +132,28 @@ TOP - Trade Observability Platform at http://127.0.0.1:8000 (also http://localho
 ```
 
 1. Open **http://127.0.0.1:8000**.
-2. TOP creates `data/nse.duckdb` and downloads history for all 50 stocks in the background. The top bar shows `Sync 12/50`, then `DuckDB 50/50`.
+2. TOP creates `data/nse.duckdb` and downloads history for the Nifty 50 in the background. The top bar shows `Nifty sync 12/50`, then `DuckDB 50/50`.
 3. Pick a stock, add studies, and read the Interpretation pane. See the [user guide](user-guide.md).
+
+### Get all the data on a new machine
+
+The database is **not in git**: it is about 480 MB of generated data, and GitHub refuses files over 100 MB, so `git clone` and `git pull` bring only the code. A banner on the desk (*Only the Nifty 50 is loaded*) offers two ways to fill it:
+
+| Way | How | Time | You get |
+| --- | --- | --- | --- |
+| **Ready-made snapshot** | **Download ready-made data** on the desk, or (server stopped) `top-sync --snapshot` | minutes (≈225 MB) | Every NSE and BSE stock, ETFs, indices, delivery %, FII/DII, and the computed leaderboard as of the snapshot date |
+| **From the exchanges** | **Sync history** on the desk, or `top-sync --bhav`, then **Run backtests** on the Leaderboard page | 1–2 hours + a few hours | The same, built on your machine |
+
+After a snapshot, click **Sync history** once to add the days since it was made (only those days are downloaded). The snapshot comes from the newest [GitHub release](https://github.com/garv08/Trade-Observability-Platform/releases) that has a `top-data.duckdb.gz` asset. Its SHA-256 is checked against `top-data.json`, and the file is opened as a test before it replaces your store. Your old store is kept as `data/nse.duckdb.bak`.
+
+You can also copy a store yourself, for example on a USB stick or cloud drive:
+
+```bash
+top-sync --make-snapshot ~/top-snapshot     # on the machine with data (server stopped)
+top-sync --snapshot ~/top-snapshot/top-data.duckdb.gz   # on the other machine (server stopped)
+```
+
+`--snapshot` also accepts a URL, or a plain `nse.duckdb` file.
 
 Prefer to download the data first, without the server?
 
@@ -142,6 +162,7 @@ top-sync --nifty          # the Nifty 50 from Yahoo (1–2 minutes)
 top-sync --bhav           # all BSE stocks + NSE/BSE ETFs + indices + delivery % (first run 1–2 hours)
 top-sync --indices        # only NSE and BSE indices (first run 20–30 minutes)
 top-sync --delivery       # only NSE delivery % and the FII/DII snapshot (first run 20–30 minutes)
+top-sync --snapshot       # install the ready-made data snapshot from the GitHub releases (minutes)
 top-leaderboard           # every strategy on every script for the Leaderboard page (hours; resumable)
 top-sync                  # both
 top-sync --bhav --years 2 # less history, faster first run

@@ -571,7 +571,8 @@ async function loadBars(symbol) {
   renderSymbols();
   if (!state.barCache.has(symbol)) {
     const payload = await api(`/api/bars?symbol=${encodeURIComponent(symbol)}`);
-    state.barCache.set(symbol, payload.bars);
+    // An empty answer (e.g. during the first sync) is not cached, so the name is asked again later.
+    if (payload.bars.length) state.barCache.set(symbol, payload.bars);
   }
   if (token !== state.request) return;
   state.bars = state.barCache.get(symbol) || [];
@@ -982,13 +983,27 @@ async function refreshStatus() {
   const pill = $("sync-pill");
   const bhav = sync.bhav || {};
   const extra = (coverage.total_symbols_with_bars || 0) - coverage.symbols_with_bars;
-  const busy = sync.syncing || bhav.syncing;
-  if (sync.syncing) pill.textContent = `Nifty sync ${sync.done}/${sync.total}`;
+  const snap = sync.snapshot || {};
+  const busy = sync.syncing || bhav.syncing || snap.running;
+  const thin = (coverage.total_symbols_with_bars || 0) < 1000;
+  $("data-banner").classList.toggle("hidden", !(thin || snap.running || (snap.message || "").startsWith("snapshot failed")));
+  $("snapshot-btn").disabled = $("banner-sync-btn").disabled = Boolean(busy);
+  if (snap.running) $("data-banner-text").textContent = `Ready-made data: ${snap.message}…`;
+  else if ((snap.message || "").startsWith("snapshot failed")) $("data-banner-text").textContent = `${snap.message}. You can try again, or use Sync from exchanges.`;
+  if (state.wasSnapshot && !snap.running) state.barCache.clear();
+  state.wasSnapshot = snap.running;
+  if (snap.running) pill.textContent = `Data snapshot ${snap.total_mb ? `${Math.round(snap.done_mb)}/${Math.round(snap.total_mb)} MB` : "…"}`;
+  else if (sync.syncing) pill.textContent = `Nifty sync ${sync.done}/${sync.total}`;
   else if (bhav.syncing) pill.textContent = bhav.total ? `BSE/ETF sync ${bhav.done}/${bhav.total} days` : "BSE/ETF sync starting";
   else pill.textContent = `DuckDB ${coverage.symbols_with_bars}/50${extra > 0 ? ` · +${extra.toLocaleString("en-IN")}` : ""}`;
   pill.title = [`Nifty 50: ${coverage.symbols_with_bars}/50 (Yahoo, adjusted)`, ...Object.values(coverage.universes || {}).filter((u) => u.label !== "Nifty 50").map((u) => `${u.label}: ${u.symbols_with_bars.toLocaleString("en-IN")} with bars (bhavcopy, split/bonus adjusted)`), bhav.message ? `BSE/ETF sync: ${bhav.message}` : ""].filter(Boolean).join("\n");
   pill.className = `pill ${busy ? "warn" : coverage.symbols_with_bars === 50 ? "live" : ""}`;
-  if (!busy || (bhav.syncing && bhav.done && bhav.done % 50 === 0)) {
+  const finishedNifty = state.wasNiftySyncing && !sync.syncing;
+  state.wasNiftySyncing = sync.syncing;
+  const step = Math.floor((bhav.done || 0) / 50);
+  const bhavStep = bhav.syncing && step !== state.lastBhavStep;
+  state.lastBhavStep = step;
+  if (!busy || finishedNifty || bhavStep) {
     const symbols = await api("/api/symbols");
     state.symbols = symbols.symbols;
     renderSymbols();
@@ -1180,6 +1195,15 @@ function bind() {
   $("sync-btn").addEventListener("click", async () => {
     await api("/api/sync", { method: "POST" });
     state.barCache.clear();
+    refreshStatus();
+  });
+  $("banner-sync-btn").addEventListener("click", () => $("sync-btn").click());
+  $("snapshot-btn").addEventListener("click", async () => {
+    try {
+      await api("/api/sync", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ what: "snapshot" }) });
+    } catch (error) {
+      $("data-banner-text").textContent = error.message;
+    }
     refreshStatus();
   });
   $("tester-toggle").addEventListener("click", () => {

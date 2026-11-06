@@ -3,7 +3,7 @@
 | | |
 | --- | --- |
 | Product | TOP — Trade Observability Platform |
-| Version | 0.7.0 |
+| Version | 0.8.0 |
 | Status | Working local release |
 | Scope | Nifty 50, daily bars, research and backtesting. No order routing |
 
@@ -105,6 +105,7 @@ Each load carries a request token. A slow response for a previous stock is dropp
 | `robust.py` | Monte Carlo trade reshuffling and walk-forward re-tuning of one setting | Used by `/api/backtest` and `/api/walkforward` |
 | `markets.py` | Split-adjusted bars in SQL, breadth, Nifty volatility regime, sector rotation, eight stock scans | Scan figures cached until the store changes |
 | `portfolio.py` | Monthly top-N portfolio backtests (momentum 12-1, low vol, sector rotation, ETF momentum) | Rank at month-end close, trade at next open |
+| `snapshot.py` | Make, download, verify (SHA-256, test open) and install a compressed copy of the whole store; GitHub release asset `top-data.duckdb.gz` + `top-data.json` | Swaps the file under the store lock; moves any old WAL aside so it is never replayed onto the snapshot |
 | `market.py` | Equal-weight Nifty 50 proxy from the stored bars, cached by store state | Used by the CMMA and contrarian rules |
 | `fundamentals.py` | Screener.in fetch, `#top-ratios` and pros/cons parser, 6-hour cache | Standard-library HTML parser |
 | `verify.py` | Named checks over catalogs, synthetic pattern, parser, data coverage, every study and strategy, interpretation | In-process, so `/api/verify` never calls itself over HTTP |

@@ -169,7 +169,7 @@ Send `Content-Type: application/json`.
 {"what": "all"}
 ```
 
-`what` is `nifty` (Yahoo, Nifty 50), `bhav` (BSE stocks and ETFs from bhavcopies, then NSE/BSE indices), `indices` (only indices), or `all` (default). Starts background downloads and returns the current state immediately; poll `/api/status`, whose `sync.bhav` holds `done`, `total`, `message`, and `last_day` for the bhavcopy sync.
+`what` is `nifty` (Yahoo, Nifty 50), `bhav` (NSE/BSE stocks and ETFs from bhavcopies, then indices and delivery), `indices`, `delivery`, `all` (default), or `snapshot`. `snapshot` downloads the newest ready-made data snapshot from the GitHub releases and swaps it in; it answers 400 while another sync or a leaderboard run is going. `/api/status` reports its progress in `sync.snapshot` (`running`, `message`, `done_mb`, `total_mb`). Starts background downloads and returns the current state immediately; poll `/api/status`, whose `sync.bhav` holds `done`, `total`, `message`, and `last_day` for the bhavcopy sync.
 
 ### `POST /api/leaderboard`
 

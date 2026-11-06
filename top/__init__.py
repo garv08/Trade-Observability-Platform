@@ -6,4 +6,4 @@ a strategy leaderboard, portfolio backtests, market breadth and regimes, and
 plain-language interpretation with a rule-based swing plan.
 """
 
-__version__ = "0.7.0"
+__version__ = "0.8.0"

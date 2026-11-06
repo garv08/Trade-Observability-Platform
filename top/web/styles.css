@@ -93,10 +93,14 @@ button:hover, .symbol:hover, .study:hover { border-color: #4a5168; }
 #osc-stack { max-height: 42%; overflow: auto; }
 .osc-pane { height: 132px; border-top: 1px solid var(--line); position: relative; }
 .osc-pane span { position: absolute; z-index: 2; left: 8px; top: 4px; font-size: 11px; color: var(--muted); }
-.empty {
+/* Overlay for the chart only. A generic name here once covered whole pages that use "empty" for table rows. */
+.chart-empty {
   position: absolute; inset: 0; display: grid; place-items: center; color: var(--muted); background: rgba(12,14,19,.72);
 }
 .hidden { display: none !important; }
+.data-banner { border: 1px solid var(--blue); border-radius: 8px; background: rgba(41,98,255,0.08); }
+.data-banner .blurb { margin: 4px 0 8px; }
+.data-banner button.primary { background: var(--blue); border-color: var(--blue); color: #fff; }
 
 .tester { flex: 0 0 248px; height: 248px; border-top: 1px solid var(--line); background: #10141d; display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
 .tester.collapsed { flex-basis: 40px; height: 40px; }

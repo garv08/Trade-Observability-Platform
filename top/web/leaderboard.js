@@ -129,7 +129,7 @@ function rowHtml(r, i) {
 function renderTable(data) {
   const body = $("lb-body");
   if (!data.rows.length) {
-    body.innerHTML = `<tr><td colspan="15" class="empty">${data.computed.rows ? "No backtests pass these filters. Lower the minimum CAGR or history, or pick another universe." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="15" class="empty">${data.computed.rows ? "No backtests pass these filters. Lower the minimum CAGR or history, or pick another universe." : "Nothing computed yet. Press Run backtests above, or get everything at once with Download ready-made data on the charting desk."}</td></tr>`;
   } else {
     body.innerHTML = data.rows.map(rowHtml).join("");
   }
@@ -177,7 +177,7 @@ function renderView() {
 function renderStrategies(rows) {
   const body = $("strat-body");
   if (!rows.length) {
-    body.innerHTML = `<tr><td colspan="14" class="empty">${state.last && state.last.computed.rows ? "No strategy has 50+ scripts passing these filters. Lower Min trades, tested years, or daily value." : "Nothing computed yet. Press Run backtests above."}</td></tr>`;
+    body.innerHTML = `<tr><td colspan="14" class="empty">${state.last && state.last.computed.rows ? "No strategy has 50+ scripts passing these filters. Lower Min trades, tested years, or daily value." : "Nothing computed yet. Press Run backtests above, or get everything at once with Download ready-made data on the charting desk."}</td></tr>`;
     $("lb-summary").innerHTML = "";
     return;
   }
@@ -396,7 +396,25 @@ async function init() {
   $("csv-btn").addEventListener("click", downloadCsv);
   $("pf-run").addEventListener("click", runPortfolio);
   if (new URLSearchParams(location.search).get("portfolio") === "1") runPortfolio();
-  $("pf-csv").addEventListener("click", (event) => { event.preventDefault(); location.href = `/api/leaderboard/portfolio.csv?${portfolioQuery()}`; });
+  $("pf-csv").addEventListener("click", async (event) => {
+    event.preventDefault();
+    try {
+      const response = await fetch(`/api/leaderboard/portfolio.csv?${portfolioQuery()}`);
+      if (!response.ok) {
+        let message = `${response.status} ${response.statusText}`;
+        try { message = (await response.json()).error || message; } catch (_) { /* not JSON */ }
+        throw new Error(message);
+      }
+      const name = (response.headers.get("Content-Disposition") || "").match(/filename="([^"]+)"/);
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(await response.blob());
+      link.download = name ? name[1] : "top-portfolio.csv";
+      link.click();
+      URL.revokeObjectURL(link.href);
+    } catch (error) {
+      $("pf-out").innerHTML = `<p class="note down">${esc(error.message)}</p>`;
+    }
+  });
   $("pf-stocks").addEventListener("click", (event) => {
     const row = event.target.closest("tr[data-href]");
     if (row) window.open(row.dataset.href, "_blank", "noopener");
