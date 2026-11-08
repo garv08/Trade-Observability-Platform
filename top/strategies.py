@@ -250,7 +250,7 @@ def _register():
             f"harm_{pattern_id}",
             f"{spec['name']} long",
             "Harmonics",
-            "Bullish Scott Carney completion. Long for the hold window. Research ratios, not a certified signal.",
+            "Bullish Scott Carney completion. Long for the hold window from the bar that confirms D (price moved Swing % off it). Research ratios, not a certified signal.",
             harm_params,
             lambda f, p, pattern_id=pattern_id: harmonic_position(f, p, pattern_id),
         )
@@ -262,6 +262,23 @@ def _register():
         harm_params,
         lambda f, p: harmonic_position(f, p, None),
     )
+    from top.harmonics import prz_position
+
+    def prz_params(confirm):
+        return [_num("swing", "Swing %", 3, 1, 20, 0.5), _num("tolerance", "Tolerance", 0.05, 0.01, 0.12, 0.01),
+                _num("confirm", "Confirm (0 none, 1 bar, 2 Carney)", confirm, 0, 2), _num("target", "Target of AD", 0.618, 0.236, 1.0, 0.05),
+                _num("max_hold", "Max bars", 30, 5, 60), _num("rsi", "RSI filter (0/1)", 0, 0, 1)]
+
+    for sid, name, confirm, text in (
+        ("harm_prz", "Carney PRZ, confirmed", 2,
+         "Scott Carney's process: X-A-B-C structure, D level and HOP failure level along XA, then a confirmation close "
+         "(above the prior 3 highs, or 2 bullish closes) inside the zone. Target 0.618 of AD, stop on a close beyond the HOP, 30-bar time stop."),
+        ("harm_prz_bar", "Carney PRZ, reversal bar", 1,
+         "As Carney PRZ, but the first bullish close above D inside the zone confirms."),
+        ("harm_prz_touch", "Carney PRZ, touch", 0,
+         "As Carney PRZ, but enters at the close of the bar that first trades into the D level, without confirmation."),
+    ):
+        _add(sid, name, "Harmonics", text, prz_params(confirm), lambda f, p, confirm=confirm: prz_position(f, {"confirm": confirm, **p}, None))
 
     from top.patterns import breakout_position, darvas_position
 

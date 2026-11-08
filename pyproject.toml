@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "trade-observability-platform"
-version = "0.8.0"
-description = "TOP - Trade Observability Platform: a local research desk for Indian markets (all NSE and BSE stocks, ETFs, NSE/BSE indices) with DuckDB history, 152 studies, 92 backtestable strategies, a strategy leaderboard, portfolio backtests, market breadth and plain-language swing-trade readings."
+version = "0.9.0"
+description = "TOP - Trade Observability Platform: a local research desk for Indian markets (all NSE and BSE stocks, ETFs, NSE/BSE indices) with DuckDB history, 153 studies, 95 backtestable strategies, a strategy leaderboard, portfolio backtests, market breadth and plain-language swing-trade readings."
 readme = "README.md"
 license = { file = "LICENSE" }
 requires-python = ">=3.10,<3.14"

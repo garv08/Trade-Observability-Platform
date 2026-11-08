@@ -1021,6 +1021,11 @@ def _build():
             lambda f, p, pattern_id=pattern_id: harmonic_study(f, p, pattern_id),
         )
     _add("carney", "Carney all harmonics", "Harmonics", P, harm_params, ["pattern"], lambda f, p: harmonic_study(f, p, None))
+    from top.harmonics import prz_study
+
+    _add("carney_prz", "Carney PRZ (causal trades + live zones)", "Harmonics", P,
+         harm_params + [_num("confirm", "Confirm (0 none, 1 bar, 2 Carney)", 2, 0, 2), _num("target", "Target of AD", 0.618, 0.236, 1.0, 0.05)],
+         ["pattern"], prz_study)
 
     from top.patterns import breakout_study, darvas_study
 

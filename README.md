@@ -3,8 +3,8 @@
 # 📈 TOP — Trade Observability Platform
 
 **A local, TradingView-style research desk for Indian markets: every NSE main-board stock (~2,600 plus the Nifty 50), ~4,700 BSE stocks, ~390 ETFs, and ~250 NSE/BSE indices.**<br/>
-Chart any of them, stack 152 indicators, spot Scott Carney harmonics and Darvas boxes,<br/>
-backtest 92 strategies on one stock or a whole universe, rank every strategy on every script in a leaderboard (CSV in <a href="results/">results/</a>),<br/>run monthly top-N portfolio backtests, watch market breadth and regimes, and read a plain-English swing-trade plan, all on your own machine.
+Chart any of them, stack 153 indicators, spot Scott Carney harmonics and Darvas boxes,<br/>
+backtest 95 strategies on one stock or a whole universe, rank every strategy on every script in a leaderboard (CSV in <a href="results/">results/</a>),<br/>run monthly top-N portfolio backtests, watch market breadth and regimes, and read a plain-English swing-trade plan, all on your own machine.
 
 [![CI](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/garv08/Trade-Observability-Platform/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.10%20%7C%203.11%20%7C%203.12%20%7C%203.13-3776AB?logo=python&logoColor=white)
@@ -60,7 +60,7 @@ Pick any Nifty 50 stock from a searchable dropdown and stack studies from 10 sec
 <td width="50%" valign="top">
 
 ### 2 · Scott Carney harmonics
-Gartley, Bat, Alternate Bat, Butterfly, Crab, Deep Crab, Cypher, Shark, 5-0, AB=CD, and Three Drives, drawn as X-A-B-C-D legs with ratio guides. **Harmonics list** shows each pattern's date, side, PRZ, and measured ratios.
+Gartley, Bat, Alternate Bat, Butterfly, Crab, Deep Crab, Cypher, Shark, 5-0, AB=CD, and Three Drives, drawn as X-A-B-C-D legs with ratio guides. **Harmonics list** shows each pattern's date, confirmation date, side, PRZ, HOP, AD targets and measured ratios. **Carney PRZ** follows Scott Carney's own process (structure, ratio, confirmation) with live D/HOP zones. All harmonic backtests are causal since 0.9.0.
 
 </td>
 </tr>
@@ -118,7 +118,7 @@ Universe chips switch between the Nifty 50, about 2,600 more NSE stocks, about 3
 <td colspan="2" valign="top">
 
 ### 8 · Strategy leaderboard: every strategy on every script
-All 92 strategies backtested on every stock, ETF, and index (**611,146 backtests on 6,643 scripts**), ranked by **CAGR ÷ |max drawdown|**. The default view keeps CAGR above 15%, at least 3 trades, at least 2 tested years, and ₹10 lakh traded a day. Filter, sort, see which strategies pass most often, open any row on the chart, or download the CSV. Snapshots are in [`results/`](results/).
+All 95 strategies backtested on every stock, ETF, and index (**631,168 backtests on 6,644 scripts**), ranked by **CAGR ÷ |max drawdown|**. The default view keeps CAGR above 15%, at least 3 trades, at least 2 tested years, and ₹10 lakh traded a day. Filter, sort, see which strategies pass most often, open any row on the chart, or download the CSV. Snapshots are in [`results/`](results/).
 
 <img src="docs/images/leaderboard.png" alt="Strategy leaderboard ranking every strategy on every script by CAGR divided by max drawdown"/>
 
@@ -128,11 +128,11 @@ All 92 strategies backtested on every stock, ETF, and index (**611,146 backtests
 <td colspan="2" valign="top">
 
 ### 9 · Which strategy works best across stocks?
-**By strategy** ranks the strategies themselves by **median total return ÷ max drawdown across all qualifying scripts**, with no CAGR cut so losers count. It also shows the middle half, % profitable, % beating buy-and-hold, and the best script. **Turn of the month** leads (new from the research digest, profitable on 85% of 3,311 scripts), then the Donchian 55 and 20 breakouts, Carney harmonics and Connors-style mean reversion. A deflated-Sharpe column shows how few results survive a luck test. [Full table →](results/strategy-ranking-return-dd.csv) · reproduce with `top-leaderboard --results results`. **Top-N portfolio**: ₹1 lakh in each of the #1 strategy's top 20 stocks grew ₹20 lakh to **₹2.13 crore** in 4.9 years (CAGR 62%, max drawdown −11%, CAGR ÷ DD 5.5; Nifty 50: ₹27 lakh). The stocks were picked with hindsight, so read it as a best case ([details](results/README.md)).
+**By strategy** ranks the strategies themselves by **median total return ÷ max drawdown across all qualifying scripts**, with no CAGR cut so losers count. It also shows the middle half, % profitable, % beating buy-and-hold, and the best script. **Turn of the month** leads (new from the research digest, profitable on 86% of 3,312 scripts), then the Donchian 55 and 20 breakouts and Connors-style mean reversion. Carney harmonics dropped from 4th to 60th once their look-ahead was removed in 0.9.0. A deflated-Sharpe column shows how few results survive a luck test. [Full table →](results/strategy-ranking-return-dd.csv) · reproduce with `top-leaderboard --results results`. **Top-N portfolio**: ₹1 lakh in each of the #1 strategy's top 20 stocks grew ₹20 lakh to **₹2.16 crore** in 4.9 years (CAGR 62%, max drawdown −11%, CAGR ÷ DD 5.5; Nifty 50: ₹28 lakh). The stocks were picked with hindsight, so read it as a best case ([details](results/README.md)).
 
 <img src="docs/images/strategy-ranking.png" alt="Strategies ranked by median total return divided by max drawdown across thousands of scripts"/>
 
-<img src="docs/images/top20-portfolio.png" alt="Top-20 portfolio of the #1 strategy: ₹20 lakh grows to ₹2.13 crore, with CAGR, max drawdown and each stock's result"/>
+<img src="docs/images/top20-portfolio.png" alt="Top-20 portfolio of the #1 strategy: ₹20 lakh grows to about ₹2.1 crore, with CAGR, max drawdown and each stock's result"/>
 
 </td>
 </tr>
@@ -167,15 +167,15 @@ Momentum 12-1, low volatility, sector rotation and ETF momentum, rebalanced mont
 | 🗂️ | **Nifty 50** | About five years of adjusted daily bars from Yahoo in a local DuckDB file. Includes `M&M`, `ETERNAL` (formerly Zomato), and `TMPV` |
 | 🏛️ | **All NSE and BSE stocks, and ETFs** | Every NSE main-board stock (EQ/BE/BZ series, ~2,600 plus the Nifty 50; SME/Emerge excluded), ~4,700 BSE equities, ~355 NSE ETFs, and ~35 BSE-only ETFs from the exchanges' daily bhavcopies, five years deep. NSE stocks keep their history through renames (matched by ISIN). Split and bonus adjusted from NSE corporate actions plus a price-gap rule. **Universe** chips switch between Nifty 50, Indices, ETFs, NSE, BSE, and All |
 | 📊 | **TradingView-style chart** | TradingView Lightweight Charts with candles, volume, overlays, oscillator panes, and 6M/1Y/2Y/5Y/All ranges |
-| 🧮 | **152 indicators** in 10 sections | Harmonics · @neurotrader888 · @UnbiasedTradingGoshawk · Moving averages · Bands and channels · Trend · Momentum · Volatility · Volume · Price statistics. [Full catalog →](docs/indicators.md) |
+| 🧮 | **153 indicators** in 10 sections | Harmonics · @neurotrader888 · @UnbiasedTradingGoshawk · Moving averages · Bands and channels · Trend · Momentum · Volatility · Volume · Price statistics. [Full catalog →](docs/indicators.md) |
 | ⏱️ | **Flexible durations** | Period presets (5 … 200), free entry, and **+ Another** to add SMA 20/50/200 side by side. Adjustable EMA-ribbon lengths |
 | 🌫️ | **Shaded bands** | Every band or channel with upper and lower lines is shaded light grey, drawn under the candles |
-| 🦋 | **Scott Carney harmonics** | 11 patterns plus "all", drawn as XABCD legs, on by default for every stock and backtestable |
+| 🦋 | **Scott Carney harmonics** | 11 patterns plus "all" and a causal PRZ engine from Carney's posts, drawn as XABCD legs with D/HOP zones, on by default and backtestable |
 | 📐 | **Key levels plan & pattern breakouts** | Next-session long and short triggers, three stepped targets, and outer support/resistance written up like a daily analysis post. Wedge, triangle, channel, and range breakouts with buying zone, stop, and a measured-move target. Method inspired by [@TradZoo](https://x.com/TradZoo)'s public chart posts |
 | 📦 | **Darvas box & breakout detector** | Boxes, breakouts, breakdowns, failed breakouts, and ATR trailing trend, each with a strategy |
-| 🧪 | **92 strategies** | Trend, breakout, trend reversal, harmonics, oscillators, mean reversion, price action, volume, and two creator groups. [Full catalog →](docs/strategies.md) |
+| 🧪 | **95 strategies** | Trend, breakout, trend reversal, harmonics, oscillators, mean reversion, price action, volume, and two creator groups. [Full catalog →](docs/strategies.md) |
 | 📈 | **NSE and BSE indices** | ~170 NSE indices (Nifty 50, Bank, sectoral, thematic, strategy, India VIX) for five years, and ~80 BSE indices (Sensex, BSE 100/500, sectoral) from April 2025, from the exchanges' daily index files. An **Indices** chip lists them |
-| 🏆 | **Strategy leaderboard** | A separate page that backtests all 92 strategies on every script and index (~610,000 backtests, resumable background job on all CPU cores) and ranks them by **CAGR ÷ \|max drawdown\|** (drawdown floored at 5%). Default view: CAGR above 15%, ≥ 3 trades, ≥ 2 tested years, ≥ ₹10 lakh traded a day. Filter by universe, strategy, and script; best strategy per script; a **By strategy** view ranking strategies by median total return ÷ max drawdown across scripts; full CSV export; click a row to open it on the chart. `top-leaderboard --results results` rebuilds the committed CSVs on any machine. A data-quality gate skips thin or glitchy series |
+| 🏆 | **Strategy leaderboard** | A separate page that backtests all 95 strategies on every script and index (~610,000 backtests, resumable background job on all CPU cores) and ranks them by **CAGR ÷ \|max drawdown\|** (drawdown floored at 5%). Default view: CAGR above 15%, ≥ 3 trades, ≥ 2 tested years, ≥ ₹10 lakh traded a day. Filter by universe, strategy, and script; best strategy per script; a **By strategy** view ranking strategies by median total return ÷ max drawdown across scripts; full CSV export; click a row to open it on the chart. `top-leaderboard --results results` rebuilds the committed CSVs on any machine. A data-quality gate skips thin or glitchy series |
 | 📊 | **Markets page** | Nifty volatility regime (20-day volatility vs its past year: calm, normal, stressed) shaded on the chart; breadth over ~2,300 BSE A/B stocks (% above 50/200-day averages, new highs − new lows, advances/declines); sector rotation with relative-rotation quadrants; FII/DII cash flows; eight scans: Bloodbath, multi-year breakout, 52-week breakout, breakout soon, leaders while Nifty falls, 1-year multibaggers, near 52-week low, delivery surge |
 | 💼 | **Portfolio backtests** | Rank a universe each month and hold the top N: momentum 12-1, low volatility, sector rotation, ETF momentum with a trend filter. Next-open trades, costs, Nifty benchmark, underwater chart, holdings, N sweep, optional market filter |
 | 🔬 | **Robustness tools** | Monte Carlo trade reshuffling (range of drawdowns), walk-forward re-tuning (is the setting over-fitted?), probabilistic and **deflated Sharpe** on the leaderboard (is the result luck among 92 tries?), Kelly fraction in every backtest |
@@ -201,7 +201,7 @@ flowchart LR
   S <--> D[("DuckDB<br/>data/nse.duckdb")]
   S -- "first run / Sync" --> Y["Yahoo Finance<br/>Nifty 50 (adjusted)"]
   S -- "Sync / top-sync --bhav" --> X["BSE & NSE bhavcopies<br/>+ index files<br/>+ NSE corporate actions"]
-  S -- "Leaderboard run" --> W["Worker processes<br/>92 strategies × every script"]
+  S -- "Leaderboard run" --> W["Worker processes<br/>95 strategies × every script"]
   S -- "Sync" --> N["NSE delivery % + FII/DII"]
   S -- "on demand" --> F["Screener.in<br/>fundamentals"]
 ```
@@ -220,8 +220,8 @@ Read the full [design document](docs/design.md) for the architecture, algorithms
 | --- | --- |
 | 🛠️ [Installation](docs/installation.md) | Linux, macOS, Windows, `pipx`, upgrading, uninstalling, running in the background, troubleshooting |
 | 🧑‍💻 [User guide](docs/user-guide.md) | A walkthrough of every panel and button, with screenshots and example links |
-| 🧮 [Indicator catalog](docs/indicators.md) | All 152 studies with settings and ranges |
-| 🧪 [Strategy catalog](docs/strategies.md) | All 92 strategies with rules and settings |
+| 🧮 [Indicator catalog](docs/indicators.md) | All 153 studies with settings and ranges |
+| 🧪 [Strategy catalog](docs/strategies.md) | All 95 strategies with rules and settings |
 | 🎥 [Creator strategies](docs/creators.md) | @neurotrader888 and @UnbiasedTradingGoshawk: sources, confidence, adaptations, results |
 | 🏗️ [Design](docs/design.md) | Architecture, data, algorithms, decisions, performance, security, testing |
 | 🧭 [Research digest](docs/research/x-digest.md) | What TOP took from 13 X accounts, in our own words, and where each idea lives |

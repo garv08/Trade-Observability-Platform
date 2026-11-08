@@ -11,6 +11,7 @@ const state = {
   strategies: [],
   activeStudies: [],
   harmonics: [],
+  przLive: [],
   universe: "nifty50",
   focus: null,
   explainToken: 0,
@@ -618,10 +619,11 @@ async function refreshStudies() {
   clearStudies();
   const markers = [];
   state.harmonics = [];
+  state.przLive = [];
   let harmonicStudies = 0;
   payload.studies.forEach((study, index) => {
     for (const marker of study.markers || []) markers.push(marker);
-    if (study.id === "carney" || study.id.startsWith("harm_")) {
+    if (study.id === "carney" || study.id === "carney_prz" || study.id.startsWith("harm_")) {
       harmonicStudies += 1;
       drawHarmonics(study, markers);
     }
@@ -676,9 +678,19 @@ async function refreshStudies() {
   candles.setMarkers(markers);
   if (harmonicStudies) {
     const bull = state.harmonics.filter((item) => item.side === "bull").length;
-    $("ohlc-legend").textContent = state.harmonics.length
-      ? `${state.active}  Carney harmonics: ${state.harmonics.length} latest patterns drawn (${bull} bullish, ${state.harmonics.length - bull} bearish). Click Harmonics for the list.`
-      : `${state.active}: no Carney pattern completed at these settings. Lower Swing % or raise Tolerance.`;
+    const parts = [];
+    const patternStudy = payload.studies.some((study) => study.id !== "carney_prz" && (study.id === "carney" || study.id.startsWith("harm_")));
+    if (patternStudy) {
+      parts.push(state.harmonics.length
+        ? `Carney harmonics: ${state.harmonics.length} latest patterns drawn (${bull} bullish, ${state.harmonics.length - bull} bearish). Click Harmonics for the list.`
+        : "no Carney pattern completed at these settings. Lower Swing % or raise Tolerance.");
+    }
+    if (payload.studies.some((study) => study.id === "carney_prz")) {
+      parts.push(state.przLive.length
+        ? `Carney PRZ: ${state.przLive.map((item) => item.name).join(", ")}; dotted lines are D and HOP.`
+        : "Carney PRZ: no live bullish setup.");
+    }
+    $("ohlc-legend").textContent = `${state.active}  ${parts.join("  ")}`;
   }
 }
 
@@ -784,13 +796,17 @@ function renderExplain(data) {
 
 function drawHarmonics(study, markers) {
   (study.drawings || []).forEach((drawing, n) => {
-    state.harmonics.push(drawing);
+    if (study.id === "carney_prz") state.przLive.push(drawing);
+    else state.harmonics.push(drawing);
     const legs = chart.addLineSeries({ color: drawing.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
     legs.setData(drawing.legs.map((p) => ({ time: p.time, value: p.value })));
     overlaySeries.set(`${study.id}:legs:${n}`, legs);
     drawing.guides.forEach((guide, g) => {
       const line = chart.addLineSeries({ color: drawing.color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dashed, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
       line.setData(guide.map((p) => ({ time: p.time, value: p.value })));
+      if (guide[0].label === "D" || guide[0].label === "HOP") {
+        line.createPriceLine({ price: guide[0].value, color: drawing.color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: `${guide[0].label} ${drawing.name.split(" PRZ")[0]}` });
+      }
       overlaySeries.set(`${study.id}:guide:${n}:${g}`, line);
     });
     drawing.legs.forEach((p, i) => {
@@ -811,9 +827,9 @@ async function runHarmonics() {
   const rows = [...state.harmonics].reverse();
   const ratio = (r) => Object.entries(r || {}).map(([k, v]) => `${k.toUpperCase()} ${v}`).join(" · ");
   showInsight(`${state.active} Scott Carney harmonics`, rows.length ? `
-    <p class="muted">Latest ${rows.length} completed patterns are drawn on the chart. Solid lines are X-A-B-C-D; dashed lines join X-B-D and A-C. D is the potential reversal zone. Change Swing % and Tolerance under Carney all harmonics.</p>
-    <table><thead><tr><th>D date</th><th>Pattern</th><th>Side</th><th>PRZ</th><th>Ratios</th></tr></thead><tbody>
-    ${rows.map((row) => `<tr><td>${esc(row.time)}</td><td>${esc(row.name)}</td><td class="${row.side === "bull" ? "up" : "down"}">${row.side === "bull" ? "Bullish" : "Bearish"}</td><td>${fmt(row.prz)}</td><td>${ratio(row.ratios)}</td></tr>`).join("")}
+    <p class="muted">Latest ${rows.length} completed patterns are drawn on the chart. Solid lines are X-A-B-C-D; dashed lines join X-B-D and A-C. D is the potential reversal zone, which runs to the HOP failure level. "Confirmed" is the first session a trader could know D (price moved Swing % off it). T1 and T2 are 0.382 and 0.618 of AD. Change Swing % and Tolerance under Carney all harmonics; add Carney PRZ for live zones.</p>
+    <table><thead><tr><th>D date</th><th>Confirmed</th><th>Pattern</th><th>Side</th><th>PRZ</th><th>HOP</th><th>T1 / T2</th><th>Ratios</th></tr></thead><tbody>
+    ${rows.map((row) => `<tr><td>${esc(row.time)}</td><td>${esc(row.confirmed || "not yet")}</td><td>${esc(row.name)}</td><td class="${row.side === "bull" ? "up" : "down"}">${row.side === "bull" ? "Bullish" : "Bearish"}</td><td>${fmt(row.prz)}</td><td>${row.hop == null ? "—" : fmt(row.hop)}</td><td>${row.t1 == null ? "—" : `${fmt(row.t1)} / ${fmt(row.t2)}`}</td><td>${ratio(row.ratios)}</td></tr>`).join("")}
     </tbody></table>` : `<p>No Carney pattern completed on ${state.active} at these settings. Lower Swing % or raise Tolerance under Carney all harmonics.</p>`);
 }
 

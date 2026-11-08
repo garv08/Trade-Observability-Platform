@@ -1,13 +1,13 @@
 # 🏆 Leaderboard results
 
-Snapshots of the [strategy leaderboard](../docs/user-guide.md#strategy-leaderboard): every one of TOP's 92 long/flat strategies, with default settings, backtested on every stock, ETF, and index in the local store.
+Snapshots of the [strategy leaderboard](../docs/user-guide.md#strategy-leaderboard): every one of TOP's 95 long/flat strategies, with default settings, backtested on every stock, ETF, and index in the local store.
 
 | | |
 | --- | --- |
-| Data up to | 4 Nov 2026 |
-| Computed | 5 Nov 2026 |
-| Scripts | 6,643 (Nifty 50, other NSE stocks, NSE/BSE indices, NSE/BSE ETFs, BSE stocks with at least 250 bars; a company listed on both exchanges is tested on both) |
-| Backtests | 611,146 |
+| Data up to | 6 Nov 2026 |
+| Computed | 8 Nov 2026 (harmonic strategies recomputed without look-ahead in 0.9.0) |
+| Scripts | 6,644 (Nifty 50, other NSE stocks, NSE/BSE indices, NSE/BSE ETFs, BSE stocks with at least 250 bars; a company listed on both exchanges is tested on both) |
+| Backtests | 631,168 |
 | Skipped | 254 scripts with thin trading or impossible one-day moves; Dividend Points and VIX indices |
 | Settings | ₹10 lakh, 5 bps per side, long/flat, signal at the close, fill at the next open |
 
@@ -15,36 +15,49 @@ Snapshots of the [strategy leaderboard](../docs/user-guide.md#strategy-leaderboa
 
 | File | Rows | What it holds |
 | --- | ---: | --- |
-| [`leaderboard-cagr15.csv`](leaderboard-cagr15.csv) | 46,686 | Every backtest with **CAGR > 15%**, ≥ 3 trades, ≥ 2 tested years, and ≥ ₹10 lakh median daily traded value (indices exempt), ranked by CAGR ÷ \|max drawdown\| |
-| [`leaderboard-best-per-script.csv`](leaderboard-best-per-script.csv) | 2,672 | The same filter, keeping only each script's best strategy (ties go to the strategy id that sorts first) |
-| [`strategy-ranking-return-dd.csv`](strategy-ranking-return-dd.csv) | 82 | **Strategies ranked** by median total return ÷ \|max drawdown\| across scripts (see below) |
+| [`leaderboard-cagr15.csv`](leaderboard-cagr15.csv) | 46,826 | Every backtest with **CAGR > 15%**, ≥ 3 trades, ≥ 2 tested years, and ≥ ₹10 lakh median daily traded value (indices exempt), ranked by CAGR ÷ \|max drawdown\| |
+| [`leaderboard-best-per-script.csv`](leaderboard-best-per-script.csv) | 2,682 | The same filter, keeping only each script's best strategy (ties go to the strategy id that sorts first) |
+| [`strategy-ranking-return-dd.csv`](strategy-ranking-return-dd.csv) | 85 | **Strategies ranked** by median total return ÷ \|max drawdown\| across scripts (see below) |
 | [`top20-portfolio.csv`](top20-portfolio.csv) | 20 | ₹1 lakh in each of the #1 strategy's top 20 stocks: summary, the stocks, and the daily value of the ₹20 lakh (see below) |
-| `top-leaderboard-all.csv.gz` ([v0.6.1 release asset](https://github.com/garv08/Trade-Observability-Platform/releases/tag/v0.6.1)) | 611,146 | Everything, unfiltered |
+| `top-leaderboard-all.csv.gz` ([v0.9.0 release asset](https://github.com/garv08/Trade-Observability-Platform/releases/tag/v0.9.0)) | 631,168 | Everything, unfiltered |
 
-By universe, the best-per-script file has 1,325 NSE stocks, 1,211 BSE stocks, 73 NSE ETFs, 33 NSE indices, 30 Nifty 50 stocks. BSE indices only have history from about April 2025, so none reach 2 tested years.
+By universe, the best-per-script file has 1,329 NSE stocks, 1,214 BSE stocks, 76 NSE ETFs, 33 NSE indices, 30 Nifty 50 stocks. BSE indices only have history from about April 2025, so none reach 2 tested years.
 
 ## Which strategy gives the most return ÷ max drawdown across stocks?
 
-`strategy-ranking-return-dd.csv` ranks the strategies themselves. For each strategy and script, it computes **total return ÷ |max drawdown|** (drawdown floored at 5%). It then takes the **median across every qualifying script**: at least 3 trades, at least 2 tested years, and at least ₹10 lakh traded a day (indices exempt). There is **no CAGR cut**, so losing scripts count too, and a strategy ranks high only if it works broadly. Strategies with fewer than 50 qualifying scripts are left out (82 of 92 remain).
+`strategy-ranking-return-dd.csv` ranks the strategies themselves. For each strategy and script, it computes **total return ÷ |max drawdown|** (drawdown floored at 5%). It then takes the **median across every qualifying script**: at least 3 trades, at least 2 tested years, and at least ₹10 lakh traded a day (indices exempt). There is **no CAGR cut**, so losing scripts count too, and a strategy ranks high only if it works broadly. Strategies with fewer than 50 qualifying scripts are left out (85 of 95 remain).
 
 | # | Strategy | Scripts | Median return ÷ DD | Median return | Median max DD | Profitable | Beat buy & hold |
 | ---: | --- | ---: | ---: | ---: | ---: | ---: | ---: |
-| 1 | Turn of the month | 3,311 | **2.15** | +70% | -36% | 85% | 56% |
-| 2 | Donchian 55 break | 439 | **1.44** | +49% | -51% | 69% | 29% |
-| 3 | Donchian 20 break | 770 | **0.98** | +44% | -57% | 67% | 25% |
-| 4 | Any Carney bullish | 3,111 | **0.84** | +12% | -18% | 71% | 34% |
-| 5 | Gartley long | 102 | **0.82** | +7% | -12% | 64% | 20% |
-| 6 | Connors Double 7s | 3,101 | **0.79** | +21% | -30% | 69% | 36% |
-| 7 | RSI reversion | 3,252 | **0.76** | +19% | -29% | 71% | 37% |
-| 8 | TSMOM 12-month | 2,876 | **0.73** | +28% | -45% | 67% | 36% |
-| 9 | CCI extreme reversal | 3,311 | **0.73** | +22% | -34% | 69% | 35% |
-| 10 | Connors RSI(2) pullback | 3,090 | **0.73** | +13% | -20% | 70% | 34% |
+| 1 | Turn of the month | 3,312 | **2.22** | +72% | -36% | 86% | 56% |
+| 2 | Donchian 55 break | 437 | **1.50** | +50% | -51% | 69% | 29% |
+| 3 | Donchian 20 break | 769 | **1.00** | +45% | -57% | 67% | 24% |
+| 4 | Connors Double 7s | 3,099 | **0.80** | +21% | -30% | 69% | 36% |
+| 5 | RSI reversion | 3,256 | **0.78** | +20% | -29% | 72% | 37% |
+| 6 | Bollinger reversion | 3,304 | **0.74** | +22% | -32% | 71% | 36% |
+| 7 | Z-score reversion | 3,304 | **0.74** | +22% | -32% | 71% | 36% |
+| 8 | CCI extreme reversal | 3,314 | **0.74** | +22% | -34% | 70% | 35% |
+| 9 | Stochastic RSI cross | 3,291 | **0.74** | +26% | -43% | 68% | 35% |
+| 10 | TSMOM 12-month | 2,876 | **0.73** | +28% | -45% | 67% | 35% |
 
-Bottom three: Parabolic SAR (-0.13), Inside-bar break (-0.14), Pivot R1 break (-0.23).
+Bottom three: Inside-bar break (-0.12), Pivot R1 break (-0.22), 5-0 long (-0.35).
 
-**Turn of the month**, new in 0.5.0 from the X research digest, ranks first across 3,311 scripts: 85% were profitable and 56% beat buy-and-hold. Much of that comes from being invested only about 8 sessions a month, which keeps drawdowns small. One caveat: the rule needs to know which session ends each month. For liquid stocks that is the published exchange calendar, but for a thinly traded stock the last day it actually traded is only known afterwards. The Donchian breakouts come next but trade rarely (median 4–6 trades), so fewer scripts reach 3 trades. With the NSE stocks added in 0.6.0, mean-reversion rules (Connors Double 7s, RSI reversion, CCI, Connors RSI(2)) moved into the top ten, ahead of the moving-average trend rules. Most strategies beat buy-and-hold on only about a third of scripts.
+**Harmonics after removing look-ahead (0.9.0).** Before 0.9.0, *Any Carney bullish* ranked 4th (0.84) and *Gartley long* 5th (0.82), but they entered on the D bar, which a zigzag only confirms some sessions later. Entering on the confirmation bar:
 
-**Deflated Sharpe.** With 92 strategies tried on each script, a high Sharpe is often luck. Of the 46,686 rows in `leaderboard-cagr15.csv`, only 185 (on 107 scripts) have a deflated Sharpe of at least 95%, the chance their Sharpe beats the best expected from 92 lucky tries (`dsr_pct` column; normal returns assumed, so even this is optimistic). The `pct_dsr95` column in the strategy ranking shows how rarely any single strategy clears it.
+| Strategy | Scripts | Before (look-ahead) | Now |
+| --- | ---: | ---: | ---: |
+| Any Carney bullish | 3,108 | 0.84 (#4) | **0.17** (#60) |
+| AB=CD long | 2,717 | 0.68 | **0.16** (#62) |
+| Gartley long | 102 | 0.82 (#5) | **0.65** (#15) |
+| Carney PRZ, touch (new) | 3,011 | — | **0.05** (#71) |
+| Carney PRZ, confirmed (new) | 2,612 | — | **-0.05** (#78) |
+| Carney PRZ, reversal bar (new) | 2,820 | — | **-0.06** (#79) |
+
+The *Carney PRZ* strategies follow Scott Carney's posted process (D and HOP levels, confirmation, AD targets). Waiting for his confirmation does not help on daily NSE bars. See [design §6.2.1](../docs/design.md#621-carney-prz-engine-prz_setups-prz_trades-prz_watch).
+
+**Turn of the month**, new in 0.5.0 from the X research digest, ranks first across 3,312 scripts: 85% were profitable and 56% beat buy-and-hold. Much of that comes from being invested only about 8 sessions a month, which keeps drawdowns small. One caveat: the rule needs to know which session ends each month. For liquid stocks that is the published exchange calendar, but for a thinly traded stock the last day it actually traded is only known afterwards. The Donchian breakouts come next but trade rarely (median 4–6 trades), so fewer scripts reach 3 trades. With the NSE stocks added in 0.6.0, mean-reversion rules (Connors Double 7s, RSI reversion, CCI, Connors RSI(2)) moved into the top ten, ahead of the moving-average trend rules. Most strategies beat buy-and-hold on only about a third of scripts.
+
+**Deflated Sharpe.** With 95 strategies tried on each script, a high Sharpe is often luck. Of the 46,826 rows in `leaderboard-cagr15.csv`, only 136 (on 88 scripts) have a deflated Sharpe of at least 95%, the chance their Sharpe beats the best expected from 95 lucky tries (`dsr_pct` column; normal returns assumed, so even this is optimistic). The `pct_dsr95` column in the strategy ranking shows how rarely any single strategy clears it.
 
 Other columns: `mean_return_dd`, `p25_return_dd`/`p75_return_dd` (middle half), `median_cagr_pct`, `median_cagr_dd` (median CAGR ÷ DD), `pct_profitable`, `pct_beat_hold`, `median_trades`, `median_years`, and `best_symbol`/`best_return_dd` (the single best script). In the app: **Leaderboard → By strategy**, which you can re-sort by any of these.
 
@@ -54,14 +67,14 @@ Other columns: `mean_return_dd`, `p25_return_dd`/`p75_return_dd` (middle half), 
 
 | | Top-20 portfolio | Nifty 50, same ₹20 lakh |
 | --- | ---: | ---: |
-| Period | 8 Dec 2021 – 4 Nov 2026 (4.9 years) | same |
-| **Final value** | **₹2,13,15,264** | ₹27,43,096 |
-| Total return | +966% | +37% |
-| CAGR | 62.0% | 6.7% |
+| Period | 8 Dec 2021 – 5 Nov 2026 (4.9 years) | same |
+| **Final value** | **₹2,16,26,931** | ₹28,09,038 |
+| Total return | +981% | +40% |
+| CAGR | 62.4% | 7.2% |
 | Max drawdown | −11.3% | −16.5% |
-| **CAGR ÷ \|max DD\|** | **5.48** | 0.40 |
+| **CAGR ÷ \|max DD\|** | **5.52** | 0.44 |
 
-The biggest contributor was BSE:SHUKRAPHAR (₹1 lakh → ₹38.3 lakh). The smallest was BSE:TATASTEEL (₹1 lakh → ₹3.6 lakh), and every one of the 20 made money.
+The biggest contributor was BSE:SHUKRAPHAR (₹1 lakh → ₹39.3 lakh). The smallest was BSE:TATASTEEL (₹1 lakh → ₹3.6 lakh), and every one of the 20 made money.
 
 > [!CAUTION]
 > These 20 stocks were chosen *because* they did best with this strategy over this same period. Nobody could have picked them in advance, so the result is an in-sample best case and not a forecast. On the Leaderboard page, the **Top-N portfolio** section reruns this for any strategy, any N and any amount.
@@ -99,4 +112,4 @@ top-leaderboard --strategies ranking.csv   # strategy ranking (defaults: 3 trade
 ```
 
 > [!CAUTION]
-> These are in-sample results of 92 rules tried on thousands of scripts. Many top rows are BSE small caps that multiplied many times over, where almost any trend rule looks brilliant in hindsight. Selection bias is large. Prefer strategies that pass on many scripts (see *Strategies that pass most often* on the page) and test them out of sample before relying on them. Research only, not investment advice.
+> These are in-sample results of 95 rules tried on thousands of scripts. Many top rows are BSE small caps that multiplied many times over, where almost any trend rule looks brilliant in hindsight. Selection bias is large. Prefer strategies that pass on many scripts (see *Strategies that pass most often* on the page) and test them out of sample before relying on them. Research only, not investment advice.

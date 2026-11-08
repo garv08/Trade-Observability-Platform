@@ -32,7 +32,7 @@ flowchart LR
   end
   subgraph "Python process (top-platform)"
     S["server.py<br/>ThreadingHTTPServer"]
-    IND["indicators.py<br/>152 studies"]
+    IND["indicators.py<br/>153 studies"]
     STR["strategies.py<br/>92 rules"]
     BT["backtest.py"]
     HAR["harmonics.py"]
@@ -193,7 +193,7 @@ meta(key PK, value)          -- last_sync, bhav_last_sync, index_last_sync
 - **Strategy ranking.** `strategy_ranking()` aggregates per strategy over the same filtered rows, without the CAGR cut: median/mean/quartiles of `total_return_pct / max(|max_dd_pct|, 5)`, hit rates, and the best script, keeping strategies with ≥ 50 scripts. `write_results()` writes the three committed CSVs from fixed `RESULT_FILTERS`/`STRATEGY_FILTERS`. All orderings have name tie-breakers, so the same database gives byte-identical files.
 - **Incremental.** `leaderboard_done.ids` lists the strategies already run for each script. Adding strategies to the catalogue computes only the new ones (partial updates run first); new bars or a change of capital, cost or version recompute the script.
 - **Probabilistic and deflated Sharpe.** For each row, PSR = Φ((SR − 0)·√(n−1) / √(1 + SR²/2)) with SR the daily Sharpe and n the tested days; DSR uses SR\* instead of 0, the expected best Sharpe among the script's N strategy trials, SR\* = σ·((1−γ)·Φ⁻¹(1−1/N) + γ·Φ⁻¹(1−1/(N·e))) with σ the spread of those trials' Sharpes (Bailey and López de Prado). Normal returns are assumed, so both are optimistic for fat-tailed stocks.
-- **Cost.** A list-based `backtest.metrics()` (same rules as `run()`, checked by a test for every strategy) skips the equity, benchmark, and trade output. All 92 strategies take 2–4 s per symbol, so the full run (~4,750 symbols) takes 2–4 hours on two cores. DuckDB is capped at 768 MB and 2 threads (`TOP_DB_MEMORY`) so a long run leaves room for the browser.
+- **Cost.** A list-based `backtest.metrics()` (same rules as `run()`, checked by a test for every strategy) skips the equity, benchmark, and trade output. All 95 strategies take 2–4 s per symbol, so the full run (~4,750 symbols) takes 2–4 hours on two cores. DuckDB is capped at 768 MB and 2 threads (`TOP_DB_MEMORY`) so a long run leaves room for the browser.
 
 ### Sync
 
@@ -238,10 +238,48 @@ meta(key PK, value)          -- last_sync, bhav_last_sync, index_last_sync
 | AB=CD | CD ≈ AB, BC 0.382–0.886 |
 | Three Drives | Six pivots; retracements 0.618–0.786, extensions 1.272–1.618 |
 
-4. **Output.** Each completion produces a marker at D. The latest 12 patterns are also drawn as X-A-B-C-D legs, with dashed X-B-D and A-C guides.
-5. **Strategy.** A bullish completion is long for *Hold bars* (default 10), filled at the next open.
+4. **Confirmation.** A D pivot is only known once price has moved *Swing %* away from it. Each event records that bar (`confirmed`).
+5. **Output.** Each completion produces a marker at D. The latest 12 patterns are also drawn as X-A-B-C-D legs, with dashed X-B-D and A-C guides. The Harmonics list adds the confirmation date, the HOP, and the 0.382/0.618 AD targets.
+6. **Pattern strategies** (`harm_<pattern>`, `harm_carney`). Long for *Hold bars* (default 10) from the bar that confirms a bullish D, filled at the next open. Before 0.9.0 they entered on the D bar itself, which needs the future; that look-ahead roughly quadrupled the median result (§6.2.1).
 
-Pivots are confirmed only after the reversal threshold is crossed. D is therefore known a few bars after it prints, and the strategy enters on the completion bar as detected in hindsight. This makes harmonic backtests optimistic; the user guide states this limit.
+#### 6.2.1 Carney PRZ engine (`prz_setups`, `prz_trades`, `prz_watch`)
+
+Scott Carney's published process is structure, then ratio, then confirmation. The engine runs it bar by bar, long side only:
+
+1. **Structure.** A confirmed bullish X-A-B-C (C confirmed), BC 0.382–0.886 of AB.
+2. **Ratio.** The B retracement picks the pattern in Carney's preference order (Bat, Deep Crab, Crab, Gartley, Butterfly, Alternate Bat). D is the pattern's XA level and the HOP (harmonic optimal price) is its failure level further along XA. The BC projection to D must fit, and Gartley also needs CD/AB 1.0–1.27.
+
+| Pattern | B of XA | D of XA | HOP of XA | BC projection |
+| --- | --- | --- | --- | --- |
+| Bat | 0.382–0.55 | 0.886 | 1.13 | 1.618–3.618 |
+| Deep Crab | 0.886 | 1.618 | 2.0 | 2.0–3.618 |
+| Crab | 0.382–0.618 | 1.618 | 2.0 | 2.24–3.618 |
+| Gartley | 0.618 | 0.786 | 1.0 | 1.13–1.618 |
+| Butterfly | 0.786 | 1.272 | 1.414 | 1.618–2.618 |
+| Alternate Bat | 0.30–0.382 | 1.13 | 1.272 | 2.0–3.618 |
+
+3. **Zone.** Price must trade down to D within 60 bars, before it trades above C.
+4. **Confirmation** (*Confirm*): 0 enters at the touch; 1 needs a bullish close above D; 2 (Carney) needs a close above the prior 3 highs, or two rising bullish closes, within 30 bars. A close below the HOP cancels the setup. An optional RSI filter needs RSI(14) under 35 since the touch and turning up.
+5. **Exit.** A close at *Target* × AD above the terminal low (default 0.618), a close below the HOP, or 30 bars.
+
+Strategies: `harm_prz` (Confirm 2), `harm_prz_bar` (1) and `harm_prz_touch` (0). The `carney_prz` study marks each trade and draws live setups with their D and HOP lines. Cypher is kept as a study but is not part of Carney's own set; Shark, 5-0, AB=CD and Three Drives stay on the zigzag matcher.
+
+Tests assert that adding future bars never changes a past position for every harmonic strategy.
+
+##### Backtest of the variants (271 liquid stocks, median return ÷ max DD)
+
+| Variant | Return ÷ DD | Trades | Avg trade |
+| --- | --- | --- | --- |
+| Any Carney, entry on the D bar (pre-0.9.0, look-ahead) | 0.99 | — | 2.21% |
+| Any Carney, entry when D is confirmed | 0.26 | 2,053 | 1.03% |
+| PRZ, touch (Confirm 0) | 0.19 | 2,043 | 0.62% |
+| PRZ, touch, 0.382 AD target | 0.15 | 2,074 | 0.42% |
+| PRZ, reversal bar (Confirm 1) | 0.01 | 1,496 | 0.21% |
+| PRZ, Carney confirmation (Confirm 2) | −0.01 | 1,245 | 0.06% |
+| PRZ, Carney confirmation + RSI | 0.09 | 448 | 0.44% |
+| Buy and hold | 1.54 | — | — |
+
+On daily NSE bars, waiting for Carney's confirmation costs more than it filters. None of the causal variants beats buy and hold. The leaderboard has the full-universe numbers.
 
 ### 6.3 Interpretation and swing plan (`explain.py`)
 
@@ -258,7 +296,7 @@ Pivots are confirmed only after the reversal threshold is crossed. D is therefor
 | Cumulative volume | 20-session direction against price: confirmation or divergence |
 | Money flow / volume | Accumulation or distribution; volume against its 20-day average |
 | Trend tools | ADX/DI, Aroon, Vortex, Choppiness, Mass, Ichimoku cloud, EMA ribbon stack, pivots |
-| Harmonics | Latest pattern, ratios, status (fresh, working, played out, failed, stale), 0.382 and 0.618 CD targets, invalidation 1 ATR beyond D, and this stock's past hit rate |
+| Harmonics | Latest pattern, ratios, whether D is confirmed, status (fresh, working, played out, failed, stale), 0.382 and 0.618 AD targets, the HOP failure level (1 ATR beyond D for patterns without one), this stock's past hit rate measured from the confirmation bar, and any live PRZ setup |
 
 **Technical rating.** A vote in the style of TradingView's public technical-ratings method. Moving averages (SMA and EMA 10/20/30/50/100/200, Ichimoku base, HMA 9) vote buy when price is above. Oscillators (RSI, Stochastic, CCI, ADX/DI, Awesome, Momentum, MACD, Williams %R, Ultimate) vote buy, sell, or neutral by their usual rules. The scores average to Strong sell … Strong buy.
 
@@ -307,7 +345,7 @@ These are descriptive statistics about one stock's own past. They are not out-of
 | Operation | Time |
 | --- | --- |
 | `/api/bars` for one stock | ~70 ms |
-| All 152 studies on one stock | ~6 s total |
+| All 153 studies on one stock | ~6 s total |
 | Backtest Nifty 50 for a creator strategy | 4–13 s (RSI-PCA ~35 s) |
 | `/api/explain` with a few studies | ~0.6 s |
 | Backtest Nifty 50 (one harmonic strategy) | ~6 s |
@@ -316,7 +354,7 @@ These are descriptive statistics about one stock's own past. They are not out-of
 | All eight scans (first time after new bars, then cached) | ~23 s, then < 0.1 s |
 | Portfolio backtest, BSE group A (704 names, first load, then cached) | ~8 s, then ~1 s |
 | Walk-forward (5 settings) | ~0.5–3 s |
-| All 92 strategies on one symbol (leaderboard) | ~7 s; ~5 h for every script on 2 cores |
+| All 95 strategies on one symbol (leaderboard) | ~7 s; ~5 h for every script on 2 cores |
 | First full sync (network bound) | 1–2 min |
 
 ## 9. Security
@@ -343,9 +381,9 @@ The tests are offline. They seed a temporary DuckDB with deterministic synthetic
 ## 11. Known limits and future work
 
 - Daily bars only. Intraday data would need a different source and storage layout.
-- Harmonic detection confirms pivots in hindsight (see §6.2), so harmonic backtests are optimistic.
+- Harmonic strategies are causal since 0.9.0 (§6.2). The PRZ engine is long only, and Carney's scale-out at T1 is approximated by one exit.
 - No slippage model, taxes, or position-sizing variants in backtests.
 - Screener.in layout changes would break the parser; the parser test and Verify will flag it.
-- The leaderboard tests 92 strategies on thousands of scripts in-sample, so the top rows are inflated by selection bias. Walk-forward or out-of-sample ranking would be the next step.
+- The leaderboard tests 95 strategies on thousands of scripts in-sample, so the top rows are inflated by selection bias. Walk-forward or out-of-sample ranking would be the next step.
 - BSE index history starts in April 2025 because older BSE index files are not published.
 - Possible next steps: walk-forward testing, saved layouts, alerts, F&O data for short setups, and a desktop wrapper.

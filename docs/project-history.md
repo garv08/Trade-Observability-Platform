@@ -129,6 +129,32 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 - The portfolio CSV download landed on an error page.
 - The default portfolio strategy could have no stocks.
 
+## 9. Scott Carney's own rules, and the harmonic look-ahead (v0.9.0)
+
+**Ask:** read all @harmonictrader (Scott Carney) posts and charts, tune the harmonic indicators, implement improvements and backtest them all.
+
+**Source:** 3,274 posts (Nov 2021 – Nov 2026), 997 with charts, read for personal research. Only rules are used; no text or images are copied into the repository.
+
+**Rules found in the posts:** structure, then ratio, then confirmation. D is the pattern's XA level, the PRZ runs from D to the HOP (harmonic optimal price), and a close beyond the HOP fails the pattern. Confirmation is a close above the prior 3 highs or two bullish closes. Targets are 0.382 and 0.618 of AD, with a 30-bar time stop. He prefers the Bat, Deep Crab, Shark and Crab, and does not treat the Cypher as one of his patterns.
+
+**Finding:** the old harmonic strategies entered on the D bar, but a zigzag only knows D after price moves Swing % away from it. That look-ahead inflated the median result about four times:
+
+| Variant (271 liquid stocks) | Median return ÷ max DD |
+| --- | --- |
+| Any Carney, entry on D (old) | 0.99 |
+| Any Carney, entry when D is confirmed | 0.26 |
+| Carney PRZ, touch | 0.19 |
+| Carney PRZ, Carney confirmation | −0.01 |
+| Buy and hold | 1.54 |
+
+**Changes:**
+- Every harmonic strategy is now causal; tests check that adding future bars never changes a past position.
+- New Carney PRZ engine with D/HOP levels per pattern, confirmation modes and AD targets. New strategies: *Carney PRZ, confirmed / reversal bar / touch*. New chart study with live zones.
+- Readings show whether D is confirmed, the HOP and AD targets.
+- The leaderboard now stores a revision per strategy, so revised strategies are recomputed on every machine without redoing the rest.
+
+**Conclusion:** on daily NSE bars, harmonic patterns have a small edge at best once look-ahead is removed, and Carney's confirmation rule does not help. They remain useful as chart context, not as a stand-alone system.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.

@@ -69,7 +69,7 @@ Your studies stay on when you switch stocks.
 
 ## Indicators and durations
 
-There are **152 studies** in 10 searchable dropdowns: Harmonics, @neurotrader888, @UnbiasedTradingGoshawk, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, and Price statistics. They are listed in full in the [indicator catalog](indicators.md).
+There are **153 studies** in 10 searchable dropdowns: Harmonics, @neurotrader888, @UnbiasedTradingGoshawk, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, and Price statistics. They are listed in full in the [indicator catalog](indicators.md).
 
 - **Add or remove**: pick a study in its dropdown. The list stays open so you can add several, and ✓ marks the ones that are on.
 - **Overlay or Pane**: overlays draw on price; panes open below the chart.
@@ -93,9 +93,28 @@ There are **152 studies** in 10 searchable dropdowns: Harmonics, @neurotrader888
 | Letters | Pivot labels |
 | Arrow at D | Completion: the potential reversal zone (PRZ) |
 
-**Harmonics list** (under Analysis) shows each pattern's D date, name, side, PRZ, and measured AB/BC/CD/AD ratios. To show one pattern only, pick it from the Harmonics dropdown and remove *Carney all harmonics*.
+**Harmonics list** (under Analysis) shows each pattern's D date, the date D was confirmed, name, side, PRZ, HOP, T1/T2 targets and measured AB/BC/CD/AD ratios. To show one pattern only, pick it from the Harmonics dropdown and remove *Carney all harmonics*.
+
+A D pivot is only known once price has moved Swing % away from it, so the *confirmed* date is the first session anyone could have acted. Backtests and the "past hit rate" in the reading use that date.
 
 Patterns: Gartley, Bat, Alternate Bat, Butterfly, Crab, Deep Crab, Cypher, Shark, 5-0, AB=CD, and Three Drives.
+
+### Carney PRZ (process view)
+
+![Carney PRZ on Power Grid: a live Bat with its D and HOP levels](images/carney-prz.png)
+
+Add **Carney PRZ (causal trades + live zones)** from the Harmonics dropdown to follow Scott Carney's process: structure, ratio, confirmation.
+
+| On the chart | Meaning |
+| --- | --- |
+| Blue X-A-B-C legs | A live bullish setup |
+| Blue horizontal lines | Its D level and HOP (harmonic optimal price, the failure level) |
+| *PRZ Bat* arrow | Where the rules bought after a confirmation close in the zone |
+| *target*, *HOP stop*, *time stop* | Why that trade ended |
+
+The reading lists the live setup, its state (waiting for D or in the zone) and this stock's PRZ trade record. Set **Confirm** to 0 (touch), 1 (bullish close above D) or 2 (Carney's close above the prior 3 highs or two rising closes). The same rules are the strategies *Carney PRZ, confirmed*, *reversal bar* and *touch*.
+
+Honest result: on 271 liquid stocks, median return ÷ max drawdown is about 0.26 for the best harmonic variants and about 0 with Carney's confirmation, against 1.54 for buy and hold. Versions before 0.9.0 showed about 1.0 because they entered on the D bar, before it could be known.
 
 ---
 
@@ -190,7 +209,7 @@ Under the cards, **Monte Carlo** reshuffles the closed trades 1,000 times and re
 
 ## Strategy leaderboard
 
-Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 92 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 610,000 backtests.
+Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 95 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 610,000 backtests.
 
 1. Press **Run backtests**. The work runs in the background on all CPU cores at low priority, and the page shows progress, speed, and time left. The Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value, so useful rows appear early. It takes a few hours on a slow two-core PC.
 2. **Stop** at any time. **Run / resume** carries on where it stopped and, after a daily sync, recomputes only scripts with new bars. **Recompute all** starts over.

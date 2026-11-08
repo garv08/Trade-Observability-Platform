@@ -2,6 +2,24 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.9.0] - 2026-11-08
+
+### Fixed
+- **Harmonic look-ahead.** The harmonic strategies entered on the D bar, but a zigzag only confirms D after price has moved Swing % away from it. They now enter on the confirmation bar. On 271 liquid stocks the median return ÷ max drawdown of *Any Carney bullish* falls from 0.99 to 0.26; the old figures were optimistic.
+- Harmonic readings measured past hit rates from D; they now measure from the confirmation bar.
+
+### Added
+- **Carney PRZ engine**, built from Scott Carney's (@harmonictrader) published process: structure, ratio, confirmation.
+  - D and HOP (failure) levels per pattern, Gartley CD/AB check, Carney's pattern preference.
+  - Confirmation modes (touch, reversal bar, Carney), optional RSI filter, AD targets, HOP stop and 30-bar time stop.
+  - Strategies: *Carney PRZ, confirmed*, *reversal bar* and *touch* (95 in total).
+  - Study *Carney PRZ (causal trades + live zones)* (153 in total).
+- The Harmonics list and readings show the confirmation date, HOP, and 0.382/0.618 AD targets, plus any live PRZ.
+- **Per-strategy revisions in the leaderboard.** Revised strategies are recomputed on every machine on the next leaderboard run, without redoing the others.
+
+### Research
+- Backtest of every variant in [design §6.2.1](docs/design.md#621-carney-prz-engine-prz_setups-prz_trades-prz_watch). No causal harmonic variant beats buy and hold, and Carney's confirmation lowers results on daily NSE bars.
+
 ## [0.8.0] - 2026-11-06
 
 ### Added

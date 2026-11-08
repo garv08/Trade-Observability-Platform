@@ -211,11 +211,11 @@ class LeaderboardTests(unittest.TestCase):
             before = dict(con.execute("SELECT strategy, computed_at FROM leaderboard WHERE symbol = ?", [symbol]).fetchall())
             # Pretend two strategies were added to the catalogue after this script was computed.
             gone = sorted(before)[:2]
-            ids = ",".join(sorted(set(before) - set(gone)))
+            ids = ",".join(sorted(leaderboard.tagged(s) for s in set(before) - set(gone)))
             con.execute("DELETE FROM leaderboard WHERE symbol = ? AND strategy IN (?, ?)", [symbol, *gone])
             con.execute("UPDATE leaderboard_done SET ids = ? WHERE symbol = ?", [ids, symbol])
             todo, _, _ = leaderboard.members(con)
-        self.assertIn((symbol, tuple(gone)), todo)
+        self.assertIn((symbol, tuple(sorted(leaderboard.tagged(s) for s in gone))), todo)
         leaderboard.run_all(workers=1, limit=1)
         with store.session() as con:
             after = dict(con.execute("SELECT strategy, computed_at FROM leaderboard WHERE symbol = ?", [symbol]).fetchall())
@@ -225,8 +225,31 @@ class LeaderboardTests(unittest.TestCase):
         untouched = [s for s in before if s not in gone]
         self.assertTrue(all(after[s] == before[s] for s in untouched))
         self.assertEqual(stored[1], len(after))
-        self.assertTrue(set(gone) <= set(stored[0].split(",")))
+        self.assertTrue({leaderboard.tagged(s) for s in gone} <= set(stored[0].split(",")))
         self.assertNotIn(symbol, [s for s, _ in todo])
+
+    def test_revised_strategy_is_recomputed_alone(self):
+        import time
+
+        self.assertIn("harm_carney", leaderboard.REVISIONS)
+        with store.session() as con:
+            symbol = con.execute("SELECT MIN(symbol) FROM leaderboard_done WHERE strategies > 0").fetchone()[0]
+            before = dict(con.execute("SELECT strategy, computed_at FROM leaderboard WHERE symbol = ?", [symbol]).fetchall())
+            # Stored before the revision: plain id for harm_carney.
+            old = sorted(leaderboard.tagged(s) if s != "harm_carney" else s for s in before)
+            con.execute("UPDATE leaderboard_done SET ids = ? WHERE symbol = ?", [",".join(old), symbol])
+            todo, _, _ = leaderboard.members(con)
+        self.assertIn((symbol, (leaderboard.tagged("harm_carney"),)), todo)
+        time.sleep(1.1)
+        leaderboard.run_all(workers=1, limit=1)
+        with store.session() as con:
+            after = dict(con.execute("SELECT strategy, computed_at FROM leaderboard WHERE symbol = ?", [symbol]).fetchall())
+            ids = con.execute("SELECT ids FROM leaderboard_done WHERE symbol = ?", [symbol]).fetchone()[0].split(",")
+        self.assertEqual(set(after), set(before))
+        self.assertNotEqual(after["harm_carney"], before["harm_carney"])
+        self.assertTrue(all(after[s] == before[s] for s in before if s != "harm_carney"))
+        self.assertIn("harm_carney@" + leaderboard.REVISIONS["harm_carney"], ids)
+        self.assertNotIn("harm_carney", ids)
 
     def test_strategy_portfolio(self):
         import io

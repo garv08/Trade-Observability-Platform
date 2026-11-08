@@ -88,7 +88,7 @@
 
     <main>
       <h1>TOP user guide</h1>
-      <p class="lead">A local research desk for the Nifty 50, all BSE stocks, and NSE/BSE ETFs. It has daily charts, 152 indicators, Scott Carney harmonics, 92 backtestable strategies (including rules adapted from two YouTube channels), a one-click trend scan, and Screener.in fundamentals.</p>
+      <p class="lead">A local research desk for the Nifty 50, all BSE stocks, and NSE/BSE ETFs. It has daily charts, 153 indicators, Scott Carney harmonics, 95 backtestable strategies (including rules adapted from two YouTube channels), a one-click trend scan, and Screener.in fundamentals.</p>
       <div class="note">This desk uses delayed public daily data. It is not a live NSE feed, not a broker, and not TradingView or the Harmonic Trader product. Nothing here is investment advice.</div>
 
       <h2 id="start">Start the desk</h2>
@@ -134,11 +134,11 @@ top-platform           # or: python -m top</code></pre>
       </ul>
 
       <h2 id="indicators">Indicators</h2>
-      <p>The left panel has one searchable dropdown for each of the 10 sections, 152 studies in all. Pick a study to add it. Pick it again, or press <b>Remove</b> under <b>On the chart</b>, to take it off. Change a study's settings under <b>On the chart</b>, and the chart redraws.</p>
+      <p>The left panel has one searchable dropdown for each of the 10 sections, 153 studies in all. Pick a study to add it. Pick it again, or press <b>Remove</b> under <b>On the chart</b>, to take it off. Change a study's settings under <b>On the chart</b>, and the chart redraws.</p>
       <table>
         <thead><tr><th>Section</th><th>Studies</th><th>Examples</th></tr></thead>
         <tbody>
-          <tr><td>Harmonics</td><td>12</td><td>Gartley, Bat, Butterfly, Crab, Cypher, Shark, Carney all harmonics</td></tr>
+          <tr><td>Harmonics</td><td>13</td><td>Gartley, Bat, Butterfly, Crab, Cypher, Shark, Carney all harmonics, Carney PRZ</td></tr>
           <tr><td>@neurotrader888</td><td>6</td><td>Directional-change zigzag, auto trendlines, Hawkes volatility, VSA, CMMA vs Nifty proxy, permutation entropy</td></tr>
           <tr><td>@UnbiasedTradingGoshawk</td><td>2</td><td>EWMAC trend forecast, return vs Nifty proxy</td></tr>
           <tr><td>Moving averages</td><td>19</td><td>SMA, EMA, WMA, HMA, KAMA, VWMA</td></tr>
@@ -173,13 +173,16 @@ top-platform           # or: python -m top</code></pre>
         <li>The latest 12 patterns are drawn. <b>Solid lines</b> join X-A-B-C-D, and <b>dashed lines</b> join X-B-D and A-C.</li>
         <li><span class="up">Green</span> is a bullish pattern, which completes at a low. <span class="down">Red</span> is a bearish pattern, which completes at a high.</li>
         <li>Each pivot is labelled with its letter. Every completion in the history gets an arrow at D with the pattern name.</li>
-        <li>D is the potential reversal zone (PRZ).</li>
+        <li>D is the potential reversal zone (PRZ). It runs to the HOP (harmonic optimal price); a close beyond the HOP fails the pattern.</li>
+        <li>D is only known once price has moved Swing % away from it. Backtests act on that confirmation bar, never on D itself.</li>
         <li>The legend shows how many patterns are drawn and how many are bullish or bearish.</li>
       </ul>
       <h3>Picking harmonic studies</h3>
       <p>The <b>Harmonics</b> dropdown is first under Indicators. Search for a pattern, for example <code>bat</code> or <code>crab</code>, to draw only that pattern. Remove <b>Carney all harmonics</b> if you want only the single pattern.</p>
       <h3>The Harmonics list button</h3>
-      <p>Click <b>Harmonics list</b> under Analysis to list each drawn pattern with its D date, name, side, PRZ price, and AB, BC, CD, and AD ratios. If the study was removed, the button turns it back on.</p>
+      <p>Click <b>Harmonics list</b> under Analysis to list each drawn pattern with its D date, confirmation date, name, side, PRZ price, HOP, 0.382/0.618 AD targets, and AB, BC, CD, and AD ratios. If the study was removed, the button turns it back on.</p>
+      <h3>Carney PRZ</h3>
+      <p><b>Carney PRZ (causal trades + live zones)</b> follows Scott Carney's own process: structure, ratio, confirmation. Blue X-A-B-C legs with D and HOP lines show a live setup; <i>PRZ</i> arrows mark past entries, with the exit reason (target, HOP stop, time stop). <b>Confirm</b> 0 enters at the touch of D, 1 on a bullish close above D, 2 on Carney's confirmation. The same rules are the <i>Carney PRZ</i> strategies. On 271 liquid stocks the best causal harmonic variants reach a median return ÷ drawdown of about 0.26, against 1.54 for buy and hold.</p>
       <h3>Patterns</h3>
       <table>
         <thead><tr><th>Pattern</th><th>Key ratios (approximate)</th></tr></thead>
@@ -263,7 +266,7 @@ top-platform           # or: python -m top</code></pre>
       <h2 id="backtest">Strategy tester</h2>
       <ol class="steps">
         <li>Pick a stock.</li>
-        <li>Click the <b>Backtest</b> strategy box and type part of a name or idea, for example <code>gartley</code>, <code>breakout</code>, <code>rsi</code>, or <code>reversal</code>. There are 92 strategies, grouped as listed below. The strategy's description appears under the box.</li>
+        <li>Click the <b>Backtest</b> strategy box and type part of a name or idea, for example <code>gartley</code>, <code>breakout</code>, <code>rsi</code>, or <code>reversal</code>. There are 95 strategies, grouped as listed below. The strategy's description appears under the box.</li>
         <li>Adjust the strategy's settings if it has any, then set <b>Capital</b> (default ₹10,00,000) and <b>Cost bps</b> (default 5, charged on entry and exit).</li>
         <li>Pick <b>Sizing</b>: <i>Full</i> (all equity), <i>Vol target</i> (target vol ÷ the stock's 20-day volatility, capped at 100%), or <i>Half Kelly</i> (half the Kelly fraction from the strategy's earlier trades).</li>
         <li>Click <b>Run backtest</b>. Under the result cards, <b>Monte Carlo</b> shows the range of drawdowns from 1,000 reshuffles of the same trades. <b>Walk-forward</b> re-picks the main setting each year from earlier data only and says whether the rule looks over-tuned.</li>
@@ -304,7 +307,7 @@ top-platform           # or: python -m top</code></pre>
       <p>Click <b>Backtest universe</b> (<i>Backtest Nifty 50</i>, <i>ETFs</i>, <i>BSE</i>, or <i>all</i>, following the universe chip) to run the selected strategy, with its current settings, on all 50 Nifty stocks, on all indices, or on the 200 most traded names of a larger universe. The output panel below the chart ranks them by return and shows whether each is long now, its max drawdown, and its trade count. This takes a few seconds. A harmonic strategy takes about 6 seconds.</p>
 
       <h2 id="leaderboard">Strategy leaderboard</h2>
-      <p>Click <b>Leaderboard</b> in the top bar to open a separate page that backtests all 92 strategies, with default settings, on every stock, ETF, and index with at least a year of bars (about 610,000 backtests) and ranks them by <b>CAGR ÷ |max drawdown|</b>.</p>
+      <p>Click <b>Leaderboard</b> in the top bar to open a separate page that backtests all 95 strategies, with default settings, on every stock, ETF, and index with at least a year of bars (about 610,000 backtests) and ranks them by <b>CAGR ÷ |max drawdown|</b>.</p>
       <ul>
         <li><b>Run backtests</b> starts a background job on all CPU cores at low priority. Progress, speed, and time left update every 15 seconds. Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value. Expect a few hours on a slow PC.</li>
         <li><b>Stop</b> and <b>Run / resume</b> pick up where it left off. After a daily sync only scripts with new bars are recomputed. <b>Recompute all</b> starts over.</li>

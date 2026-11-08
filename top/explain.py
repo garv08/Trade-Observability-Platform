@@ -757,6 +757,8 @@ def read_study(ctx, study_id, params):
     if spec is None:
         return None
     name = spec["name"]
+    if study_id == "carney_prz":
+        return read_prz(ctx, params, name)
     if study_id in HARMONIC_IDS:
         return read_harmonic(ctx, study_id, params, name)
     result = compute_study(study_id, ctx.frame, params or {})
@@ -814,8 +816,8 @@ def _harmonic_history(ctx, events, side, horizon=10):
     for event in events:
         if event["side"] != side:
             continue
-        i = event["index"]
-        if i + horizon >= len(ctx.c) or not _ok(ctx.c[i]):
+        i = event.get("confirmed")
+        if i is None or i + horizon >= len(ctx.c) or not _ok(ctx.c[i]):
             continue
         ret = (ctx.c[i + horizon] / ctx.c[i] - 1) * 100
         if side == "bear":
@@ -831,7 +833,7 @@ def _harmonic_history(ctx, events, side, horizon=10):
 def read_harmonic(ctx, study_id, params, name):
     only = None if study_id == "carney" else study_id.replace("harm_", "")
     events, swing, tol = _harmonic_events(ctx, params, only)
-    what = ("Scott Carney harmonic patterns: five swing points X-A-B-C-D whose legs match Fibonacci ratios. D is the potential reversal zone (PRZ). "
+    what = ("Scott Carney harmonic patterns: five swing points X-A-B-C-D whose legs match Fibonacci ratios. D is the potential reversal zone (PRZ), which runs to the HOP failure level. "
             "A bullish pattern completes at a low and expects a bounce; a bearish one completes at a high and expects a drop. "
             f"Detection uses a {swing:g}% zigzag and ±{tol:g} ratio tolerance.")
     if not events:
@@ -843,12 +845,19 @@ def read_harmonic(ctx, study_id, params, name):
     bull = last["side"] == "bull"
     pts = last["points"]
     d_px = last["prz"]
-    c_px = pts[-2][1]
+    a_px = harmonics.target_anchor(last)
+    leg = "AD" if len(pts) == 5 and a_px == pts[1][1] else "CD"
     move = _pct(ctx.close, d_px)
-    t1 = d_px + 0.382 * (c_px - d_px)
-    t2 = d_px + 0.618 * (c_px - d_px)
-    stop = d_px - ctx.atr_now if bull else d_px + ctx.atr_now
+    # Carney measures reaction targets from A to the D extreme.
+    t1 = d_px + 0.382 * (a_px - d_px)
+    t2 = d_px + 0.618 * (a_px - d_px)
+    hop = _hop_level(last)
+    stop = hop if hop is not None else (d_px - ctx.atr_now if bull else d_px + ctx.atr_now)
     text = (f"Latest: {'bullish' if bull else 'bearish'} {', '.join(last['names'])} completed at D = {inr(d_px)} on {last['time']} ({_ago(bars)}). ")
+    if last.get("confirmed") is None:
+        text += f"D is not confirmed yet: price has not moved {swing:g}% away from it, so the pattern can still extend. "
+    else:
+        text += f"D was confirmed on {last['confirmed_time']}, when price had moved {swing:g}% off it; that is the first bar a trader could act on. "
     ratios = last.get("ratios") or {}
     if ratios:
         text += "Measured ratios: " + ", ".join(f"{k.upper()} {v}" for k, v in ratios.items()) + ". "
@@ -856,13 +865,13 @@ def read_harmonic(ctx, study_id, params, name):
     hit_t1 = (ctx.close >= t1) if bull else (ctx.close <= t1)
     hit_t2 = (ctx.close >= t2) if bull else (ctx.close <= t2)
     if hit_stop:
-        status = "failed: price has moved more than 1 ATR beyond D, so the reversal did not hold."
+        status = "failed: price has closed beyond the invalidation level, so the reversal did not hold."
         tone = "bear" if bull else "bull"
     elif hit_t2:
-        status = "played out: price has already reached the 0.618 CD retracement target."
+        status = f"played out: price has already reached the 0.618 {leg} target."
         tone = "bull" if bull else "bear"
     elif hit_t1:
-        status = "working: price reached the first target (0.382 of CD). Carney-style management moves the stop to break-even here."
+        status = f"working: price reached the first target (0.382 of {leg}). Carney's management takes part off here."
         tone = "bull" if bull else "bear"
     elif bars <= 10:
         status = "fresh and still in play."
@@ -871,16 +880,70 @@ def read_harmonic(ctx, study_id, params, name):
         status = "stale: it is old and has not reached its targets."
         tone = "neutral"
     text += (f"Close is {_signed(move)} from D. Status: {status} "
-             f"Reaction targets are 0.382 and 0.618 of the CD leg: {inr(t1)} and {inr(t2)}. "
-             f"A common invalidation is 1 ATR beyond D: {inr(stop)}. ")
+             f"Reaction targets are 0.382 and 0.618 of {leg}: {inr(t1)} and {inr(t2)}. ")
+    if hop is not None:
+        text += f"The pattern fails on a close beyond its HOP (harmonic optimal price) at {inr(hop)}. "
+    else:
+        text += f"A common invalidation is 1 ATR beyond D: {inr(stop)}. "
     history = _harmonic_history(ctx, events, last["side"])
     if history and history["n"] >= 3:
-        text += (f"On this stock, {history['n']} past {'bullish' if bull else 'bearish'} completions at these settings moved in the expected direction over the next 10 sessions "
+        text += (f"On this stock, {history['n']} past {'bullish' if bull else 'bearish'} completions at these settings moved in the expected direction over the 10 sessions after D was confirmed "
                  f"{history['hit']:.0f}% of the time (median {_signed(history['median'])}).")
     bulls = sum(1 for e in events if e["side"] == "bull")
     text += f" In total {len(events)} patterns were found in the stored history ({bulls} bullish, {len(events) - bulls} bearish)."
+    watch = harmonics.prz_watch(ctx.frame, params or {}, only) if (only is None or only in harmonics.PRZ_SPECS) else []
+    if watch:
+        row = watch[-1]
+        label = row["pattern"].replace("_", " ").title()
+        text += (f" Live setup: a bullish {label} PRZ from X-A-B-C ending {inr(row['c'])}: D level {inr(row['d'])}, HOP {inr(row['hop'])} "
+                 f"({'price is in the zone; wait for a confirmation close' if row['state'] == 'in zone' else 'waiting for price to reach D before it exceeds C'}).")
     return {"kind": "harmonic", "id": study_id, "title": name, "section": "Harmonics", "what": what, "now": text, "tone": tone,
-            "pattern": {"side": last["side"], "d": d_px, "t1": round(t1, 2), "t2": round(t2, 2), "stop": round(stop, 2), "bars": bars, "fresh": bars <= 10 and not hit_stop and not hit_t2}}
+            "pattern": {"side": last["side"], "d": d_px, "t1": round(t1, 2), "t2": round(t2, 2), "stop": round(stop, 2), "bars": bars,
+                        "confirmed": last.get("confirmed") is not None,
+                        "fresh": bars <= 10 and not hit_stop and not hit_t2 and last.get("confirmed") is not None}}
+
+
+def read_prz(ctx, params, name):
+    params = params or {}
+    trades = harmonics.prz_trades(ctx.frame, params)
+    live = harmonics.prz_watch(ctx.frame, params)
+    what = ("Scott Carney's PRZ process, run causally: once an X-A-B-C structure is confirmed, the D level and the HOP failure level are projected along XA. "
+            "A trade needs price to reach D before it exceeds C, then a confirmation close inside the zone; it exits at 0.618 of AD, on a close beyond the HOP, or after 30 sessions. "
+            "Long side only.")
+    parts = []
+    if live:
+        row = live[-1]
+        label = harmonics.PRZ_NAMES[row["pattern"]]
+        parts.append(f"Live: a bullish {label} PRZ with D at {inr(row['d'])} and HOP at {inr(row['hop'])} "
+                     f"({'price is in the zone, so watch for a confirmation close' if row['state'] == 'in zone' else 'price has not reached D yet'}).")
+        tone = "bull" if row["state"] == "in zone" else "neutral"
+    else:
+        parts.append("No bullish PRZ is live right now.")
+        tone = "neutral"
+    if trades:
+        closed = [t for t in trades if t["reason"] != "open"]
+        rets = [(ctx.c[t["exit"]] / ctx.c[t["entry"]] - 1) * 100 for t in closed if _ok(ctx.c[t["entry"]]) and _ok(ctx.c[t["exit"]])]
+        wins = sum(1 for r in rets if r > 0)
+        last = trades[-1]
+        parts.append(f"On this stock the rules took {len(closed)} completed trades ({wins} closed higher, average {_signed(sum(rets) / len(rets)) if rets else '—'} close to close).")
+        if last["reason"] == "open":
+            parts.append(f"A {harmonics.PRZ_NAMES[last['pattern']]} trade entered on {ctx.frame.ts[last['entry']]} is still open: target {inr(last['t2'])}, HOP stop {inr(last['hop'])}.")
+            tone = "bull"
+        else:
+            parts.append(f"Latest: {harmonics.PRZ_NAMES[last['pattern']]} entered {ctx.frame.ts[last['entry']]}, exit by {last['reason']} on {ctx.frame.ts[last['exit']]}.")
+    else:
+        parts.append("The rules found no completed trade in the stored history at these settings.")
+    return {"kind": "harmonic", "id": "carney_prz", "title": name, "section": "Harmonics", "what": what, "now": " ".join(parts), "tone": tone}
+
+
+def _hop_level(event):
+    if len(event["points"]) != 5:
+        return None
+    spec = next((harmonics.PRZ_SPECS[i] for i in event["ids"] if i in harmonics.PRZ_SPECS), None)
+    if spec is None:
+        return None
+    (_, x), (_, a) = event["points"][0], event["points"][1]
+    return round(a - spec["hop"] * (a - x), 2)
 
 
 # ---------------------------------------------------------------- strategy

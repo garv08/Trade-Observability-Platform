@@ -231,10 +231,29 @@ PSR_Z_SQL = "(l.sharpe / sqrt(252)) * sqrt(greatest(l.years * 252 - 1, 1)) / sqr
 DSR_Z_SQL = "(l.sharpe / sqrt(252) - COALESCE(t.sr_star, 0)) * sqrt(greatest(l.years * 252 - 1, 1)) / sqrt(1 + power(l.sharpe / sqrt(252), 2) / 2)"
 
 
+# Bump a strategy's revision when its rules change. Stored rows of older revisions are then
+# recomputed for that strategy only, on every machine, without touching the other strategies.
+REVISIONS = {
+    **{sid: "2" for sid in ("harm_carney", "harm_gartley", "harm_bat", "harm_alt_bat", "harm_butterfly", "harm_crab", "harm_deep_crab",
+                            "harm_cypher", "harm_shark", "harm_five_o", "harm_abcd", "harm_three_drives")},  # 0.9.0: enter when D is confirmed
+    **{sid: "3" for sid in ("harm_prz", "harm_prz_bar", "harm_prz_touch")},  # 0.9.0: own confirmation default; trades taken in entry order
+}
+
+
+def tagged(strategy_id):
+    revision = REVISIONS.get(strategy_id)
+    return f"{strategy_id}@{revision}" if revision else strategy_id
+
+
+def untagged(done_id):
+    return done_id.split("@", 1)[0]
+
+
 def catalog_ids():
+    """Strategy ids as stored in leaderboard_done.ids: with an @revision suffix when the rules were revised."""
     from top.strategies import catalog
 
-    return sorted(item["id"] for item in catalog())
+    return sorted(tagged(item["id"]) for item in catalog())
 
 
 def catalog_key():
@@ -299,7 +318,7 @@ def evaluate(payload):
     from top.strategies import STRATEGIES, signal
 
     symbol, ts, o, h, l, c, v, *rest = payload
-    only = set(rest[0]) if rest and rest[0] else None
+    only = {untagged(sid) for sid in rest[0]} if rest and rest[0] else None
     problem = data_problem(ts, c)
     if problem:
         return symbol, ts[-1], [], 0, problem, rest[0] if rest else None
@@ -385,14 +404,16 @@ def save(con, results, key):
     for symbol, last, rows, *rest in full:
         done_rows.append((symbol, last, key, len(rows), stamp, ",".join(every)))
     for symbol, last, rows, _errors, _problem, only in partial:
-        ids = sorted(set(filter(None, (previous.get(symbol) or "").split(","))) | set(only))
+        revised = {untagged(sid) for sid in only}
+        kept = {sid for sid in filter(None, (previous.get(symbol) or "").split(",")) if untagged(sid) not in revised}
+        ids = sorted(kept | set(only))
         done_rows.append((symbol, last, key, len(rows), stamp, ",".join(ids)))
     _copy_into_temp(con, "lb_done_in", "symbol VARCHAR, last_day DATE, catalog_key VARCHAR, strategies INTEGER, computed_at TIMESTAMP, ids VARCHAR", done_rows)
     if full:
         _copy_into_temp(con, "lb_full_in", "symbol VARCHAR", [(r[0],) for r in full])
         con.execute("DELETE FROM leaderboard WHERE symbol IN (SELECT symbol FROM lb_full_in)")
     if partial:
-        _copy_into_temp(con, "lb_part_in", "symbol VARCHAR, strategy VARCHAR", [(r[0], sid) for r in partial for sid in r[5]])
+        _copy_into_temp(con, "lb_part_in", "symbol VARCHAR, strategy VARCHAR", [(r[0], untagged(sid)) for r in partial for sid in r[5]])
         con.execute("DELETE FROM leaderboard USING lb_part_in p WHERE leaderboard.symbol = p.symbol AND leaderboard.strategy = p.strategy")
     if flat:
         _copy_into_temp(con, "lb_in", COLUMNS, flat)

@@ -60,7 +60,7 @@ Changes from the originals:
 | Visibility-graph and time-reversibility indicators | Graph shortest paths and O(n²) counts; low priority, and no trading rule in the repos |
 | KDE market-profile support and resistance | Rolling kernel density over a year per bar is too slow in pure Python for universe scans |
 | DeFi TVL indicator | Crypto-only data |
-| Harmonic patterns | TOP already has a full Scott Carney set |
+| Harmonic patterns | TOP already has a full Scott Carney set (see [@harmonictrader](#harmonictrader-scott-m-carney-x)) |
 
 ## @UnbiasedTradingGoshawk
 
@@ -107,6 +107,25 @@ The account's public posts were studied for method only; no post text or chart i
 | `pattern_breakout` | Strategy (Breakout) | Long on a pattern breakout; exit at T2, below the stop, or after 40 bars | MEDIUM |
 
 TradZoo's level posts are for intraday trading on 15-minute charts. TOP has daily bars, so its levels apply to the next session.
+
+## @harmonictrader (Scott M. Carney, X)
+
+Account: https://x.com/harmonictrader, the author of the harmonic ratio framework TOP's patterns follow.
+
+All 3,274 public posts (Nov 2021 – Nov 2026) and their charts were studied for rules only; no post text or chart is copied into TOP. Examples of the posts behind each rule: [Bat PRZ](https://x.com/harmonictrader/status/1484511316652044288), [confirmation](https://x.com/harmonictrader/status/1817912593400414711), [Gartley AB=CD](https://x.com/harmonictrader/status/1847629816138232169), [Cypher is not his](https://x.com/harmonictrader/status/1619121135752253442).
+
+| Rule from the posts | What TOP does | Confidence |
+| --- | --- | --- |
+| Structure, then ratio, then confirmation | `carney_prz` study and `harm_prz*` strategies run the three steps causally | HIGH |
+| D at the XA level, failure at the HOP (Bat 0.886/1.13, Butterfly 1.27/1.414, Crab and Deep Crab 1.618) | D and HOP levels per pattern; a close beyond the HOP ends the trade | HIGH |
+| Confirmation: close above the prior 3 highs, or two bullish closes; RSI turning up from oversold | Confirm modes 0/1/2 and the RSI filter | MEDIUM (his HSI indicator is proprietary; RSI stands in) |
+| Targets 0.382 and 0.618 of AD; 30-bar time limit | Target setting and 30-bar time stop; readings show both targets | HIGH |
+| Gartley needs AB=CD (CD/AB 1.0–1.27) | Checked in the PRZ engine | HIGH |
+| Preference: Bat, Deep Crab, Shark, Crab, Gartley | One pattern per X-A-B-C, in that order | MEDIUM |
+
+Not implemented: half-position exits at T1 (TOP's backtests are all-in or flat), the bearish side (TOP is long only), and type-II re-entries after T1.
+
+**Result.** The old harmonic backtests entered on the D bar before it could be known; with that removed, the best variants reach a median return ÷ max DD of about 0.26 on 271 liquid stocks. With Carney's confirmation the figure is about 0, against 1.54 for buy and hold. See [design §6.2.1](design.md#621-carney-prz-engine-prz_setups-prz_trades-prz_watch).
 
 ## First results on Nifty 50 (2021-11 to 2026-10, 5 bps costs, default settings)
 

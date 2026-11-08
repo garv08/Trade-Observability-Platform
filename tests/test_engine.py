@@ -45,8 +45,8 @@ class EngineTests(unittest.TestCase):
         strategies = strategy_catalog()
         self.assertGreaterEqual(len(studies), 136)
         self.assertGreaterEqual(len(strategies), 71)
-        self.assertEqual(sum(1 for s in studies if s["section"] == "Harmonics"), 12)
-        self.assertEqual(sum(1 for s in strategies if s["section"] == "Harmonics"), 12)
+        self.assertEqual(sum(1 for s in studies if s["section"] == "Harmonics"), 13)
+        self.assertEqual(sum(1 for s in strategies if s["section"] == "Harmonics"), 15)
         self.assertTrue(any(s["section"] == "Trend reversal" for s in strategies))
 
     def test_every_study_has_a_latest_value(self):
@@ -99,6 +99,55 @@ class EngineTests(unittest.TestCase):
             self.assertIn(len(drawing["legs"]), (5, 6))
             times = [p["time"] for p in drawing["legs"]]
             self.assertEqual(times, sorted(times))
+
+    def test_harmonic_strategies_do_not_look_ahead(self):
+        f = self.frame
+        n = len(f)
+        for sid in ("harm_carney", "harm_abcd", "harm_prz", "harm_prz_bar", "harm_prz_touch"):
+            full = signal(sid, f, {}).tolist()
+            self.assertTrue(any(v == 1.0 for v in full), sid)
+            for k in range(n - 600, n, 23):
+                cut = Frame(f.ts[:k], f.o.tolist()[:k], f.h.tolist()[:k], f.l.tolist()[:k], f.c.tolist()[:k], f.v.tolist()[:k])
+                part = signal(sid, cut, {}).tolist()
+                same = [(a == b) or (a != a and b != b) for a, b in zip(full[:k], part)]
+                self.assertTrue(all(same), f"{sid} changed past positions when future bars were added (cut {k})")
+
+    def test_harmonic_entry_waits_for_d_confirmation(self):
+        times, opens, highs, lows, closes = _gartley_frame()
+        events = [e for e in harmonics.detect(highs, lows, times, 3, 0.05) if "gartley" in e["ids"]]
+        self.assertTrue(events)
+        self.assertGreater(events[0]["confirmed"], events[0]["index"])
+
+    def test_carney_bat_prz_trade(self):
+        path = [(0, 120), (10, 100), (30, 150), (40, 130), (50, 145), (80, 105), (110, 140), (120, 140)]
+        closes = []
+        for (i0, p0), (i1, p1) in zip(path, path[1:]):
+            closes += [p0 + (p1 - p0) * (i - i0) / (i1 - i0) for i in range(i0, i1)]
+        opens = [closes[0]] + closes[:-1]
+        highs = [max(o, c) * 1.003 for o, c in zip(opens, closes)]
+        lows = [min(o, c) * 0.997 for o, c in zip(opens, closes)]
+        times = [f"2024-01-{1 + i // 28:02d}-{i % 28:02d}" for i in range(len(closes))]
+        frame = Frame(times, opens, highs, lows, closes, [1000.0] * len(closes))
+        setups = harmonics.prz_setups(frame.h.tolist(), frame.l.tolist(), 3, 0.05)
+        self.assertEqual([s["pattern"] for s in setups], ["bat"])
+        bat = setups[0]
+        self.assertAlmostEqual(bat["d"], bat["a"] - 0.886 * (bat["a"] - bat["x"]), places=6)
+        self.assertAlmostEqual(bat["hop"], bat["a"] - 1.13 * (bat["a"] - bat["x"]), places=6)
+        trades = harmonics.prz_trades(frame, {"confirm": 2})
+        self.assertEqual(len(trades), 1)
+        t = trades[0]
+        self.assertLessEqual(frame.l.tolist()[t["touch"]], bat["d"])
+        self.assertGreater(t["entry"], t["touch"])  # Carney confirmation comes after the PRZ is reached
+        self.assertEqual(t["reason"], "target")
+        self.assertGreaterEqual(closes[t["exit"]], t["low"] + 0.618 * (bat["a"] - t["low"]))
+        touch = harmonics.prz_trades(frame, {"confirm": 0})[0]
+        self.assertEqual(touch["entry"], touch["touch"])
+        # Each PRZ strategy runs its own confirmation mode with default settings.
+        by_id = {sid: signal(sid, frame, {}).tolist() for sid in ("harm_prz", "harm_prz_touch")}
+        self.assertEqual(by_id["harm_prz_touch"].index(1.0), touch["entry"])
+        self.assertEqual(by_id["harm_prz"].index(1.0), t["entry"])
+        study = compute("carney_prz", frame, {})
+        self.assertTrue(any(m["text"].startswith("PRZ Bat") for m in study["markers"]))
 
     def test_darvas_box_and_breakout(self):
         from top.patterns import darvas_boxes
