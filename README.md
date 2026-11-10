@@ -242,6 +242,7 @@ The same user guide is built into the app: click **Guide** in the top bar.
 | Port | `--port` | `TOP_PORT` | `8000` |
 | Database file | `top-sync --db` | `TOP_DB` | `./data/nse.duckdb` (relative to where you start TOP) |
 | Download on first start | `--no-sync` turns it off | `TOP_AUTO_SYNC=0` turns it off | on |
+| Daily data update after the close | `--no-auto-update` turns it off; `--update-at HH:MM` | `TOP_AUTO_UPDATE=0`, `TOP_AUTO_UPDATE_AT` | on, weekdays after 19:00 IST ([details](docs/installation.md#automatic-daily-data-update)) |
 | DuckDB memory cap | | `TOP_DB_MEMORY` | `768MB` (keeps small laptops responsive during long leaderboard runs) |
 | Leaderboard worker processes | `top-leaderboard --workers` | `TOP_WORKERS` | up to 2 (set 1 on laptops with little free memory) |
 
@@ -265,7 +266,7 @@ No. TOP reads delayed public **daily** bars and never places orders. It is for r
 <details>
 <summary><b>Where does the data come from, and how fresh is it?</b></summary>
 
-The Nifty 50 comes from Yahoo Finance's public chart endpoint, adjusted for splits and dividends. BSE stocks and ETFs come from the exchanges' official daily bhavcopy files. These are adjusted for splits and bonus issues, not dividends, using NSE corporate actions plus a price-gap rule for BSE-only stocks. Everything is stored in DuckDB. Click **Sync history** or run `top-sync` after the market closes to refresh. Fundamentals come from Screener.in on demand.
+The Nifty 50 comes from Yahoo Finance's public chart endpoint, adjusted for splits and dividends. BSE stocks and ETFs come from the exchanges' official daily bhavcopy files. These are adjusted for splits and bonus issues, not dividends, using NSE corporate actions plus a price-gap rule for BSE-only stocks. Everything is stored in DuckDB. `top-platform` updates every script by itself after each weekday's close (19:00 IST), and `top-sync --install-cron` does the same from cron when the server isn't running; **Sync history** refreshes on demand. Fundamentals come from Screener.in on demand.
 </details>
 
 <details>

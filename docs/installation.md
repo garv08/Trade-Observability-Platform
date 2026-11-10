@@ -272,11 +272,34 @@ systemctl --user enable --now top-platform
 systemctl --user status top-platform
 ```
 
-Refresh data after the market closes with a cron entry, for example at 18:30 on weekdays:
+## Automatic daily data update
 
-```cron
-30 18 * * 1-5  cd ~/Trade-Observability-Platform && .venv/bin/top-sync >> ~/top-sync.log 2>&1
+TOP keeps every script's OHLC data (Nifty 50, NSE and BSE stocks, ETFs, indices, delivery %) current by itself.
+
+**While `top-platform` runs**, a built-in scheduler reads the system clock, converts it to India time, and runs the full update once per weekday after **19:00 IST**, when the day's exchange files are out. If the PC was off or the server stopped, the missed update runs at the next start. The machine's own time zone does not matter. Exchange holidays find no new file and change nothing. A long leaderboard run does not hold up the data; it picks up the new bars afterwards. Hover over the DuckDB pill on the desk to see the last and next update.
+
+**Cron, for when the server is not always running** (Linux and macOS):
+
+```bash
+top-sync --install-cron            # adds one crontab line; run it from your clone
+top-sync --install-cron --at 18:30 # a different update time (IST)
 ```
+
+The line runs `top-sync --auto` every 30 minutes. `--auto` updates only when a weekday's update time has passed and that day is not done yet:
+- if `top-platform` is running, it asks the server to update (DuckDB allows only one program to open the store, so a plain `top-sync` would fail);
+- otherwise it updates directly, then refreshes the leaderboard rows for scripts with new bars;
+- overlapping runs are skipped through a lock file.
+
+Output goes to `data/auto-update.log`; the last update is recorded in `data/auto-update.json`. `top-sync --auto --force` updates now. Remove the line with `crontab -e`.
+
+On a fresh store (under 1,000 scripts) the automatic update refreshes only the Nifty 50; install the ready-made snapshot first.
+
+| Setting | Flag | Environment variable | Default |
+| --- | --- | --- | --- |
+| Turn the server's scheduler off | `top-platform --no-auto-update` | `TOP_AUTO_UPDATE=0` | on |
+| Update time (IST) | `top-platform --update-at`, `top-sync --at` | `TOP_AUTO_UPDATE_AT` | `19:00` |
+
+On Windows, keep `top-platform` running (for example from Task Scheduler at log-on); its scheduler does the rest.
 
 ---
 

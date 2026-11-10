@@ -478,12 +478,19 @@ def main(argv=None) -> int:
     which.add_argument("--snapshot", nargs="?", const="latest", metavar="FILE_OR_URL",
                        help="install a ready-made store: the newest one from the GitHub releases, or a file/URL you give (stop top-platform first)")
     which.add_argument("--make-snapshot", metavar="DIR", help="write top-data.duckdb.gz and top-data.json into DIR for a release (stop top-platform first)")
+    which.add_argument("--auto", action="store_true",
+                       help="for cron: update everything once per weekday after the update time (IST); asks a running top-platform to do it, else syncs here")
+    which.add_argument("--install-cron", action="store_true", help="add a crontab line that runs --auto every 30 minutes (Linux/macOS)")
+    parser.add_argument("--at", help="with --auto/--install-cron: update time in IST, HH:MM (default 19:00, env TOP_AUTO_UPDATE_AT)")
+    parser.add_argument("--force", action="store_true", help="with --auto: update now even if today's update is done")
     parser.add_argument("--years", type=int, default=5, help="history for BSE stocks and ETFs (default 5)")
     args = parser.parse_args(argv)
     global DB_PATH, _schema_ready
     if args.db:
         DB_PATH = Path(args.db)
         _schema_ready = False
+    if args.install_cron or args.auto:
+        return _auto_main(args)
     if args.snapshot or args.make_snapshot:
         from top import snapshot
 
@@ -565,6 +572,87 @@ def main(argv=None) -> int:
             print(f"Delivery sync failed: {exc}", flush=True)
             failed = True
     return 1 if failed else 0
+
+
+def _auto_main(args) -> int:
+    from top import autoupdate
+
+    at = autoupdate.update_time(args.at)
+    if args.install_cron:
+        line = autoupdate.cron_line(at=args.at)
+        try:
+            autoupdate.install_cron(line)
+        except (OSError, Exception) as exc:  # noqa: BLE001 - crontab missing or refused
+            print(f"Could not edit the crontab ({exc}). Add this line yourself with `crontab -e`:\n{line}", flush=True)
+            return 1
+        print(f"Installed in your crontab:\n{line}\nIt checks every 30 minutes and updates once per weekday after {at:%H:%M} IST.", flush=True)
+        return 0
+    stamp = autoupdate.now_ist().strftime("%Y-%m-%d %H:%M IST")
+    slot = autoupdate.latest_slot(at=at) if args.force else autoupdate.due(at=at, db_path=DB_PATH)
+    if slot is None:
+        nxt = autoupdate.next_slot(at=at)
+        print(f"{stamp}: data is up to date; next update {nxt:%a %d %b %H:%M} IST.", flush=True)
+        return 0
+    lock = _try_lock(DB_PATH.with_name("auto-update.lock"))
+    if lock is None:
+        print(f"{stamp}: another update is still running.", flush=True)
+        return 0
+    try:
+        if autoupdate.ask_server("all"):
+            autoupdate.mark_done(slot, "all (by top-platform)", db_path=DB_PATH)
+            print(f"{stamp}: top-platform is running; it is updating every script for {slot:%d %b} in the background.", flush=True)
+            return 0
+        from top import snapshot
+
+        if snapshot.store_in_use(DB_PATH):
+            print(f"{stamp}: {DB_PATH} is open in another program; will retry at the next run.", flush=True)
+            return 0
+        with session() as con:
+            ensure_schema(con)
+            what = autoupdate.scope(con)
+        print(f"{stamp}: updating {'every script' if what == 'all' else 'the Nifty 50 (fresh store; use --snapshot for the rest)'} for {slot:%a %d %b}", flush=True)
+        code = main((["--db", str(DB_PATH)] if args.db else []) + (["--nifty"] if what == "nifty" else []) + ["--years", str(args.years)])
+        if what == "all":
+            _refresh_leaderboard_cli()
+        autoupdate.mark_done(slot, what, [] if code == 0 else ["some sources failed; see the log above"], db_path=DB_PATH)
+        print(f"{autoupdate.now_ist():%Y-%m-%d %H:%M IST}: update finished{'' if code == 0 else ' with errors'}.", flush=True)
+        return code
+    finally:
+        lock.close()
+
+
+def _try_lock(path):
+    """An exclusive lock file so overlapping cron runs don't sync twice. None if already held."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    handle = open(path, "a+")
+    try:
+        try:
+            import fcntl
+
+            fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except ImportError:  # Windows
+            import msvcrt
+
+            msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+    except OSError:
+        handle.close()
+        return None
+    return handle
+
+
+def _refresh_leaderboard_cli():
+    """Recompute leaderboard rows for scripts with new bars, as the server does after a sync (only if a leaderboard exists)."""
+    from top import leaderboard
+
+    with session() as con:
+        leaderboard.ensure_tables(con)
+        if con.execute("SELECT COUNT(*) FROM leaderboard_done").fetchone()[0] == 0:
+            return
+    print("Refreshing the leaderboard for scripts with new bars", flush=True)
+    try:
+        leaderboard.run_all(workers=1)
+    except Exception as exc:  # noqa: BLE001
+        print(f"Leaderboard refresh failed: {exc}", flush=True)
 
 
 if __name__ == "__main__":

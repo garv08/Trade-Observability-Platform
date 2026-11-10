@@ -14,7 +14,7 @@ Symbols are NSE codes from `/api/symbols`. URL-encode them in query strings: `M&
 
 ### `GET /api/status`
 
-Sync state and store coverage.
+Sync state and store coverage. `sync.auto` is the daily automatic update: `enabled`, `at` (IST), `message`, `running_slot`, `last_slot` (the weekday update time last completed), `last_finished`, `last_scope` and `next`.
 
 ```json
 {

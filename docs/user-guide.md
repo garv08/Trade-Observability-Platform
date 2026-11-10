@@ -335,4 +335,4 @@ Study and strategy IDs are listed in the [indicator](indicators.md) and [strateg
 
 - **Hide** on the Interpretation pane or Backtest results gives the chart more room.
 - If the chart looks busy, remove *Carney all harmonics* or pick a single pattern.
-- Refresh data after market close with **Sync history** or `top-sync`.
+- Data updates by itself after each weekday's close (19:00 IST) while `top-platform` runs; missed days catch up at the next start. Hover over the DuckDB pill for the last and next update. Use **Sync history** to refresh on demand, or `top-sync --install-cron` if the server isn't always running ([details](installation.md#automatic-daily-data-update)).

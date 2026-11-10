@@ -155,6 +155,18 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 
 **Conclusion:** on daily NSE bars, harmonic patterns have a small edge at best once look-ahead is removed, and Carney's confirmation rule does not help. They remain useful as chart context, not as a stand-alone system.
 
+## 10. Automatic daily data update (v0.10.0)
+
+**Ask:** a cron job that checks the system time and pulls the latest OHLC data for all NSE/BSE scripts.
+
+**Constraint:** DuckDB lets only one program open the store, so a plain cron `top-sync` fails while `top-platform` runs.
+
+**Design:**
+- The server has a scheduler thread. Each weekday after 19:00 IST (system clock converted to IST) it runs the full update once, and catches up missed days at start.
+- `top-sync --auto` is for cron. It hands the update to a running server through `/api/sync`, or syncs directly when the server is down. A lock file stops overlapping runs. `top-sync --install-cron` adds the line.
+
+**Verified:** on restart the scheduler caught up Monday 9 Nov by itself. The Nifty 50, NSE and BSE stocks and ETFs all received the 9 Nov bar, and the store grew from 8,044 to 8,071 scripts. The cron command handed over to the running server.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.

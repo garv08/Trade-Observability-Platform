@@ -992,6 +992,13 @@ async function runBacktest(event) {
   }
 }
 
+function autoText(auto) {
+  if (!auto) return "";
+  if (!auto.enabled) return "Automatic update: off";
+  const when = (iso) => iso ? new Date(iso).toLocaleString("en-IN", { timeZone: "Asia/Kolkata", weekday: "short", day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" }) : "never";
+  return `Automatic update: weekdays after ${auto.at} IST; last ${auto.last_slot ? when(auto.last_slot) : "never"}, next ${when(auto.next)}. ${auto.message || ""}`.trim();
+}
+
 async function refreshStatus() {
   const payload = await api("/api/status");
   const sync = payload.sync;
@@ -1012,7 +1019,7 @@ async function refreshStatus() {
   else if (sync.syncing) pill.textContent = `Nifty sync ${sync.done}/${sync.total}`;
   else if (bhav.syncing) pill.textContent = bhav.total ? `BSE/ETF sync ${bhav.done}/${bhav.total} days` : "BSE/ETF sync starting";
   else pill.textContent = `DuckDB ${coverage.symbols_with_bars}/50${extra > 0 ? ` · +${extra.toLocaleString("en-IN")}` : ""}`;
-  pill.title = [`Nifty 50: ${coverage.symbols_with_bars}/50 (Yahoo, adjusted)`, ...Object.values(coverage.universes || {}).filter((u) => u.label !== "Nifty 50").map((u) => `${u.label}: ${u.symbols_with_bars.toLocaleString("en-IN")} with bars (bhavcopy, split/bonus adjusted)`), bhav.message ? `BSE/ETF sync: ${bhav.message}` : ""].filter(Boolean).join("\n");
+  pill.title = [`Nifty 50: ${coverage.symbols_with_bars}/50 (Yahoo, adjusted)`, ...Object.values(coverage.universes || {}).filter((u) => u.label !== "Nifty 50").map((u) => `${u.label}: ${u.symbols_with_bars.toLocaleString("en-IN")} with bars (bhavcopy, split/bonus adjusted)`), bhav.message ? `BSE/ETF sync: ${bhav.message}` : "", autoText(sync.auto)].filter(Boolean).join("\n");
   pill.className = `pill ${busy ? "warn" : coverage.symbols_with_bars === 50 ? "live" : ""}`;
   const finishedNifty = state.wasNiftySyncing && !sync.syncing;
   state.wasNiftySyncing = sync.syncing;

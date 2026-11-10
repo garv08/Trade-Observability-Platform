@@ -23,7 +23,7 @@ from top.store import coverage, ensure_schema, known_symbols, list_symbols, load
 from top.strategies import catalog as strategy_catalog
 from top.strategies import signal
 from top.verify import run as run_verify
-from top import leaderboard, markets, portfolio
+from top import autoupdate, leaderboard, markets, portfolio
 from top.robust import monte_carlo, walk_forward
 from top.universe import UNIVERSE
 
@@ -119,7 +119,7 @@ class Handler(BaseHTTPRequestHandler):
 
                 with session() as con:
                     ensure_schema(con)
-                    payload = {"sync": {**status(), "snapshot": snapshot.status()}, "coverage": coverage(con)}
+                    payload = {"sync": {**status(), "snapshot": snapshot.status(), "auto": autoupdate.status()}, "coverage": coverage(con)}
             elif parsed.path == "/api/symbols":
                 with session() as con:
                     ensure_schema(con)
@@ -687,9 +687,16 @@ def main(argv=None):
     parser.add_argument("--host", default=HOST, help="bind address (default %(default)s, env TOP_HOST)")
     parser.add_argument("--port", type=int, default=PORT, help="port (default %(default)s, env TOP_PORT)")
     parser.add_argument("--no-sync", action="store_true", help="do not download history on start, even if the store is empty")
+    parser.add_argument("--no-auto-update", action="store_true",
+                        help="do not update every script's data automatically after each weekday's close (env TOP_AUTO_UPDATE=0)")
+    parser.add_argument("--update-at", help="daily update time in IST, HH:MM (default 19:00, env TOP_AUTO_UPDATE_AT)")
     args = parser.parse_args(argv)
     auto_sync = not args.no_sync and os.environ.get("TOP_AUTO_SYNC", "1") != "0"
     server = build_server(args.host, args.port, auto_sync)
+    if not args.no_auto_update and os.environ.get("TOP_AUTO_UPDATE", "1") != "0":
+        at = autoupdate.update_time(args.update_at)
+        autoupdate.start(_start_sync, at)
+        print(f"Automatic data update: every weekday after {at:%H:%M} IST (missed days are caught up on start).", flush=True)
     port = server.server_address[1]
     extra = _also_listen_on_ipv6_loopback(port) if args.host in ("127.0.0.1", "localhost") else None
     print(f"TOP - Trade Observability Platform at http://{args.host}:{port}" + (f" (also http://localhost:{port})" if extra else ""), flush=True)

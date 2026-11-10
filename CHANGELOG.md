@@ -2,6 +2,16 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.0] - 2026-11-10
+
+### Added
+- **Automatic daily data update.** `top-platform` reads the system clock and, once per weekday after 19:00 IST, updates every script: Nifty 50, NSE and BSE stocks, ETFs, indices and delivery %, then the leaderboard rows. Missed days (PC off, server stopped) are caught up at the next start; the machine's time zone does not matter. `--no-auto-update`, `--update-at` and `TOP_AUTO_UPDATE`, `TOP_AUTO_UPDATE_AT` control it.
+- **Cron support:** `top-sync --auto` updates when due. If `top-platform` is running it asks the server, because DuckDB allows only one program on the store; otherwise it syncs directly. Overlapping runs are skipped through a lock file. `top-sync --install-cron [--at HH:MM]` adds a crontab line that checks every 30 minutes.
+- `/api/status` reports `sync.auto`, and the DuckDB pill's tooltip shows the last and next update.
+
+### Fixed
+- The installation guide's example cron line ran `top-sync` while the server held the store, which fails. It now uses `--install-cron`.
+
 ## [0.9.0] - 2026-11-08
 
 ### Fixed
