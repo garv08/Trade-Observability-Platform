@@ -108,6 +108,29 @@ def scope(con):
     return "all" if (coverage(con).get("total_symbols_with_bars") or 0) >= FULL_STORE else "nifty"
 
 
+RETRY_MINUTES = 30
+GIVE_UP = time(23, 30)  # no exchange files by then means a holiday
+
+
+def exchange_day(con):
+    """The newest day with exchange-file (NSE/BSE) bars in the store, or None."""
+    row = con.execute("SELECT MAX(ts) FROM bars WHERE interval = '1d' AND (symbol LIKE 'NSE:%' OR symbol LIKE 'BSE:%')").fetchone()
+    return row[0] if row and row[0] else None
+
+
+def files_missing(con, slot, what, now=None):
+    """True while the slot's exchange files are not in the store yet and it is still worth retrying.
+
+    NSE and BSE publish at different times in the evening, so an update can run before they are out.
+    After GIVE_UP on the same day it is treated as an exchange holiday."""
+    if what != "all":
+        return False
+    day = exchange_day(con)
+    if day is not None and str(day)[:10] >= slot.date().isoformat():
+        return False
+    return now_ist(now) < datetime.combine(slot.date(), GIVE_UP, IST)
+
+
 def mark_done(slot, what, errors=None, db_path=None):
     data = load_state(db_path)
     data.update(last_slot=slot.isoformat(), what=what, finished=now_ist().isoformat(timespec="seconds"), errors=errors or [])
@@ -116,7 +139,7 @@ def mark_done(slot, what, errors=None, db_path=None):
 
 def status():
     with _lock:
-        out = {k: v for k, v in _state.items() if k not in ("tried", "scope")}
+        out = {k: v for k, v in _state.items() if k != "scope"}
     data = load_state()
     out["last_slot"] = data.get("last_slot")
     out["last_finished"] = data.get("finished")
@@ -150,21 +173,30 @@ def tick(start_sync, now=None):
         if st["syncing"] or st["bhav"]["syncing"]:
             return "running"
         errors = [e.get("symbol", "") + ": " + e.get("error", "") for e in st.get("errors") or []][:20]
-        mark_done(datetime.fromisoformat(running), _state.get("scope", "all"), errors)
-        _set(running_slot=None, message=f"updated for {running[:10]}" + (f" ({len(errors)} errors)" if errors else ""))
+        slot = datetime.fromisoformat(running)
+        with session() as con:
+            waiting = files_missing(con, slot, _state.get("scope", "all"), now)
+        if waiting:
+            retry = now_ist(now) + timedelta(minutes=RETRY_MINUTES)
+            _set(running_slot=None, retry_after=retry.isoformat(),
+                 message=f"exchange files for {slot.date()} are not out yet; retrying at {retry:%H:%M} IST")
+            return "waiting"
+        mark_done(slot, _state.get("scope", "all"), errors)
+        _set(running_slot=None, retry_after=None, message=f"updated for {running[:10]}" + (f" ({len(errors)} errors)" if errors else ""))
         return "finished"
     slot = due(now, update_time(_state["at"]))
     if slot is None:
         return "idle"
-    if slot.isoformat() in _state.get("tried", ()):
-        return "idle"  # started once in this server's life already; the next slot retries
+    retry_after = _state.get("retry_after")
+    if retry_after and now_ist(now) < datetime.fromisoformat(retry_after):
+        return "idle"
     if _busy():
         _set(message="waiting for the running sync or leaderboard run")
         return "busy"
     with session() as con:
         what = scope(con)
     start_sync(what)
-    _set(running_slot=slot.isoformat(), scope=what, tried=(*_state.get("tried", ()), slot.isoformat()),
+    _set(running_slot=slot.isoformat(), scope=what,
          message=f"updating for {slot.date()} ({'all scripts' if what == 'all' else 'Nifty 50'})")
     return "started"
 

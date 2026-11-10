@@ -167,6 +167,12 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 
 **Verified:** on restart the scheduler caught up Monday 9 Nov by itself. The Nifty 50, NSE and BSE stocks and ETFs all received the 9 Nov bar, and the store grew from 8,044 to 8,071 scripts. The cron command handed over to the running server.
 
+**Fix after the first evening (v0.10.1):**
+- The PC restarted at 19:15, so the cron job ran the update itself at 19:30.
+- The 10 Nov exchange files were not out (10 Nov was an exchange holiday), yet the day would have been marked done.
+- The cron run then held the database for its leaderboard refresh, so the server could not start.
+- Now a day is done only once its exchange bars arrive, with retries until 23:30 IST. Cron syncs data only, and the server refreshes the leaderboard when it starts.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.

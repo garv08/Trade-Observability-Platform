@@ -276,7 +276,7 @@ systemctl --user status top-platform
 
 TOP keeps every script's OHLC data (Nifty 50, NSE and BSE stocks, ETFs, indices, delivery %) current by itself.
 
-**While `top-platform` runs**, a built-in scheduler reads the system clock, converts it to India time, and runs the full update once per weekday after **19:00 IST**, when the day's exchange files are out. If the PC was off or the server stopped, the missed update runs at the next start. The machine's own time zone does not matter. Exchange holidays find no new file and change nothing. A long leaderboard run does not hold up the data; it picks up the new bars afterwards. Hover over the DuckDB pill on the desk to see the last and next update.
+**While `top-platform` runs**, a built-in scheduler reads the system clock, converts it to India time, and runs the full update once per weekday after **19:00 IST**, when the day's exchange files are out. If the PC was off or the server stopped, the missed update runs at the next start. The machine's own time zone does not matter. If the exchange files for the day are not out yet, it retries every 30 minutes until 23:30 IST; after that the day is treated as an exchange holiday. A long leaderboard run does not hold up the data; it picks up the new bars afterwards. Hover over the DuckDB pill on the desk to see the last and next update.
 
 **Cron, for when the server is not always running** (Linux and macOS):
 
@@ -287,7 +287,8 @@ top-sync --install-cron --at 18:30 # a different update time (IST)
 
 The line runs `top-sync --auto` every 30 minutes. `--auto` updates only when a weekday's update time has passed and that day is not done yet:
 - if `top-platform` is running, it asks the server to update (DuckDB allows only one program to open the store, so a plain `top-sync` would fail);
-- otherwise it updates directly, then refreshes the leaderboard rows for scripts with new bars;
+- otherwise it updates directly. It does not run the leaderboard refresh (that can take hours and would keep the server from opening the store); `top-platform` catches the leaderboard up when it starts;
+- if the day's exchange files are not out yet, the day is not marked done and the next run retries (until 23:30 IST);
 - overlapping runs are skipped through a lock file.
 
 Output goes to `data/auto-update.log`; the last update is recorded in `data/auto-update.json`. `top-sync --auto --force` updates now. Remove the line with `crontab -e`.

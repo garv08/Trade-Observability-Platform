@@ -2,6 +2,12 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.1] - 2026-11-10
+
+### Fixed
+- **The automatic update could mark a day done before the exchange files were out.** At 19:30 the cron run found no new NSE/BSE bars and would still have recorded the day as updated. A day now counts only once its exchange-file bars are in the store. Until then it retries every 30 minutes, and gives up at 23:30 IST (exchange holiday).
+- **A cron update could keep the server from starting for hours.** It ran the leaderboard refresh while holding the database, so after a reboot `top-platform` could not open the store. Cron now updates the data only, and `top-platform` catches the leaderboard up when it starts.
+
 ## [0.10.0] - 2026-11-10
 
 ### Added

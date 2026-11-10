@@ -67,10 +67,11 @@ class StateTests(unittest.TestCase):
     def test_scheduler_step_starts_once_and_records_the_finish(self):
         started = []
         sync = {"syncing": False, "bhav": {"syncing": False}, "errors": []}
-        autoupdate._set(at="19:00", running_slot=None, tried=())
+        autoupdate._set(at="19:00", running_slot=None, retry_after=None)
         with mock.patch("top.store.DB_PATH", self.db), \
                 mock.patch("top.store.status", side_effect=lambda: sync), \
                 mock.patch("top.store.session"), \
+                mock.patch.object(autoupdate, "files_missing", return_value=False), \
                 mock.patch.object(autoupdate, "scope", return_value="all"), \
                 mock.patch.object(autoupdate, "_busy", return_value=False):
             self.assertEqual(autoupdate.tick(started.append, ist(2026, 11, 10, 19, 1)), "started")
@@ -83,7 +84,42 @@ class StateTests(unittest.TestCase):
             self.assertEqual(started, ["all"])
             self.assertEqual(autoupdate.load_state(self.db)["last_slot"], ist(2026, 11, 10, 19).isoformat())
             self.assertEqual(autoupdate.tick(started.append, ist(2026, 11, 11, 19, 1)), "started")
-        autoupdate._set(running_slot=None, tried=())
+        autoupdate._set(running_slot=None, retry_after=None)
+
+    def test_scheduler_retries_until_the_exchange_files_are_out(self):
+        started = []
+        sync = {"syncing": False, "bhav": {"syncing": False}, "errors": []}
+        missing = [True]
+        autoupdate._set(at="19:00", running_slot=None, retry_after=None)
+        with mock.patch("top.store.DB_PATH", self.db), \
+                mock.patch("top.store.status", side_effect=lambda: sync), \
+                mock.patch("top.store.session"), \
+                mock.patch.object(autoupdate, "files_missing", side_effect=lambda *a, **k: missing[0]), \
+                mock.patch.object(autoupdate, "scope", return_value="all"), \
+                mock.patch.object(autoupdate, "_busy", return_value=False):
+            self.assertEqual(autoupdate.tick(started.append, ist(2026, 11, 10, 19, 1)), "started")
+            self.assertEqual(autoupdate.tick(started.append, ist(2026, 11, 10, 19, 6)), "waiting")
+            self.assertNotIn("last_slot", autoupdate.load_state(self.db))
+            self.assertEqual(autoupdate.tick(started.append, ist(2026, 11, 10, 19, 20)), "idle")  # before the retry time
+            self.assertEqual(autoupdate.tick(started.append, ist(2026, 11, 10, 19, 40)), "started")
+            missing[0] = False
+            self.assertEqual(autoupdate.tick(started.append, ist(2026, 11, 10, 19, 45)), "finished")
+        self.assertEqual(started, ["all", "all"])
+        autoupdate._set(running_slot=None, retry_after=None)
+
+    def test_files_missing_until_the_day_arrives_or_next_morning(self):
+        import duckdb
+
+        con = duckdb.connect()
+        con.execute("CREATE TABLE bars (symbol VARCHAR, interval VARCHAR, ts DATE)")
+        con.execute("INSERT INTO bars VALUES ('RELIANCE', '1d', '2026-11-10'), ('NSE:IRFC', '1d', '2026-11-09')")
+        slot = ist(2026, 11, 10, 19)
+        self.assertTrue(autoupdate.files_missing(con, slot, "all", ist(2026, 11, 10, 19, 30)))
+        self.assertFalse(autoupdate.files_missing(con, slot, "nifty", ist(2026, 11, 10, 19, 30)))
+        self.assertTrue(autoupdate.files_missing(con, slot, "all", ist(2026, 11, 10, 23, 0)))
+        self.assertFalse(autoupdate.files_missing(con, slot, "all", ist(2026, 11, 10, 23, 30)))  # holiday: give up
+        con.execute("INSERT INTO bars VALUES ('BSE:500325', '1d', '2026-11-10')")
+        self.assertFalse(autoupdate.files_missing(con, slot, "all", ist(2026, 11, 10, 19, 30)))
 
     def test_cron_line_runs_auto_from_the_project(self):
         line = autoupdate.cron_line(python="/opt/venv/bin/python", workdir=self.dir.name, at="18:30")

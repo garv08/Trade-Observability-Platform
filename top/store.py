@@ -612,8 +612,13 @@ def _auto_main(args) -> int:
             what = autoupdate.scope(con)
         print(f"{stamp}: updating {'every script' if what == 'all' else 'the Nifty 50 (fresh store; use --snapshot for the rest)'} for {slot:%a %d %b}", flush=True)
         code = main((["--db", str(DB_PATH)] if args.db else []) + (["--nifty"] if what == "nifty" else []) + ["--years", str(args.years)])
-        if what == "all":
-            _refresh_leaderboard_cli()
+        with session() as con:
+            waiting = autoupdate.files_missing(con, slot, what)
+        if waiting:
+            print(f"{autoupdate.now_ist():%Y-%m-%d %H:%M IST}: exchange files for {slot:%d %b} are not out yet; the next run retries.", flush=True)
+            return code
+        # The leaderboard is not refreshed here: that can take hours and would keep top-platform from
+        # opening the store. The server catches it up when it starts.
         autoupdate.mark_done(slot, what, [] if code == 0 else ["some sources failed; see the log above"], db_path=DB_PATH)
         print(f"{autoupdate.now_ist():%Y-%m-%d %H:%M IST}: update finished{'' if code == 0 else ' with errors'}.", flush=True)
         return code
@@ -638,21 +643,6 @@ def _try_lock(path):
         handle.close()
         return None
     return handle
-
-
-def _refresh_leaderboard_cli():
-    """Recompute leaderboard rows for scripts with new bars, as the server does after a sync (only if a leaderboard exists)."""
-    from top import leaderboard
-
-    with session() as con:
-        leaderboard.ensure_tables(con)
-        if con.execute("SELECT COUNT(*) FROM leaderboard_done").fetchone()[0] == 0:
-            return
-    print("Refreshing the leaderboard for scripts with new bars", flush=True)
-    try:
-        leaderboard.run_all(workers=1)
-    except Exception as exc:  # noqa: BLE001
-        print(f"Leaderboard refresh failed: {exc}", flush=True)
 
 
 if __name__ == "__main__":

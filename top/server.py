@@ -696,6 +696,8 @@ def main(argv=None):
     if not args.no_auto_update and os.environ.get("TOP_AUTO_UPDATE", "1") != "0":
         at = autoupdate.update_time(args.update_at)
         autoupdate.start(_start_sync, at)
+        # Bars added while the server was down (for example by cron) still need their leaderboard rows.
+        threading.Thread(target=_refresh_leaderboard, daemon=True).start()
         print(f"Automatic data update: every weekday after {at:%H:%M} IST (missed days are caught up on start).", flush=True)
     port = server.server_address[1]
     extra = _also_listen_on_ipv6_loopback(port) if args.host in ("127.0.0.1", "localhost") else None
