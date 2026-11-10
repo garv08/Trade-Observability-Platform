@@ -598,6 +598,9 @@ def _auto_main(args) -> int:
         print(f"{stamp}: another update is still running.", flush=True)
         return 0
     try:
+        if autoupdate.server_schedules():
+            print(f"{stamp}: top-platform is running with its own daily update; leaving it to the server.", flush=True)
+            return 0
         if autoupdate.ask_server("all"):
             autoupdate.mark_done(slot, "all (by top-platform)", db_path=DB_PATH)
             print(f"{stamp}: top-platform is running; it is updating every script for {slot:%d %b} in the background.", flush=True)

@@ -237,6 +237,20 @@ def ask_server(what="all", host=None, port=None, timeout=10):
         return False
 
 
+def server_schedules(host=None, port=None, timeout=10):
+    """True if a running top-platform has its own scheduler on; cron then leaves the update to it."""
+    import urllib.error
+    import urllib.request
+
+    host = host or os.environ.get("TOP_HOST", "127.0.0.1")
+    port = port or int(os.environ.get("TOP_PORT", "8000"))
+    try:
+        with urllib.request.urlopen(f"http://{host}:{port}/api/status", timeout=timeout) as response:
+            return bool(json.loads(response.read().decode("utf-8")).get("sync", {}).get("auto", {}).get("enabled"))
+    except (urllib.error.URLError, OSError, ValueError):
+        return False
+
+
 def cron_line(python=None, workdir=None, at=None):
     """A crontab line that runs `top-sync --auto` every 30 minutes; --auto itself decides whether an update is due."""
     import shlex

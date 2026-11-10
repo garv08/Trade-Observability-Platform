@@ -286,7 +286,7 @@ top-sync --install-cron --at 18:30 # a different update time (IST)
 ```
 
 The line runs `top-sync --auto` every 30 minutes. `--auto` updates only when a weekday's update time has passed and that day is not done yet:
-- if `top-platform` is running, it asks the server to update (DuckDB allows only one program to open the store, so a plain `top-sync` would fail);
+- if `top-platform` is running with its scheduler on, it does nothing and leaves the update to the server; if the server runs with `--no-auto-update`, it asks the server to sync (DuckDB allows only one program to open the store, so a plain `top-sync` would fail);
 - otherwise it updates directly. It does not run the leaderboard refresh (that can take hours and would keep the server from opening the store); `top-platform` catches the leaderboard up when it starts;
 - if the day's exchange files are not out yet, the day is not marked done and the next run retries (until 23:30 IST);
 - overlapping runs are skipped through a lock file.

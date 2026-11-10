@@ -121,6 +121,16 @@ class StateTests(unittest.TestCase):
         con.execute("INSERT INTO bars VALUES ('BSE:500325', '1d', '2026-11-10')")
         self.assertFalse(autoupdate.files_missing(con, slot, "all", ist(2026, 11, 10, 19, 30)))
 
+    def test_cli_auto_leaves_it_to_a_server_with_its_own_scheduler(self):
+        from top import store
+
+        with mock.patch.object(store, "DB_PATH", self.db), mock.patch.object(store, "_schema_ready", store._schema_ready), \
+                mock.patch.object(autoupdate, "server_schedules", return_value=True), \
+                mock.patch.object(autoupdate, "ask_server") as ask, mock.patch("builtins.print"):
+            self.assertEqual(store.main(["--db", str(self.db), "--auto"]), 0)
+        ask.assert_not_called()
+        self.assertNotIn("last_slot", autoupdate.load_state(self.db))  # the server's scheduler records it
+
     def test_cron_line_runs_auto_from_the_project(self):
         line = autoupdate.cron_line(python="/opt/venv/bin/python", workdir=self.dir.name, at="18:30")
         self.assertTrue(line.startswith("*/30 * * * * cd "))
@@ -141,6 +151,7 @@ class StateTests(unittest.TestCase):
         from top import store
 
         with mock.patch.object(store, "DB_PATH", self.db), mock.patch.object(store, "_schema_ready", store._schema_ready), \
+                mock.patch.object(autoupdate, "server_schedules", return_value=False), \
                 mock.patch.object(autoupdate, "ask_server", return_value=True) as ask, mock.patch("builtins.print"):
             self.assertEqual(store.main(["--db", str(self.db), "--auto"]), 0)
         ask.assert_called_once_with("all")

@@ -2,6 +2,11 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.10.2] - 2026-11-10
+
+### Fixed
+- **Cron marked the day done when it handed the update to a running server**, which cancelled the server's own retries. When the server's scheduler is on, cron now leaves the update to it.
+
 ## [0.10.1] - 2026-11-10
 
 ### Fixed
