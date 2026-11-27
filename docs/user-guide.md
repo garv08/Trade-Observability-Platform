@@ -29,7 +29,7 @@ A walkthrough of every part of TOP. The same guide is built into the app: click 
 | **Output panel** | Results of Harmonics list, Trend scan, Backtest universe, Fundamentals, Verify; **Close** returns the space to the chart |
 | **Backtest results** | Metrics, equity curve, and trades; collapsed until your first backtest |
 
-Nothing is drawn over the chart; panels stack below it. In windows narrower than 720 px the left panel becomes a drawer opened with **Controls**.
+Nothing is drawn over the chart; panels stack below it. Click **«** at the left of the chart toolbar (or press <kbd>[</kbd>) to hide the left panel and give the chart the full width; **»** brings it back, and the choice is remembered. In windows narrower than 720 px the left panel becomes a drawer opened with **Controls** or **»**.
 
 ---
 
@@ -348,6 +348,7 @@ Study and strategy IDs are listed in the [indicator](indicators.md) and [strateg
 | Key | Action |
 | --- | --- |
 | <kbd>/</kbd> | Jump to the Stock search |
+| <kbd>[</kbd> | Hide or show the left panel |
 | <kbd>↑</kbd> <kbd>↓</kbd> <kbd>Enter</kbd> | Move and pick in any dropdown |
 | <kbd>Esc</kbd> | Close a dropdown |
 | <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>R</kbd> | Hard-reload after an update |

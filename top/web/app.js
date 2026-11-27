@@ -1219,6 +1219,8 @@ function bind() {
   $("studies-toggle").addEventListener("click", () => {
     $("controls").classList.toggle("open");
   });
+  $("rail-toggle").addEventListener("click", toggleRail);
+  setRail(localStorage.getItem("top.railCollapsed") === "1");
   $("sync-btn").addEventListener("click", async () => {
     await api("/api/sync", { method: "POST" });
     state.barCache.clear();
@@ -1239,11 +1241,34 @@ function bind() {
     $("tester-toggle").textContent = $("tester").classList.contains("collapsed") ? "Show" : "Hide";
   });
   document.addEventListener("keydown", (event) => {
-    if (event.key === "/" && document.activeElement.tagName !== "INPUT") {
+    const typing = ["INPUT", "SELECT", "TEXTAREA"].includes(document.activeElement.tagName);
+    if (event.key === "/" && !typing) {
       event.preventDefault();
       $("stock-combo").querySelector("input").focus();
     }
+    if (event.key === "[" && !typing && !event.ctrlKey && !event.metaKey && !event.altKey) {
+      event.preventDefault();
+      toggleRail();
+    }
   });
+}
+
+// The left panel (stock, indicators, backtest) can be hidden to give the chart the full width.
+function setRail(collapsed) {
+  document.querySelector(".workspace").classList.toggle("rail-collapsed", collapsed);
+  const button = $("rail-toggle");
+  button.textContent = collapsed ? "»" : "«";
+  button.title = collapsed ? "Show the left panel ( [ )" : "Hide the left panel ( [ )";
+  button.setAttribute("aria-expanded", String(!collapsed));
+  localStorage.setItem("top.railCollapsed", collapsed ? "1" : "0");
+}
+
+function toggleRail() {
+  if (window.matchMedia("(max-width: 720px)").matches) {
+    $("controls").classList.toggle("open");  // narrow windows use the drawer
+    return;
+  }
+  setRail(!document.querySelector(".workspace").classList.contains("rail-collapsed"));
 }
 
 async function boot() {

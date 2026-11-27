@@ -2,6 +2,11 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.1] - 2026-11-27
+
+### Added
+- **Hide the left panel on the chart page.** A **«** button at the left of the chart toolbar (or the <kbd>[</kbd> key) hides the stock, indicator and backtest panel so the chart takes the full width; **»** brings it back. The choice is remembered between visits. In narrow windows the same button opens the drawer.
+
 ## [0.11.0] - 2026-11-27
 
 ### Added
