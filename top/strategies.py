@@ -308,6 +308,10 @@ def _register():
 
     register_research(_add)
 
+    from top.channels import register_strategies as register_channels
+
+    register_channels(_add)
+
 
 _register()
 

@@ -46,6 +46,8 @@ class EngineTests(unittest.TestCase):
         self.assertGreaterEqual(len(studies), 136)
         self.assertGreaterEqual(len(strategies), 71)
         self.assertEqual(sum(1 for s in studies if s["section"] == "Harmonics"), 13)
+        self.assertEqual(sum(1 for s in studies if s["section"] in ("@wealthcreator7", "@PhoenixHarmonic")), 3)
+        self.assertEqual(sum(1 for s in strategies if s["section"] in ("@wealthcreator7", "@PhoenixHarmonic")), 4)
         self.assertEqual(sum(1 for s in strategies if s["section"] == "Harmonics"), 15)
         self.assertTrue(any(s["section"] == "Trend reversal" for s in strategies))
 
@@ -55,8 +57,9 @@ class EngineTests(unittest.TestCase):
             result = compute(item["id"], self.frame, {})
             for key, values in result["series"].items():
                 if (item["id"], key) in {("ichimoku", "chikou"), ("darvas", "upper"), ("darvas", "lower"), ("breakout_trend", "trail"),
-                                           ("pattern_breakout", "upper"), ("pattern_breakout", "lower")}:
-                    continue  # blank by design: lagging span; no active Darvas box; no active breakout trend
+                                           ("pattern_breakout", "upper"), ("pattern_breakout", "lower"),
+                                           ("wc_long_base", "base_top"), ("wc_long_base", "base_floor")}:
+                    continue  # blank by design: lagging span; no active Darvas box, breakout trend, or long base
                 if not finite(values.tolist()[-1]):
                     blank.append(f"{item['id']}.{key}")
         self.assertEqual(blank, [])

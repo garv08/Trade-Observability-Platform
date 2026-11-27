@@ -2,6 +2,25 @@
 
 All notable changes to TOP. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and versions follow [Semantic Versioning](https://semver.org/).
 
+## [0.11.0] - 2026-11-27
+
+### Added
+- **Methods from two Telegram channels**, as new indicator and strategy groups. The rules come from reading every post and chart; no text or images are copied.
+  - **@wealthcreator7:**
+    - *Long base breakout*: buy the breakout day of a base of a year or more on 1.5× volume, stop within 8%, hold until a Friday close below the weekly 40 EMA. Ships as a strategy and a study showing the base top/floor and weekly EMA.
+    - *21 EMA pullback*: in a stacked-EMA uptrend.
+  - **@PhoenixHarmonic:**
+    - *BAMM* (Bat Action Magnetic Move): a close above B targets D at 0.886 of XA, with C as support.
+    - *Half Bat reversal*: buy the turn from 0.5 of a rally, target the high, stop below 0.886.
+    - Both ship as strategies and as studies that draw live setups with trigger, target and stop lines.
+- Readings for all three studies (live setup, open trade, this stock's record).
+- Any study can now draw setups on the chart, not only harmonics.
+- User guide: how to turn on Darvas boxes and backtest them.
+- 156 studies and 99 strategies in total.
+
+### Research
+- On 271 liquid stocks: the long base averaged +21% a trade with a profit factor of 7.8, but rarely fires. BAMM and Half Bat win about 60% of trades with small gains. See [creators.md](docs/creators.md#telegram-channels).
+
 ## [0.10.2] - 2026-11-10
 
 ### Fixed

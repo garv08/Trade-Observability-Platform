@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import math
 
+from top import channels as _channels
 from top import harmonics
 from top.backtest import run as run_backtest
 from top.indicators import (
@@ -239,6 +240,8 @@ WHAT.update({
     "pattern_breakout": "Pattern breakout projector (method inspired by @TradZoo's chart posts): fits support and resistance lines over recent bars, names the pattern (wedge, triangle, channel, range), and on a close through resistance gives a buying zone, a stop under support, target 1 at the prior swing high, and target 2 at the pattern height projected from the breakout.",
 })
 FAMILY.update({"darvas": "pattern", "breakout_trend": "pattern", "key_levels": "pattern", "pattern_breakout": "pattern"})
+FAMILY.update({sid: "pattern" for sid in _channels.READERS})
+WHAT.update(_channels.WHAT)
 FAMILY.update({"kalman_level": "ma"})
 WHAT.update({
     "kalman_level": "Kalman level: a local-level Kalman filter of price, a smooth trend line that adapts to each stock's noise. Price above a rising level reads as an uptrend.",
@@ -676,6 +679,9 @@ def _read_stat(ctx, study_id, name, series):
 
 def _read_pattern(ctx, study_id, params):
     from top.patterns import breakout_trend, darvas_boxes
+
+    if study_id in _channels.READERS:
+        return _channels.READERS[study_id](ctx.frame, params)
 
     if study_id == "key_levels":
         from top.levels import describe_plan, key_levels, level_plan

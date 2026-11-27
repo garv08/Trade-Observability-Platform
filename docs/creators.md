@@ -127,6 +127,45 @@ Not implemented: half-position exits at T1 (TOP's backtests are all-in or flat),
 
 **Result.** The old harmonic backtests entered on the D bar before it could be known; with that removed, the best variants reach a median return ÷ max DD of about 0.26 on 271 liquid stocks. With Carney's confirmation the figure is about 0, against 1.54 for buy and hold. See [design §6.2.1](design.md#621-carney-prz-engine-prz_setups-prz_trades-prz_watch).
 
+## Telegram channels
+
+Two Indian Telegram channels were read in full for their rules: about 35,000 posts from Phoenix Harmonic (2020–2026) and 850 from Wealthcreator (Dec 2025 – Nov 2026), with their charts. No post text or image is copied into TOP. Both are long/flat and causal; a test cuts the price history at many points and checks that no past position changes.
+
+### @wealthcreator7 (Wealthcreator)
+
+Account: https://t.me/wealthcreator7. Positional breakout trading on daily entries and weekly exits, explained through numbered "positional case studies".
+
+| ID | Type | Rule from the posts | What TOP does | Confidence |
+| --- | --- | --- | --- | --- |
+| `wc_long_base` | Strategy and study | Trade only long-base breakouts (1–3 year ranges) on good volume; enter on the breakout day with the stop under the breakout or previous day's low, risk at most 8%; trail on the weekly 40 EMA | Base = the prior 250 sessions, price under its high for at least half of them and never more than 50% below it. Breakout close on ≥ 1.5× the 50-day volume; exit on a Friday close below the weekly 40 EMA or a close below the stop | HIGH (base test is TOP's) |
+| `wc_ema21_pullback` | Strategy | Buy pullbacks to the 21 EMA in a confirmed uptrend (21 > 50 > 200); exit below the 21 EMA, trail to the 50 | Enters on a session that dips to EMA 21 and closes above it; exits below EMA 50 (tested better than EMA 21) | HIGH |
+
+Not implemented: partial exits (a third after a 100% month, more below the weekly 20 EMA), and the fundamental checks (sales or EPS growth, sector tailwind).
+
+### @PhoenixHarmonic (Phoenix Harmonic)
+
+Account: https://t.me/PhoenixHarmonicOfficial. Harmonic patterns (mostly the Bat), "expected reversal zones", BAMM and its own Half Bat, plus daily Nifty and Bank Nifty intraday levels.
+
+| ID | Type | Rule from the posts | What TOP does | Confidence |
+| --- | --- | --- | --- | --- |
+| `ph_bamm` | Strategy and study | "Once the stock closes above B, bullish BAMM gets active; C acts as support" and price is pulled to D | X high, A low, B retracing 0.382–0.618 of XA, C holding 0.382–0.886 of AB. A close above B enters; exit at D (0.886 of XA), a close below C, or 60 bars | MEDIUM (ratio ranges are standard Bat ratios) |
+| `ph_half_bat` | Strategy and study | The channel's own pattern: a reversal zone at about half of a leg, which can turn into a full Bat | After a rally of at least 10%, buy the first close above the prior day's high once price reaches 0.5 of the rally; target the rally high, stop below 0.886, 60-bar limit | LOW (ratios read off its charts) |
+
+Not implemented: bearish patterns (TOP is long only) and the intraday Nifty / Bank Nifty levels (TOP has daily bars).
+
+### Results (271 liquid stocks, 2021–2026, next-open fills, 0.1% round-trip cost)
+
+| Rule | Trades | Win rate | Mean trade | Profit factor | Median return ÷ DD per stock |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Long base breakout | 45 | 47% | +21% | 7.8 | −0.13 |
+| 21 EMA pullback | 4,021 | 29% | +2.9% | 2.0 | 0.38 |
+| BAMM | 764 | 60% | +1.0% | 1.26 | 0.34 |
+| Half Bat | 7,085 | 58% | +1.0% | 1.28 | 0.40 |
+| Darvas box breakout (for comparison) | 1,851 | 40% | +5.0% | 2.07 | 0.14 |
+| Buy and hold | — | — | — | — | 1.54 |
+
+The long base is rare and right-skewed: most stocks have none or one trade, so the median stock barely moves, but the winners run (Bharat Electronics +134%, Godrej Properties +71%). Five years of history also limits it to bases of up to about two years. BAMM and Half Bat have small, real edges, unlike Carney's PRZ variants. None beats buy and hold over this strong period.
+
 ## First results on Nifty 50 (2021-11 to 2026-10, 5 bps costs, default settings)
 
 From **Backtest Nifty 50**. "Beat B&H" counts stocks where the strategy's total return beat buy and hold over the same period.

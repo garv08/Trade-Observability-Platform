@@ -626,6 +626,8 @@ async function refreshStudies() {
     if (study.id === "carney" || study.id === "carney_prz" || study.id.startsWith("harm_")) {
       harmonicStudies += 1;
       drawHarmonics(study, markers);
+    } else if ((study.drawings || []).length) {
+      drawHarmonics(study, markers, false);
     }
     const color = PALETTE[index % PALETTE.length];
     const keys = Object.keys(study.series);
@@ -794,10 +796,10 @@ function renderExplain(data) {
     </section>`;
 }
 
-function drawHarmonics(study, markers) {
+function drawHarmonics(study, markers, harmonic = true) {
   (study.drawings || []).forEach((drawing, n) => {
     if (study.id === "carney_prz") state.przLive.push(drawing);
-    else state.harmonics.push(drawing);
+    else if (harmonic) state.harmonics.push(drawing);
     const legs = chart.addLineSeries({ color: drawing.color, lineWidth: 2, priceLineVisible: false, lastValueVisible: false, crosshairMarkerVisible: false });
     legs.setData(drawing.legs.map((p) => ({ time: p.time, value: p.value })));
     overlaySeries.set(`${study.id}:legs:${n}`, legs);
@@ -806,6 +808,8 @@ function drawHarmonics(study, markers) {
       line.setData(guide.map((p) => ({ time: p.time, value: p.value })));
       if (guide[0].label === "D" || guide[0].label === "HOP") {
         line.createPriceLine({ price: guide[0].value, color: drawing.color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: `${guide[0].label} ${drawing.name.split(" PRZ")[0]}` });
+      } else if (!harmonic && guide[0].label) {
+        line.createPriceLine({ price: guide[0].value, color: drawing.color, lineWidth: 1, lineStyle: LightweightCharts.LineStyle.Dotted, axisLabelVisible: true, title: guide[0].label });
       }
       overlaySeries.set(`${study.id}:guide:${n}:${g}`, line);
     });

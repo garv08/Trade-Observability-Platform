@@ -10,6 +10,8 @@ SECTIONS = [
     "Harmonics",
     "@neurotrader888",
     "@UnbiasedTradingGoshawk",
+    "@wealthcreator7",
+    "@PhoenixHarmonic",
     "Moving averages",
     "Bands and channels",
     "Trend",
@@ -1048,6 +1050,10 @@ def _build():
     from top.creators import register_studies
 
     register_studies(_add, P, O)
+
+    from top.channels import register_studies as register_channels
+
+    register_channels(_add, P)
 
     from top.research import register_studies as register_research
 

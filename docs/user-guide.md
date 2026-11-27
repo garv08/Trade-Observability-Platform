@@ -69,7 +69,7 @@ Your studies stay on when you switch stocks.
 
 ## Indicators and durations
 
-There are **153 studies** in 10 searchable dropdowns: Harmonics, @neurotrader888, @UnbiasedTradingGoshawk, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, and Price statistics. They are listed in full in the [indicator catalog](indicators.md).
+There are **156 studies** in 12 searchable dropdowns: Harmonics, @neurotrader888, @UnbiasedTradingGoshawk, @wealthcreator7, @PhoenixHarmonic, Moving averages, Bands and channels, Trend, Momentum, Volatility, Volume, and Price statistics. They are listed in full in the [indicator catalog](indicators.md).
 
 - **Add or remove**: pick a study in its dropdown. The list stays open so you can add several, and ✓ marks the ones that are on.
 - **Overlay or Pane**: overlays draw on price; panes open below the chart.
@@ -135,6 +135,8 @@ Honest result: on 271 liquid stocks, median return ÷ max drawdown is about 0.26
 
 Matching strategies: **Darvas box breakout** and **Volume breakout trend** in the Breakout group.
 
+**To turn Darvas on:** open the **Bands and channels** dropdown under Indicators, type `darvas`, and pick **Darvas box**. To backtest it, search `darvas` in the **Backtest** box and pick **Darvas box breakout**, then **Run backtest**. A link does both at once: `/?symbol=INFY&studies=darvas&strategy=darvas_breakout&run=backtest`. On 271 liquid stocks Darvas breakouts win 40% of trades with a profit factor of about 2; the **Long base breakout** below is a slower, stronger version of the same idea.
+
 ---
 
 ## Key levels and pattern breakouts
@@ -183,7 +185,7 @@ The pane under the chart refreshes whenever you change anything on the left.
 ![Backtest](images/backtest.png)
 
 1. Pick a stock.
-2. In **Backtest**, search a strategy (for example `gartley`, `darvas`, `breakout`, `rsi`, or `@neuro`). There are 92, listed in the [strategy catalog](strategies.md).
+2. In **Backtest**, search a strategy (for example `gartley`, `darvas`, `breakout`, `rsi`, or `@neuro`). There are 99, listed in the [strategy catalog](strategies.md).
 3. Adjust its settings, **Capital** (default ₹10,00,000), **Cost bps** (default 5), and **Sizing**:
    - **Full**: every entry uses all equity (default).
    - **Vol target**: each entry uses *Target vol %* ÷ the stock's 20-day volatility of equity, capped at 100%, so calm stocks get full size and wild ones less.
@@ -209,7 +211,7 @@ Under the cards, **Monte Carlo** reshuffles the closed trades 1,000 times and re
 
 ## Strategy leaderboard
 
-Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 95 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 610,000 backtests.
+Click **Leaderboard** in the top bar (or open `/leaderboard.html`) for a page that ranks **every strategy on every script**: all 99 strategies, with default settings, on every stock, ETF, and index with at least a year of bars, about 610,000 backtests.
 
 1. Press **Run backtests**. The work runs in the background on all CPU cores at low priority, and the page shows progress, speed, and time left. The Nifty 50 and indices go first, then ETFs, then BSE stocks by traded value, so useful rows appear early. It takes a few hours on a slow two-core PC.
 2. **Stop** at any time. **Run / resume** carries on where it stopped and, after a daily sync, recomputes only scripts with new bars. **Recompute all** starts over.
@@ -269,6 +271,23 @@ Ranking happens at each month-end close using only data to that close; trades ha
 
 > [!WARNING]
 > The universe is today's listing, so stocks that were delisted in the last five years are missing. That survivorship bias flatters these results, especially for small caps.
+
+---
+
+## Telegram channel methods
+
+Two Indian Telegram channels were read for their trading rules; only the methods are used.
+
+| Group | Strategies | Indicators |
+| --- | --- | --- |
+| **@wealthcreator7** | **Long base breakout**: buy the breakout day of a base of a year or more on 1.5× volume with the stop within 8%, hold until a Friday close below the weekly 40 EMA. **21 EMA pullback**: with EMA 21 > 50 > 200, buy a dip to EMA 21, exit below EMA 50 | **Long base + weekly 40 EMA**: the base's top and floor, the weekly EMA, breakout and exit markers |
+| **@PhoenixHarmonic** | **BAMM** (Bat Action Magnetic Move): a close above B is pulled toward D at 0.886 of XA, with C as support. **Half Bat reversal**: buy the turn from 0.5 of a rally, target the high, stop below 0.886 | **BAMM** and **Half Bat zone**: past trades plus live setups with their trigger, target and stop lines |
+
+![Long base on Axis Bank](images/long-base.png)
+
+![Half Bat zone on NTPC](images/phoenix-half-bat.png)
+
+On 271 liquid stocks (next-open fills, 0.1% costs) the long base had a profit factor of about 7.8 and averaged +21% a trade, but fires only a few times per stock in five years. BAMM and Half Bat win about 60% of trades with small average gains. Details in [creators.md](creators.md#telegram-channels).
 
 ---
 

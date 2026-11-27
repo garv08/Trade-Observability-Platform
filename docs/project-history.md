@@ -173,6 +173,20 @@ How TOP was built: each request, what was delivered, and the decisions and probl
 - The cron run then held the database for its leaderboard refresh, so the server could not start.
 - Now a day is done only once its exchange bars arrive, with retries until 23:30 IST. Cron syncs data only, and the server refreshes the leaderboard when it starts.
 
+## 11. Methods from two Telegram channels (v0.11.0)
+
+**Ask:** scan the Phoenix Harmonic and Wealthcreator Telegram archives and turn their analysis into meaningful, backtestable indicators; explain how to turn on Darvas boxes.
+
+**Sources:**
+- Phoenix Harmonic: 35,058 posts (2020–2026) and 26,044 images, most of them 90-pixel thumbnails. The ratios were read off the full-size charts.
+- Wealthcreator: 854 posts and 531 charts. It states its rules in numbered case studies.
+
+**Built:** four strategies and three studies. Their rules and results are in [creators.md](creators.md#telegram-channels).
+
+**Darvas** was already built in: the *Darvas box* study in Bands and channels, and the *Darvas box breakout* strategy. The user guide now says how to turn it on.
+
+**Leaderboard:** the data had moved on, so every strategy is due for recompute on every script, about 8 hours on this laptop. The server does that in the background, and `results/` is left at its 8 Nov snapshot until it finishes.
+
 ## Working rules
 
 - Commit and push as garv08 only, with no co-author trailer.
